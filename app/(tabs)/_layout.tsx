@@ -9,55 +9,90 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: '#8BC34A',
-        tabBarInactiveTintColor: '#666',
+        tabBarInactiveTintColor: '#9E9E9E',
         headerShown: false,
         tabBarButton: HapticTab,
         tabBarStyle: {
-          backgroundColor: '#fff',
-          borderTopWidth: 1,
-          borderTopColor: '#e0e0e0',
-          paddingBottom: 5,
-          paddingTop: 5,
-          height: 70,
+          backgroundColor: '#1A1A1A',
+          borderTopWidth: 0,
+          paddingBottom: 8,
+          paddingTop: 8,
+          height: 75,
+          elevation: 0,
+          shadowOpacity: 0,
         },
         tabBarLabelStyle: {
-          fontSize: 12,
+          fontSize: 11,
           fontWeight: '500',
+          marginTop: 4,
+        },
+        tabBarIconStyle: {
+          marginBottom: 2,
         },
       }}>
       <Tabs.Screen
         name="index"
         options={{
           title: 'Beranda',
-          tabBarIcon: ({ color }) => <Ionicons name="home" size={24} color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons 
+              name={focused ? "home" : "home-outline"} 
+              size={26} 
+              color={color} 
+            />
+          ),
         }}
       />
       <Tabs.Screen
         name="explore"
         options={{
           title: 'Ladang',
-          tabBarIcon: ({ color }) => <Ionicons name="leaf" size={24} color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons 
+              name={focused ? "leaf" : "leaf-outline"} 
+              size={26} 
+              color={color} 
+            />
+          ),
         }}
       />
       <Tabs.Screen
         name="education"
         options={{
           title: 'Edukasi',
-          tabBarIcon: ({ color }) => <Ionicons name="school" size={24} color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons 
+              name={focused ? "school" : "school-outline"} 
+              size={26} 
+              color={color} 
+            />
+          ),
         }}
       />
       <Tabs.Screen
         name="weather"
         options={{
           title: 'Cuaca',
-          tabBarIcon: ({ color }) => <Ionicons name="cloud" size={24} color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons 
+              name={focused ? "partly-sunny" : "partly-sunny-outline"} 
+              size={26} 
+              color={color} 
+            />
+          ),
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
           title: 'Profil',
-          tabBarIcon: ({ color }) => <Ionicons name="person" size={24} color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons 
+              name={focused ? "person" : "person-outline"} 
+              size={26} 
+              color={color} 
+            />
+          ),
         }}
       />
     </Tabs>
