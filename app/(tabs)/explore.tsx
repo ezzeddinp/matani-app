@@ -1,18 +1,18 @@
 import { ThemedView } from '@/components/themed-view';
-import React, { useState, useEffect, useRef } from 'react';
-import { 
-  StatusBar, 
-  StyleSheet, 
-  Text, 
-  TouchableOpacity, 
-  View, 
-  Alert,
-  Modal,
-  TextInput,
-  Dimensions
-} from 'react-native';
-import MapView, { Polygon, Polyline, Marker } from 'react-native-maps';
 import * as Location from 'expo-location';
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  Alert,
+  Dimensions,
+  Modal,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
+} from 'react-native';
+import MapView, { Marker, Polygon, Polyline } from 'react-native-maps';
 
 const { width } = Dimensions.get('window');
 
