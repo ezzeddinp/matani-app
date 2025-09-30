@@ -1,6 +1,7 @@
 import { ThemedView } from '@/components/themed-view';
+import { LahanWithInfo, lahanService, supabase } from '@/hooks/supabase';
 import * as Location from 'expo-location';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
   Dimensions,
@@ -12,17 +13,27 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
-import MapView, { Marker, Polygon, Polyline } from 'react-native-maps';
+import MapView, { LatLng, MapPressEvent, Marker, Polygon, Polyline } from 'react-native-maps';
+
+type SavedLahanItem = {
+  id: string;
+  name: string;
+  coordinates: LatLng[];
+  areaHa?: number | null;
+};
 
 const { width } = Dimensions.get('window');
 
 export default function ExploreScreen() {
+  const fallbackUserId = process.env.EXPO_PUBLIC_SUPABASE_DEFAULT_USER_ID;
   const [selectedFilter, setSelectedFilter] = useState('NDVI');
   const [drawingMode, setDrawingMode] = useState(false);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [lahanName, setLahanName] = useState('');
-  const [polygonCoords, setPolygonCoords] = useState<{latitude: number, longitude: number}[]>([]);
-  const [currentPath, setCurrentPath] = useState<{latitude: number, longitude: number}[]>([]);
+  const [currentPath, setCurrentPath] = useState<LatLng[]>([]);
+  const [pendingPolygon, setPendingPolygon] = useState<LatLng[]>([]);
+  const [savedLahan, setSavedLahan] = useState<SavedLahanItem[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
   const mapRef = useRef<MapView>(null);
   const [userLocation, setUserLocation] = useState({
     latitude: -6.2088,
@@ -33,12 +44,53 @@ export default function ExploreScreen() {
 
   const filters = ['NDVI', 'Kontras NDVI', 'Pengendapan', 'Tanah'];
 
-  // Get user location on component mount
-  useEffect(() => {
-    getCurrentLocation();
+  const toLatLngCoordinates = useCallback((geojson: any): LatLng[] => {
+    if (!geojson) return [];
+
+    const parsed = typeof geojson === 'string' ? JSON.parse(geojson) : geojson;
+    const ring: number[][] = parsed?.coordinates?.[0] ?? [];
+    if (!Array.isArray(ring)) return [];
+
+    const withoutClosingPoint = ring.slice(0, ring.length > 1 ? -1 : ring.length);
+    return withoutClosingPoint.map(point => ({
+      latitude: point[1],
+      longitude: point[0],
+    }));
   }, []);
 
-  const getCurrentLocation = async () => {
+  const loadSavedLahan = useCallback(async () => {
+    try {
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+      if (authError) {
+        throw authError;
+      }
+
+      const userId = authData?.user?.id ?? fallbackUserId;
+      if (!userId) {
+        return;
+      }
+
+      const lahanList = (await lahanService.getLahanByUser(userId)) as LahanWithInfo[];
+      if (!Array.isArray(lahanList)) {
+        return;
+      }
+
+      const mapped = lahanList
+        .map(item => ({
+          id: item.id,
+          name: item.name,
+          coordinates: toLatLngCoordinates(item.geojson),
+          areaHa: item.area_ha,
+        }))
+        .filter(item => item.coordinates.length >= 3);
+
+      setSavedLahan(mapped);
+    } catch (error) {
+      console.error('❌ Gagal memuat data lahan:', error);
+    }
+  }, [fallbackUserId, toLatLngCoordinates]);
+
+  const getCurrentLocation = useCallback(async () => {
     try {
       console.log('📍 Requesting location permission...');
       let { status } = await Location.requestForegroundPermissionsAsync();
@@ -62,13 +114,21 @@ export default function ExploreScreen() {
       console.error('❌ Location error:', error);
       Alert.alert('Error', 'Gagal mendapatkan lokasi');
     }
-  };
+  }, []);
 
+  useEffect(() => {
+    getCurrentLocation();
+    loadSavedLahan();
+  }, [getCurrentLocation, loadSavedLahan]);
   // Enhanced map interaction for polygon drawing like in the image
-  const handleMapPress = (event: any) => {
+  const handleMapPress = (event: MapPressEvent) => {
     if (!drawingMode) return;
 
-    const coordinate = event.nativeEvent.coordinate;
+    const rawCoordinate = event.nativeEvent.coordinate;
+    const coordinate: LatLng = {
+      latitude: rawCoordinate.latitude,
+      longitude: rawCoordinate.longitude,
+    };
     
     if (currentPath.length === 0) {
       // Start new drawing
@@ -81,7 +141,7 @@ export default function ExploreScreen() {
     }
   };
 
-  const calculateArea = (coordinates: {latitude: number, longitude: number}[]) => {
+  const calculateArea = (coordinates: LatLng[]) => {
     if (coordinates.length < 3) return 0;
     
     // Simple area calculation (not accurate for real use)
@@ -98,10 +158,16 @@ export default function ExploreScreen() {
     return area * 10000; // Convert to hectares
   };
 
+  const clearActivePath = useCallback(() => {
+    setCurrentPath([]);
+    setPendingPolygon([]);
+  }, []);
+
   const startDrawing = () => {
     setDrawingMode(true);
-    setPolygonCoords([]);
-    setCurrentPath([]);
+    setShowSaveModal(false);
+    setLahanName('');
+    clearActivePath();
     Alert.alert(
       'Mode Gambar Aktif', 
       'Tap pada peta untuk menandai titik-titik polygon. Seperti pada contoh gambar.'
@@ -114,44 +180,121 @@ export default function ExploreScreen() {
       return;
     }
     
-    // Close the polygon by using the current path
-    setPolygonCoords([...currentPath]);
+    const completedPath = [...currentPath];
+    setPendingPolygon(completedPath);
     setDrawingMode(false);
     setShowSaveModal(true);
   };
 
   const cancelDrawing = () => {
     setDrawingMode(false);
-    setPolygonCoords([]);
-    setCurrentPath([]);
+    setShowSaveModal(false);
+    setLahanName('');
+    clearActivePath();
   };
 
   const undoLastPoint = () => {
-    if (currentPath.length > 1) {
-      const reducedPath = currentPath.slice(0, -1);
-      setCurrentPath(reducedPath);
-    }
+    setCurrentPath(prevPath => {
+      if (prevPath.length <= 1) {
+        return [];
+      }
+      return prevPath.slice(0, -1);
+    });
   };
 
-  const saveLahan = () => {
-    if (!lahanName.trim()) {
+  const saveLahan = async () => {
+    const trimmedName = lahanName.trim();
+
+    if (!trimmedName) {
       Alert.alert('Error', 'Nama lahan tidak boleh kosong');
       return;
     }
+
+    if (pendingPolygon.length < 3) {
+      Alert.alert('Error', 'Polygon lahan belum lengkap untuk disimpan.');
+      return;
+    }
+
+    if (isSaving) {
+      return;
+    }
+
+    const polygonToPersist = [...pendingPolygon];
+    const area = calculateArea(polygonToPersist);
     
-    // TODO: Save to database
-    console.log('💾 Saving lahan:', {
-      name: lahanName,
-      coordinates: polygonCoords,
-      area: calculateArea(polygonCoords)
-    });
-    
+    try {
+      setIsSaving(true);
+
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+      if (authError) {
+        throw authError;
+      }
+
+      const userId = authData?.user?.id ?? fallbackUserId;
+      if (!userId) {
+        Alert.alert('Perlu Login', 'Silakan masuk terlebih dahulu untuk menyimpan data lahan.');
+        return;
+      }
+
+      console.log('💾 Saving lahan to Supabase:', {
+        name: trimmedName,
+        coordinates: polygonToPersist,
+        area,
+        userId,
+      });
+
+      const savedEntry = await lahanService.saveLahan(
+        trimmedName,
+        polygonToPersist,
+        userId,
+        area
+      );
+
+      console.log('✅ Lahan saved response:', savedEntry);
+
+      const savedArea = Number(savedEntry?.area_ha ?? area);
+      const areaText = Number.isFinite(savedArea) ? savedArea.toFixed(2) : area.toFixed(2);
+
+      const newSavedLahan: SavedLahanItem = {
+        id: savedEntry?.id ?? `local-${Date.now()}`,
+        name: trimmedName,
+        coordinates: polygonToPersist,
+        areaHa: savedArea,
+      };
+
+      setSavedLahan(prev => {
+        const filtered = prev.filter(item => item.id !== newSavedLahan.id);
+        return [...filtered, newSavedLahan];
+      });
+
+      loadSavedLahan();
+
+      setShowSaveModal(false);
+      setLahanName('');
+      Alert.alert('Sukses', `Lahan "${trimmedName}" berhasil disimpan!\nLuas: ${areaText} ha`);
+    } catch (error: any) {
+      console.error('❌ Gagal menyimpan lahan:', error);
+      const message = error?.message === 'USER_ID_REQUIRED'
+        ? 'ID pengguna tidak ditemukan. Pastikan Anda sudah login.'
+        : error?.message || 'Terjadi kesalahan saat menyimpan lahan.';
+      Alert.alert('Gagal', message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleCancelSave = () => {
     setShowSaveModal(false);
     setLahanName('');
-    setPolygonCoords([]);
-    setCurrentPath([]);
-    Alert.alert('Sukses', `Lahan "${lahanName}" berhasil disimpan!\nLuas: ${calculateArea(polygonCoords).toFixed(2)} ha`);
+    clearActivePath();
   };
+
+  const pendingArea = calculateArea(pendingPolygon);
+  const formattedPendingArea = Number.isFinite(pendingArea) ? pendingArea.toFixed(2) : '0.00';
+
+  const previewPath = currentPath.length >= 3
+    ? [...currentPath, currentPath[0]]
+    : currentPath;
 
   return (
     <ThemedView style={styles.container}>
@@ -186,64 +329,93 @@ export default function ExploreScreen() {
           showsUserLocation={true}
           showsMyLocationButton={false}
         >
-          {/* Render current drawing as connected lines (like in the image) */}
-          {drawingMode && currentPath.length > 1 && (
+          {/* Render current drawing preview */}
+          {drawingMode && previewPath.length > 0 && (
             <>
-              <Polyline
-                coordinates={currentPath}
-                strokeColor="#FF5722"
-                strokeWidth={4}
-                lineDashPattern={[8, 4]}
-              />
-              {/* Show preview of closing line */}
-              {currentPath.length > 2 && (
-                <Polyline
-                  coordinates={[currentPath[currentPath.length - 1], currentPath[0]]}
-                  strokeColor="#FF5722"
+              {currentPath.length >= 3 && (
+                <Polygon
+                  coordinates={previewPath}
+                  fillColor="rgba(255, 138, 101, 0.25)"
+                  strokeColor="rgba(255, 87, 34, 0.8)"
                   strokeWidth={2}
-                  lineDashPattern={[3, 3]}
+                />
+              )}
+              {currentPath.length > 1 && (
+                <Polyline
+                  coordinates={previewPath}
+                  strokeColor="#FF5722"
+                  strokeWidth={6}
+                  lineCap="round"
+                  geodesic
                 />
               )}
             </>
           )}
 
-          {/* Render completed polygon with fill like in the image */}
-          {polygonCoords.length > 2 && !drawingMode && (
+          {!drawingMode && pendingPolygon.length > 2 && (
             <Polygon
-              coordinates={polygonCoords}
-              fillColor="rgba(255, 87, 34, 0.4)"
-              strokeColor="#FF5722"
-              strokeWidth={4}
+              coordinates={pendingPolygon}
+              fillColor="rgba(255, 138, 101, 0.25)"
+              strokeColor="#FF7043"
+              strokeWidth={3}
             />
           )}
+
+          {savedLahan.map(item => {
+            if (!item.coordinates || item.coordinates.length < 3) {
+              return null;
+            }
+
+            const labelIndex = Math.floor(item.coordinates.length / 2);
+            const labelCoordinate = item.coordinates[labelIndex] ?? item.coordinates[0];
+
+            return (
+              <React.Fragment key={`saved-${item.id}`}>
+                <Polygon
+                  coordinates={item.coordinates}
+                  fillColor="rgba(76, 175, 80, 0.25)"
+                  strokeColor="#388E3C"
+                  strokeWidth={3}
+                  tappable={false}
+                />
+                {labelCoordinate && (
+                  <Marker
+                    coordinate={labelCoordinate}
+                    anchor={{ x: 0.5, y: 0.5 }}
+                    tappable={false}
+                  >
+                    <View style={styles.savedLahanLabel}>
+                      <Text style={styles.savedLahanLabelText}>{item.name}</Text>
+                      {typeof item.areaHa === 'number' && Number.isFinite(item.areaHa) && (
+                        <Text style={styles.savedLahanLabelSubtext}>
+                          {item.areaHa.toFixed(2)} ha
+                        </Text>
+                      )}
+                    </View>
+                  </Marker>
+                )}
+              </React.Fragment>
+            );
+          })}
 
           {/* Show vertex points during drawing */}
           {drawingMode && currentPath.map((coord, index) => (
             <Marker
-              key={index}
+              key={`draft-point-${index}`}
               coordinate={coord}
-              anchor={{x: 0.5, y: 0.5}}
+              anchor={{ x: 0.5, y: 0.5 }}
+              zIndex={10 + index}
             >
-              <View style={[
-                styles.drawingVertex,
-                index === 0 && styles.startVertex,
-                index === currentPath.length - 1 && styles.currentVertex
-              ]} />
+              <View
+                style={[
+                  styles.drawingVertex,
+                  index === 0 && styles.startVertex,
+                  index === currentPath.length - 1 && styles.currentVertex,
+                ]}
+              />
             </Marker>
           ))}
 
-          {/* Mock existing lahan - Green field */}
-          <Polygon
-            coordinates={[
-              { latitude: userLocation.latitude + 0.002, longitude: userLocation.longitude + 0.002 },
-              { latitude: userLocation.latitude + 0.004, longitude: userLocation.longitude + 0.002 },
-              { latitude: userLocation.latitude + 0.004, longitude: userLocation.longitude + 0.005 },
-              { latitude: userLocation.latitude + 0.002, longitude: userLocation.longitude + 0.005 },
-            ]}
-            fillColor="rgba(139, 195, 74, 0.3)"
-            strokeColor="#8BC34A"
-            strokeWidth={3}
-          />
         </MapView>
 
         {/* Map controls */}
@@ -332,10 +504,10 @@ export default function ExploreScreen() {
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Simpan Lahan</Text>
             <Text style={styles.modalSubtitle}>
-              Luas: {calculateArea(currentPath).toFixed(2)} ha
+              Luas: {formattedPendingArea} ha
             </Text>
             <Text style={styles.modalSubtitle}>
-              {currentPath.length} titik koordinat
+              {pendingPolygon.length} titik koordinat
             </Text>
             <TextInput
               style={styles.textInput}
@@ -346,12 +518,18 @@ export default function ExploreScreen() {
             <View style={styles.modalButtons}>
               <TouchableOpacity 
                 style={styles.modalCancelButton} 
-                onPress={() => setShowSaveModal(false)}
+                onPress={handleCancelSave}
               >
                 <Text style={styles.modalCancelText}>Batal</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.modalSaveButton} onPress={saveLahan}>
-                <Text style={styles.modalSaveText}>Simpan</Text>
+              <TouchableOpacity
+                style={[styles.modalSaveButton, isSaving && styles.modalSaveButtonDisabled]}
+                onPress={saveLahan}
+                disabled={isSaving}
+              >
+                <Text style={styles.modalSaveText}>
+                  {isSaving ? 'Menyimpan...' : 'Simpan'}
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -485,6 +663,23 @@ const styles = StyleSheet.create({
     color: '#2196F3',
     fontSize: 14,
     marginTop: 5,
+  },
+  savedLahanLabel: {
+    backgroundColor: 'rgba(56, 142, 60, 0.9)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    minWidth: 110,
+  },
+  savedLahanLabelText: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  savedLahanLabelSubtext: {
+    color: '#E8F5E9',
+    fontSize: 12,
+    marginTop: 2,
   },
   mapControls: {
     position: 'absolute',
@@ -659,6 +854,9 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 5,
   },
+  modalSaveButtonDisabled: {
+    opacity: 0.6,
+  },
   modalSaveText: {
     color: 'white',
     fontWeight: 'bold',
@@ -689,12 +887,18 @@ const styles = StyleSheet.create({
     width: 16,
     height: 16,
     borderRadius: 8,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    elevation: 4,
   },
   currentVertex: {
-    backgroundColor: '#FFC107',
-    width: 14,
-    height: 14,
-    borderRadius: 7,
+    backgroundColor: '#FFD54F',
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 2,
+    borderColor: '#FF5722',
+    elevation: 5,
   },
   instructionBanner: {
     backgroundColor: '#FF5722',

@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Location from 'expo-location';
 import { useEffect, useState } from 'react';
-import { Image, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Image, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { BASE_URL } from "../../hooks/config";
 
 interface WeatherCardProps {
@@ -46,6 +46,37 @@ interface NDVIData {
   ndvi_mean: number;
   ndvi_stdev: number;
 }
+
+const formatGeocodedLocation = (place?: Location.LocationGeocodedAddress | null) => {
+  if (!place) return null;
+
+  const candidateParts = [
+    place.subregion,
+    place.city,
+    place.district,
+    place.region,
+    place.country,
+  ];
+
+  const uniqueParts: string[] = [];
+  candidateParts.forEach((part) => {
+    if (!part) return;
+    const normalised = part.trim();
+    if (!normalised) return;
+    const alreadyIncluded = uniqueParts.some(
+      (existing) => existing.localeCompare(normalised, undefined, { sensitivity: 'accent', usage: 'search' }) === 0
+    );
+    if (!alreadyIncluded) {
+      uniqueParts.push(normalised);
+    }
+  });
+
+  if (uniqueParts.length === 0) {
+    return null;
+  }
+
+  return uniqueParts.slice(0, 3).join(', ');
+};
 
 const WeatherCard = ({ location, temperature, highTemp, lowTemp, humidity, rainfall, pressure, windSpeed }: WeatherCardProps) => (
   <View style={styles.weatherCard}>
@@ -198,67 +229,117 @@ const fetchWeatherData = async (latitude: number, longitude: number) => {
 };
 
   useEffect(() => {
-  const fetchLocationAndWeather = async () => {
-    try {
-      console.log("Requesting location permission...");
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== "granted") {
-        console.log("Location permission denied");
-        setWeatherData(prev => ({
-          ...prev,
-          location: "Sleman, Yogyakarta",
-          temperature: 23,
-          highTemp: 26,
-          lowTemp: 20,
-          humidity: 76,
-          rainfall: 5,
-          pressure: 1019,
-          windSpeed: 18,
-        }));
-        setLoading(false);
-        return;
+    let isMounted = true;
+
+    const fetchLocationAndWeather = async () => {
+      try {
+        console.log("Requesting location permission...");
+        const { status } = await Location.requestForegroundPermissionsAsync();
+
+        if (status !== "granted") {
+          console.log("Location permission denied");
+          if (isMounted) {
+            Alert.alert(
+              "Izin Lokasi Diperlukan",
+              "Aktifkan izin lokasi agar data cuaca dan ladang tampil akurat."
+            );
+            setWeatherData((prev) => ({
+              ...prev,
+              location: "Izin lokasi belum diberikan",
+            }));
+          }
+          return;
+        }
+
+        const servicesEnabled = await Location.hasServicesEnabledAsync();
+        if (!servicesEnabled && isMounted) {
+          Alert.alert(
+            "Layanan Lokasi Nonaktif",
+            "Aktifkan GPS atau layanan lokasi perangkat Anda untuk akurasi terbaik."
+          );
+        }
+
+        let position: Location.LocationObject | null = null;
+
+        try {
+          position = await Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.Highest,
+            mayShowUserSettingsDialog: true,
+          });
+        } catch (positionError) {
+          console.warn("Primary location fetch failed, trying last known position", positionError);
+          position = await Location.getLastKnownPositionAsync();
+        }
+
+        if (!position) {
+          throw new Error("LOCATION_UNAVAILABLE");
+        }
+
+        const { latitude, longitude } = position.coords;
+        console.log(`User location: ${latitude}, ${longitude}`);
+
+        let locationName = "Lokasi tidak diketahui";
+        try {
+          const geocoded = await Location.reverseGeocodeAsync({ latitude, longitude });
+          locationName =
+            formatGeocodedLocation(geocoded?.[0] ?? null) ??
+            `Lat ${latitude.toFixed(2)}, Lon ${longitude.toFixed(2)}`;
+        } catch (reverseError) {
+          console.warn("Reverse geocoding failed", reverseError);
+        }
+
+        if (isMounted) {
+          setWeatherData((prev) => ({
+            ...prev,
+            location: locationName,
+          }));
+        }
+
+        const [weather, ndvi] = await Promise.all([
+          fetchWeatherData(latitude, longitude),
+          fetchNDVIData(latitude, longitude),
+        ]);
+
+        if (isMounted) {
+          setNativeData(ndvi || []);
+          setWeatherData((prev) => ({
+            location: locationName,
+            temperature: weather?.temperature ?? prev.temperature,
+            highTemp: weather?.highTemp ?? prev.highTemp,
+            lowTemp: weather?.lowTemp ?? prev.lowTemp,
+            humidity: weather?.humidity ?? prev.humidity,
+            rainfall: weather?.rainfall ?? prev.rainfall,
+            pressure: weather?.pressure ?? prev.pressure,
+            windSpeed: weather?.windSpeed ?? prev.windSpeed,
+          }));
+        }
+
+        console.log("Weather & NDVI data updated successfully");
+      } catch (error) {
+        console.error("Error fetching location or weather:", error);
+        if (isMounted) {
+          Alert.alert(
+            "Lokasi tidak tersedia",
+            "Kami tidak dapat mendeteksi lokasi Anda. Pastikan GPS aktif lalu coba lagi."
+          );
+          setWeatherData((prev) => ({
+            ...prev,
+            location: "Lokasi tidak tersedia",
+          }));
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
       }
+    };
 
-      console.log("Location permission granted, getting current position...");
-      const location = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
+    fetchLocationAndWeather();
 
-      const { latitude, longitude } = location.coords;
-      console.log(`User location: ${latitude}, ${longitude}`);
-
-      // Ambil cuaca dari backend
-      const weather = await fetchWeatherData(latitude, longitude);
-
-      // Ambil NDVI data
-      const ndvi = await fetchNDVIData(latitude, longitude);
-      setNativeData(ndvi || []);
-
-      if (weather) {
-        setWeatherData(weather);
-      }
-
-      console.log("Weather & NDVI data updated successfully");
-    } catch (error) {
-      console.error("Error fetching location or weather:", error);
-      setWeatherData(prev => ({
-        ...prev,
-        location: "N/A",
-        temperature: 0,
-        highTemp: 0,
-        lowTemp: 0,
-        humidity: 0,
-        rainfall: 0,
-        pressure: 0,
-        windSpeed: 0,
-      }));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  fetchLocationAndWeather();
-}, []);
+    return () => {
+      isMounted = false;
+    };
+  }, []);
  // Empty dependency array is correct here
 
   return (
