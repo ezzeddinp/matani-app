@@ -3,8 +3,10 @@ import { LahanWithInfo, lahanService, supabase } from '@/hooks/supabase';
 import * as Location from 'expo-location';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   Dimensions,
+  Keyboard,
   Modal,
   StatusBar,
   StyleSheet,
@@ -22,6 +24,14 @@ type SavedLahanItem = {
   areaHa?: number | null;
 };
 
+type SearchSuggestion = {
+  id: string;
+  label: string;
+  subtitle?: string;
+  latitude: number;
+  longitude: number;
+};
+
 const { width } = Dimensions.get('window');
 
 export default function ExploreScreen() {
@@ -33,6 +43,11 @@ export default function ExploreScreen() {
   const [currentPath, setCurrentPath] = useState<LatLng[]>([]);
   const [pendingPolygon, setPendingPolygon] = useState<LatLng[]>([]);
   const [savedLahan, setSavedLahan] = useState<SavedLahanItem[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<SearchSuggestion[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showSearchResults, setShowSearchResults] = useState(false);
+  const [searchMarker, setSearchMarker] = useState<LatLng | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const mapRef = useRef<MapView>(null);
   const [userLocation, setUserLocation] = useState({
@@ -120,8 +135,105 @@ export default function ExploreScreen() {
     getCurrentLocation();
     loadSavedLahan();
   }, [getCurrentLocation, loadSavedLahan]);
+
+  useEffect(() => {
+    const query = searchQuery.trim();
+
+    if (query.length === 0) {
+      setSearchResults([]);
+      setShowSearchResults(false);
+      setIsSearching(false);
+      return;
+    }
+
+    if (query.length < 3) {
+      setSearchResults([]);
+      setShowSearchResults(false);
+      setIsSearching(false);
+      return;
+    }
+
+    let isActive = true;
+    const controller = new AbortController();
+  setIsSearching(true);
+  setShowSearchResults(true);
+
+    const timeoutId = setTimeout(async () => {
+      try {
+        const endpoint = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=6&q=${encodeURIComponent(query)}`;
+        const response = await fetch(endpoint, {
+          headers: {
+            'User-Agent': 'MataniApp/1.0 (https://matani.app)',
+            'Accept-Language': 'id,en',
+          },
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          throw new Error('Gagal mencari lokasi');
+        }
+
+        const raw = await response.json();
+        if (!isActive) return;
+
+        const normalized = (Array.isArray(raw) ? raw : [])
+          .map((item: any, index: number) => {
+            const lat = parseFloat(item?.lat);
+            const lon = parseFloat(item?.lon);
+            if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+              return null;
+            }
+
+            const address = item?.address ?? {};
+            const subtitleParts = [
+              address.road,
+              address.neighbourhood || address.suburb,
+              address.city || address.town || address.village,
+              address.state,
+            ].filter(Boolean);
+
+            return {
+              id: String(item?.place_id ?? index),
+              label: item?.display_name ?? subtitleParts[0] ?? 'Lokasi tanpa nama',
+              subtitle: subtitleParts.length > 0 ? subtitleParts.join(', ') : undefined,
+              latitude: lat,
+              longitude: lon,
+            } as SearchSuggestion;
+          })
+          .filter(Boolean)
+          .slice(0, 6) as SearchSuggestion[];
+
+        setSearchResults(normalized);
+        setShowSearchResults(true);
+      } catch (error) {
+        if (controller.signal.aborted) {
+          return;
+        }
+        console.error('❌ Gagal mencari lokasi:', error);
+        if (isActive) {
+          setSearchResults([]);
+          setShowSearchResults(true);
+        }
+      } finally {
+        if (isActive) {
+          setIsSearching(false);
+        }
+      }
+    }, 400);
+
+    return () => {
+      isActive = false;
+      controller.abort();
+      clearTimeout(timeoutId);
+    };
+  }, [searchQuery]);
   // Enhanced map interaction for polygon drawing like in the image
   const handleMapPress = (event: MapPressEvent) => {
+    if (showSearchResults) {
+      setShowSearchResults(false);
+      Keyboard.dismiss();
+    }
+
     if (!drawingMode) return;
 
     const rawCoordinate = event.nativeEvent.coordinate;
@@ -162,6 +274,65 @@ export default function ExploreScreen() {
     setCurrentPath([]);
     setPendingPolygon([]);
   }, []);
+
+  const handleSearchChange = (text: string) => {
+    setSearchQuery(text);
+    if (text.trim().length === 0) {
+      setSearchResults([]);
+      setShowSearchResults(false);
+      setSearchMarker(null);
+    } else {
+      setShowSearchResults(true);
+    }
+  };
+
+  const handleClearSearch = () => {
+    setSearchQuery('');
+    setSearchResults([]);
+    setShowSearchResults(false);
+    setSearchMarker(null);
+    Keyboard.dismiss();
+  };
+
+  const handleSearchFocus = () => {
+    if (searchResults.length > 0) {
+      setShowSearchResults(true);
+    }
+  };
+
+  const handleSelectSearchResult = (result: SearchSuggestion) => {
+    Keyboard.dismiss();
+
+    const coordinate = {
+      latitude: result.latitude,
+      longitude: result.longitude,
+    };
+
+    setSearchQuery(result.label);
+    setSearchResults([]);
+    setShowSearchResults(false);
+    setSearchMarker(coordinate);
+
+    clearActivePath();
+    setDrawingMode(false);
+    setShowSaveModal(false);
+
+    setUserLocation(prev => ({
+      ...prev,
+      latitude: coordinate.latitude,
+      longitude: coordinate.longitude,
+    }));
+
+    mapRef.current?.animateToRegion(
+      {
+        latitude: coordinate.latitude,
+        longitude: coordinate.longitude,
+        latitudeDelta: 0.008,
+        longitudeDelta: 0.008,
+      },
+      350
+    );
+  };
 
   const startDrawing = () => {
     setDrawingMode(true);
@@ -271,6 +442,7 @@ export default function ExploreScreen() {
 
       setShowSaveModal(false);
       setLahanName('');
+  clearActivePath();
       Alert.alert('Sukses', `Lahan "${trimmedName}" berhasil disimpan!\nLuas: ${areaText} ha`);
     } catch (error: any) {
       console.error('❌ Gagal menyimpan lahan:', error);
@@ -320,6 +492,61 @@ export default function ExploreScreen() {
 
       {/* Map Container - Real MapView */}
       <View style={styles.mapContainer}>
+        <View style={styles.searchContainer} pointerEvents="box-none">
+          <View style={styles.searchInputWrapper}>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Cari lokasi lahan..."
+              placeholderTextColor="#999999"
+              value={searchQuery}
+              onChangeText={handleSearchChange}
+              onFocus={handleSearchFocus}
+              returnKeyType="search"
+            />
+            {isSearching ? (
+              <ActivityIndicator size="small" color="#4CAF50" style={styles.searchSpinner} />
+            ) : searchQuery.length > 0 ? (
+              <TouchableOpacity
+                onPress={handleClearSearch}
+                style={styles.clearSearchButton}
+                accessibilityLabel="Hapus pencarian"
+              >
+                <Text style={styles.clearSearchText}>×</Text>
+              </TouchableOpacity>
+            ) : null}
+          </View>
+
+          {showSearchResults && (
+            <View style={styles.searchResultsContainer}>
+              {isSearching ? (
+                <View style={styles.searchLoadingRow}>
+                  <ActivityIndicator size="small" color="#4CAF50" />
+                  <Text style={styles.searchLoadingText}>Mencari lokasi…</Text>
+                </View>
+              ) : searchResults.length > 0 ? (
+                searchResults.map(result => (
+                  <TouchableOpacity
+                    key={result.id}
+                    style={styles.searchResultItem}
+                    onPress={() => handleSelectSearchResult(result)}
+                  >
+                    <Text style={styles.searchResultTitle} numberOfLines={1}>
+                      {result.label}
+                    </Text>
+                    {result.subtitle && (
+                      <Text style={styles.searchResultSubtitle} numberOfLines={1}>
+                        {result.subtitle}
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+                ))
+              ) : searchQuery.trim().length >= 3 ? (
+                <Text style={styles.searchResultEmpty}>Lokasi tidak ditemukan</Text>
+              ) : null}
+            </View>
+          )}
+        </View>
+
         <MapView
           ref={mapRef}
           style={styles.map}
@@ -358,6 +585,13 @@ export default function ExploreScreen() {
               fillColor="rgba(255, 138, 101, 0.25)"
               strokeColor="#FF7043"
               strokeWidth={3}
+            />
+          )}
+
+          {searchMarker && (
+            <Marker
+              coordinate={searchMarker}
+              pinColor="#2E7D32"
             />
           )}
 
@@ -596,6 +830,89 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     position: 'relative',
   },
+  searchContainer: {
+    position: 'absolute',
+    top: 16,
+    left: 16,
+    right: 16,
+    zIndex: 20,
+  },
+  searchInputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 6,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+    color: '#333333',
+  },
+  searchSpinner: {
+    marginLeft: 8,
+  },
+  clearSearchButton: {
+    marginLeft: 8,
+    padding: 4,
+  },
+  clearSearchText: {
+    fontSize: 18,
+    color: '#999999',
+    fontWeight: '600',
+  },
+  searchResultsContainer: {
+    marginTop: 8,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    maxHeight: 220,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  searchLoadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  searchLoadingText: {
+    fontSize: 13,
+    color: '#555555',
+    marginLeft: 12,
+  },
+  searchResultItem: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#E0E0E0',
+  },
+  searchResultTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333333',
+  },
+  searchResultSubtitle: {
+    fontSize: 12,
+    color: '#666666',
+    marginTop: 4,
+  },
+  searchResultEmpty: {
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    textAlign: 'center',
+    color: '#777777',
+    fontSize: 12,
+  },
   map: {
     width: '100%',
     height: '100%',
@@ -683,7 +1000,7 @@ const styles = StyleSheet.create({
   },
   mapControls: {
     position: 'absolute',
-    top: 20,
+    top: 120,
     right: 20,
   },
   zoomButton: {
