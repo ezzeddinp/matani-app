@@ -1,10 +1,10 @@
 import cors from "cors";
-import 'dotenv/config';
+import "dotenv/config";
 import express from "express";
 import ndviRoute from "./api/ndvi/utils.js";
 
 const app = express();
-const PORT = 5000;
+const PORT = 5001;
 
 // Middleware
 app.use(cors());
