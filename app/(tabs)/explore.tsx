@@ -1,6 +1,7 @@
 import { ThemedView } from '@/components/themed-view';
 import { LahanWithInfo, lahanService, supabase } from '@/hooks/supabase';
 import * as Location from 'expo-location';
+import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -35,6 +36,7 @@ type SearchSuggestion = {
 const { width } = Dimensions.get('window');
 
 export default function ExploreScreen() {
+  const router = useRouter();
   const fallbackUserId = process.env.EXPO_PUBLIC_SUPABASE_DEFAULT_USER_ID;
   const [selectedFilter, setSelectedFilter] = useState('NDVI');
   const [drawingMode, setDrawingMode] = useState(false);
@@ -59,6 +61,20 @@ export default function ExploreScreen() {
 
   const filters = ['NDVI', 'Kontras NDVI', 'Pengendapan', 'Tanah'];
 
+  const promptAuthSignup = useCallback(() => {
+    Alert.alert(
+      'Perlu Akun',
+      'Kami akan membuka halaman daftar supaya kamu bisa menyimpan lahan.',
+      [
+        {
+          text: 'Buka Halaman Daftar',
+          onPress: () => router.push('/auth/signup'),
+        },
+      ],
+      { cancelable: true }
+    );
+  }, [router]);
+
   const toLatLngCoordinates = useCallback((geojson: any): LatLng[] => {
     if (!geojson) return [];
 
@@ -77,6 +93,10 @@ export default function ExploreScreen() {
     try {
       const { data: authData, error: authError } = await supabase.auth.getUser();
       if (authError) {
+        const message = authError.message ?? '';
+        if (message.includes('Auth session missing')) {
+          return;
+        }
         throw authError;
       }
 
@@ -398,12 +418,19 @@ export default function ExploreScreen() {
 
       const { data: authData, error: authError } = await supabase.auth.getUser();
       if (authError) {
+        const message = authError.message ?? '';
+        if (message.includes('Auth session missing')) {
+          promptAuthSignup();
+          setShowSaveModal(false);
+          return;
+        }
         throw authError;
       }
 
       const userId = authData?.user?.id ?? fallbackUserId;
       if (!userId) {
-        Alert.alert('Perlu Login', 'Silakan masuk terlebih dahulu untuk menyimpan data lahan.');
+        promptAuthSignup();
+        setShowSaveModal(false);
         return;
       }
 

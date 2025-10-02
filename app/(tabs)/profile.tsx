@@ -1,11 +1,12 @@
 import { ThemedView } from '@/components/themed-view';
+import { authService } from '@/hooks/supabase';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { ScrollView, StatusBar, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, ScrollView, StatusBar, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 
 export default function ProfileScreen() {
   const router = useRouter();
-  
+
   const [notificationSettings, setNotificationSettings] = useState({
     whatsapp: true,
     sms: false,
@@ -17,12 +18,23 @@ export default function ProfileScreen() {
   });
 
   const [selectedTab, setSelectedTab] = useState('Notifikasi');
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   const tabs = ['Profil', 'Notifikasi', 'Statistik', 'Pencapaian'];
 
-  const handleLogout = () => {
-    // Redirect to login page
-    router.replace('/auth/login');
+  const handleLogout = async () => {
+    if (isSigningOut) return;
+
+    try {
+      setIsSigningOut(true);
+      await authService.signOut();
+      router.replace('/auth/login');
+    } catch (error: any) {
+      console.error('❌ Sign out error:', error);
+      Alert.alert('Gagal Keluar', error?.message || 'Terjadi kesalahan saat keluar dari akun.');
+    } finally {
+      setIsSigningOut(false);
+    }
   };
 
   const toggleNotification = (key: keyof typeof notificationSettings) => {
@@ -73,8 +85,14 @@ export default function ProfileScreen() {
         <TouchableOpacity style={styles.actionButton}>
           <Text style={styles.actionButtonText}>Kebijakan Privasi</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={[styles.actionButton, styles.logoutButton]} onPress={handleLogout}>
-          <Text style={[styles.actionButtonText, styles.logoutText]}>Keluar dari Akun</Text>
+        <TouchableOpacity
+          style={[styles.actionButton, styles.logoutButton, isSigningOut && styles.logoutButtonDisabled]}
+          onPress={handleLogout}
+          disabled={isSigningOut}
+        >
+          <Text style={[styles.actionButtonText, styles.logoutText]}>
+            {isSigningOut ? 'Keluar…' : 'Keluar dari Akun'}
+          </Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -521,6 +539,9 @@ const styles = StyleSheet.create({
   },
   logoutButton: {
     backgroundColor: '#FFEBEE',
+  },
+  logoutButtonDisabled: {
+    opacity: 0.6,
   },
   logoutText: {
     color: '#C62828',

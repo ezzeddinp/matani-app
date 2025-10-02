@@ -1,6 +1,7 @@
+import { authService } from '@/hooks/supabase';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
     SafeAreaView,
     ScrollView,
@@ -18,10 +19,58 @@ export default function SignUpScreen() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const handleCreateAccount = () => {
-    // For demo purposes, navigate to tabs without actual authentication
-    router.replace('/(tabs)');
+  const navigateToExplore = useCallback(() => {
+    router.replace('/(tabs)/explore');
+  }, [router]);
+
+  const handleCreateAccount = async () => {
+    if (isLoading) return;
+
+    const trimmedEmail = email.trim().toLowerCase();
+    const trimmedPassword = password.trim();
+    const trimmedConfirm = confirmPassword.trim();
+
+    if (!trimmedEmail || !trimmedPassword) {
+      setErrorMessage('Email dan password wajib diisi.');
+      return;
+    }
+
+    if (trimmedPassword.length < 8) {
+      setErrorMessage('Password minimal 8 karakter.');
+      return;
+    }
+
+    if (trimmedPassword !== trimmedConfirm) {
+      setErrorMessage('Konfirmasi password tidak sesuai.');
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      setErrorMessage(null);
+
+      const fallbackFullName = trimmedEmail.split('@')[0] || undefined;
+      const data = await authService.signUp({
+        email: trimmedEmail,
+        password: trimmedPassword,
+        fullName: fallbackFullName,
+      });
+
+      if (!data.session) {
+        setErrorMessage('Akun berhasil dibuat. Silakan cek email Anda untuk verifikasi sebelum masuk.');
+        return;
+      }
+
+      navigateToExplore();
+    } catch (err: any) {
+      console.error('❌ Sign up error:', err);
+      setErrorMessage(err?.message || 'Terjadi kesalahan saat membuat akun.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleLogIn = () => {
@@ -36,6 +85,9 @@ export default function SignUpScreen() {
         </View>
 
         <View style={styles.form}>
+          {errorMessage && (
+            <Text style={styles.errorMessage}>{errorMessage}</Text>
+          )}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Email</Text>
             <TextInput
@@ -94,8 +146,14 @@ export default function SignUpScreen() {
             </View>
           </View>
 
-          <TouchableOpacity style={styles.createButton} onPress={handleCreateAccount}>
-            <Text style={styles.createButtonText}>Create Account</Text>
+          <TouchableOpacity
+            style={[styles.createButton, isLoading && styles.disabledButton]}
+            onPress={handleCreateAccount}
+            disabled={isLoading}
+          >
+            <Text style={styles.createButtonText}>
+              {isLoading ? 'Creating account...' : 'Create Account'}
+            </Text>
           </TouchableOpacity>
 
           <View style={styles.divider}>
@@ -152,6 +210,14 @@ const styles = StyleSheet.create({
   inputGroup: {
     marginBottom: 24,
   },
+  errorMessage: {
+    backgroundColor: '#ffe8e6',
+    color: '#b3261e',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginBottom: 20,
+  },
   label: {
     fontSize: 14,
     color: '#000',
@@ -187,6 +253,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 20,
     marginBottom: 30,
+  },
+  disabledButton: {
+    opacity: 0.6,
   },
   createButtonText: {
     color: '#fff',

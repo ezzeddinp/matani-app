@@ -1,3 +1,4 @@
+import { authService } from '@/hooks/supabase';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
@@ -17,10 +18,41 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const handleSignIn = () => {
-    // For demo purposes, navigate to tabs without actual authentication
-    router.replace('/(tabs)');
+  const handleSignIn = async () => {
+    if (isLoading) return;
+
+    const trimmedEmail = email.trim().toLowerCase();
+    const trimmedPassword = password.trim();
+
+    if (!trimmedEmail || !trimmedPassword) {
+      setErrorMessage('Email dan password wajib diisi.');
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      setErrorMessage(null);
+
+      const data = await authService.signIn({
+        email: trimmedEmail,
+        password: trimmedPassword,
+      });
+
+      if (!data.session?.user) {
+        setErrorMessage('Sesi login tidak tersedia. Silakan coba lagi.');
+        return;
+      }
+
+      router.replace('/(tabs)/explore');
+    } catch (err: any) {
+      console.error('❌ Sign in error:', err);
+      setErrorMessage(err?.message || 'Terjadi kesalahan saat masuk.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleSignUp = () => {
@@ -35,6 +67,9 @@ export default function LoginScreen() {
         </View>
 
         <View style={styles.form}>
+          {errorMessage && (
+            <Text style={styles.errorMessage}>{errorMessage}</Text>
+          )}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Email address</Text>
             <TextInput
@@ -87,8 +122,14 @@ export default function LoginScreen() {
             </TouchableOpacity>
           </View>
 
-          <TouchableOpacity style={styles.signInButton} onPress={handleSignIn}>
-            <Text style={styles.signInButtonText}>Sign in</Text>
+          <TouchableOpacity
+            style={[styles.signInButton, isLoading && styles.disabledButton]}
+            onPress={handleSignIn}
+            disabled={isLoading}
+          >
+            <Text style={styles.signInButtonText}>
+              {isLoading ? 'Signing in...' : 'Sign in'}
+            </Text>
           </TouchableOpacity>
 
           <View style={styles.divider}>
@@ -143,6 +184,14 @@ const styles = StyleSheet.create({
   },
   inputGroup: {
     marginBottom: 24,
+  },
+  errorMessage: {
+    backgroundColor: '#ffe8e6',
+    color: '#b3261e',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginBottom: 20,
   },
   label: {
     fontSize: 14,
@@ -205,6 +254,9 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     alignItems: 'center',
     marginBottom: 30,
+  },
+  disabledButton: {
+    opacity: 0.6,
   },
   signInButtonText: {
     color: '#fff',

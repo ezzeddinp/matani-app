@@ -21,62 +21,65 @@ const calculatePolygonAreaHa = (coordinates: LatLngInput[]): number => {
   return area * 10000;
 };
 
-const calculateAreaFromGeoJSON = (geom: any): number => {
-  const ring: number[][] | undefined = geom?.coordinates?.[0];
-  if (!Array.isArray(ring)) {
-    return 0;
-  }
+// Credentials Supabase harus tersedia
+const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+const supabasePublishableKey = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
-  const latLngRing: LatLngInput[] = ring
-    .map(([lng, lat]) => ({ latitude: lat, longitude: lng }))
-    .slice(0, ring.length > 1 ? -1 : ring.length);
+if (!supabaseUrl || !supabasePublishableKey) {
+  throw new Error(
+    'Supabase belum dikonfigurasi. Pastikan EXPO_PUBLIC_SUPABASE_URL dan EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY tersedia.'
+  );
+}
 
-  return calculatePolygonAreaHa(latLngRing);
+export const supabase = createClient(supabaseUrl, supabasePublishableKey);
+
+type SignUpPayload = {
+  email: string;
+  password: string;
+  fullName?: string;
 };
 
-// Fallback untuk development - ganti dengan credentials asli Anda
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://your-project-id.supabase.co';
-const supabasePublishableKey = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY || 'your-publishable-key-here';
+type SignInPayload = {
+  email: string;
+  password: string;
+};
 
-// Temporary mock client untuk development
-const createMockSupabase = () => ({
-  from: (table: string) => ({
-    insert: (values: any[]) => ({
-      select: () => {
-        const enriched = Array.isArray(values)
-          ? values.map((value, index) => ({
-              id: value?.id ?? `mock-${Date.now()}-${index}`,
-              ...value,
-              area_ha:
-                typeof value?.area_ha === 'number'
-                  ? value.area_ha
-                  : calculateAreaFromGeoJSON(value?.geom),
-            }))
-          : [];
-        return Promise.resolve({ data: enriched, error: null });
+export const authService = {
+  async signUp({ email, password, fullName }: SignUpPayload) {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: fullName ? { full_name: fullName } : undefined,
+        emailRedirectTo: process.env.EXPO_PUBLIC_SUPABASE_REDIRECT_URL,
       },
-    }),
-    select: () => ({
-      eq: () => Promise.resolve({ data: table === 'lahan_with_info' ? [] : [], error: null }),
-    }),
-    update: () => ({
-      eq: () => ({
-        select: () => Promise.resolve({ data: [], error: null }),
-      }),
-    }),
-    delete: () => ({ eq: () => Promise.resolve({ error: null }) }),
-  }),
-  auth: {
-    getUser: async () => ({
-      data: { user: { id: 'mock-user-id' } },
-      error: null,
-    }),
-  },
-});
+    });
 
-export const supabase = supabaseUrl.includes('your-project-id') 
-  ? createMockSupabase() 
-  : createClient(supabaseUrl, supabasePublishableKey);
+    if (error) throw error;
+    return data;
+  },
+
+  async signIn({ email, password }: SignInPayload) {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) throw error;
+    return data;
+  },
+
+  async signOut() {
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
+  },
+
+  async getCurrentUser() {
+    const { data, error } = await supabase.auth.getUser();
+    if (error) throw error;
+    return data;
+  },
+};
 
 // Database types
 export interface Lahan {
