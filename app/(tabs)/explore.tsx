@@ -785,7 +785,7 @@ export default function ExploreScreen() {
       {drawingMode && (
         <View style={styles.instructionBanner}>
           <Text style={styles.instructionText}>
-            📍 Tap pada peta untuk menandai titik polygon • {currentPath.length} titik
+            Tap pada peta untuk menandai titik lahan.
           </Text>
           {currentPath.length >= 3 && (
             <Text style={styles.instructionSubtext}>
@@ -1130,7 +1130,7 @@ const styles = StyleSheet.create({
     borderTopColor: '#e0e0e0',
   },
   controlButton: {
-    backgroundColor: '#ff6b6b',
+    backgroundColor: '#FF5858',
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 20,
