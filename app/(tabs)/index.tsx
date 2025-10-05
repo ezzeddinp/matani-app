@@ -452,7 +452,7 @@ const fetchWeatherData = async (latitude: number, longitude: number) => {
       <StatusBar barStyle="light-content" backgroundColor="#8BC34A" />
       
       {/* Header */}
-      <LinearGradient colors={['#8BC34A', '#689F38']} style={styles.header}>
+      <LinearGradient colors={['#8BC34A', '#7ab942ff']} style={styles.header}>
         <View style={styles.headerTop}>
           <View>
             <Text style={styles.greeting}>Selamat Datang,</Text>
@@ -553,9 +553,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f5f5',
   },
   header: {
-    paddingTop: 60,
+    paddingTop: 76,
     paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingBottom: 28,
+    minHeight: 220,
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
   },
@@ -680,7 +681,7 @@ const styles = StyleSheet.create({
   temperatureRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
     marginBottom: 20,
   },
   temperature: {
@@ -690,6 +691,7 @@ const styles = StyleSheet.create({
   },
   tempRange: {
     alignItems: 'flex-end',
+    marginLeft: 16,
   },
   tempRangeText: {
     fontSize: 14,

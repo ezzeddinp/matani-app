@@ -1,7 +1,7 @@
 import { ThemedView } from '@/components/themed-view';
 import { authService, lahanService, LahanWithInfo, profileService, UserProfile } from '@/hooks/supabase';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, StatusBar, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 
 const sanitizeString = (value: any): string | undefined => {
@@ -48,6 +48,20 @@ export default function ProfileScreen() {
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const [profileError, setProfileError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
+  const [isGuest, setIsGuest] = useState(false);
+
+  const activateGuestMode = useCallback(() => {
+    setIsGuest(true);
+    setProfile(null);
+    setLahanList([]);
+    setProfileError(null);
+    setUserMetadata({
+      full_name: 'Tamu Matani',
+      email: '',
+      phone: '',
+      location: 'Belum diatur',
+    });
+  }, []);
 
   const tabs = ['Profil', 'Notifikasi', 'Statistik', 'Pencapaian'];
 
@@ -57,7 +71,8 @@ export default function ProfileScreen() {
     try {
       setIsSigningOut(true);
       await authService.signOut();
-      router.replace('/auth/login');
+      activateGuestMode();
+      Alert.alert('Keluar', 'Anda sekarang menggunakan mode tamu. Masuk kembali untuk menyinkronkan data.');
     } catch (error: any) {
       console.error('❌ Sign out error:', error);
       Alert.alert('Gagal Keluar', error?.message || 'Terjadi kesalahan saat keluar dari akun.');
@@ -81,16 +96,17 @@ export default function ProfileScreen() {
     setProfileError(null);
     setIsLoadingProfile(true);
 
-    const authData = await authService.getCurrentUser();
-    const user = authData?.user;
+        const authData = await authService.getCurrentUser();
+        const user = authData?.user;
 
         if (!user) {
-          if (isMounted) {
-            setIsLoadingProfile(false);
-          }
-          router.replace('/auth/login');
+          if (!isMounted) return;
+          activateGuestMode();
+          setIsLoadingProfile(false);
           return;
         }
+
+        setIsGuest(false);
 
         const [profileRecord, lahanRecords] = await Promise.all([
           profileService.getProfile(user.id),
@@ -114,7 +130,8 @@ export default function ProfileScreen() {
         console.error('❌ Profile fetch error:', error);
 
         if (message.includes('Auth session missing')) {
-          router.replace('/auth/login');
+          activateGuestMode();
+          setIsLoadingProfile(false);
           return;
         }
 
@@ -131,7 +148,7 @@ export default function ProfileScreen() {
     return () => {
       isMounted = false;
     };
-  }, [reloadKey, router]);
+  }, [activateGuestMode, reloadKey, router]);
 
   const handleRetryProfile = () => {
     setReloadKey((prev) => prev + 1);
@@ -299,6 +316,14 @@ export default function ProfileScreen() {
 
   const renderProfileTab = () => (
     <View style={styles.tabContent}>
+      {isGuest && (
+        <View style={styles.guestBanner}>
+          <Text style={styles.guestBannerTitle}>Mode Tamu Aktif</Text>
+          <Text style={styles.guestBannerText}>
+            Data profil ini bersifat simulasi. Masuk untuk menyinkronkan profil dan aktivitas lahan Anda.
+          </Text>
+        </View>
+      )}
       <View style={styles.profileCard}>
         <View style={styles.avatarContainer}>
           <View style={styles.avatar} />
@@ -338,15 +363,24 @@ export default function ProfileScreen() {
         <TouchableOpacity style={styles.actionButton}>
           <Text style={styles.actionButtonText}>Kebijakan Privasi</Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.actionButton, styles.logoutButton, isSigningOut && styles.logoutButtonDisabled]}
-          onPress={handleLogout}
-          disabled={isSigningOut}
-        >
-          <Text style={[styles.actionButtonText, styles.logoutText]}>
-            {isSigningOut ? 'Keluar…' : 'Keluar dari Akun'}
-          </Text>
-        </TouchableOpacity>
+        {isGuest ? (
+          <TouchableOpacity
+            style={[styles.actionButton, styles.loginButton]}
+            onPress={() => router.push('/auth/login')}
+          >
+            <Text style={[styles.actionButtonText, styles.loginText]}>Masuk ke Akun</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            style={[styles.actionButton, styles.logoutButton, isSigningOut && styles.logoutButtonDisabled]}
+            onPress={handleLogout}
+            disabled={isSigningOut}
+          >
+            <Text style={[styles.actionButtonText, styles.logoutText]}>
+              {isSigningOut ? 'Keluar…' : 'Keluar dari Akun'}
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );
@@ -757,6 +791,25 @@ const styles = StyleSheet.create({
     backgroundColor: '#ddd',
     borderRadius: 40,
   },
+  guestBanner: {
+    backgroundColor: '#E8F5E9',
+    borderRadius: 15,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#C8E6C9',
+  },
+  guestBannerTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#2E7D32',
+    marginBottom: 4,
+  },
+  guestBannerText: {
+    fontSize: 14,
+    color: '#2E7D32',
+    lineHeight: 20,
+  },
   editButton: {
     position: 'absolute',
     bottom: 0,
@@ -821,6 +874,15 @@ const styles = StyleSheet.create({
   actionButtonText: {
     fontSize: 16,
     color: '#333',
+  },
+  loginButton: {
+    backgroundColor: '#E8F5E9',
+    borderColor: '#2E7D32',
+    borderWidth: 1,
+  },
+  loginText: {
+    color: '#2E7D32',
+    fontWeight: '600',
   },
   logoutButton: {
     backgroundColor: '#FFEBEE',

@@ -26,6 +26,15 @@ export default function SignUpScreen() {
     router.replace('/(tabs)/explore');
   }, [router]);
 
+  const handleGoBack = () => {
+    const canGoBack = (router as any)?.canGoBack?.();
+    if (canGoBack) {
+      router.back();
+    } else {
+      router.push('/(tabs)');
+    }
+  };
+
   const handleCreateAccount = async () => {
     if (isLoading) return;
 
@@ -80,6 +89,12 @@ export default function SignUpScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
+        <View style={styles.topBar}>
+          <TouchableOpacity style={styles.backButton} onPress={handleGoBack}>
+            <Ionicons name="chevron-back" size={22} color="#000" />
+            <Text style={styles.backText}>Kembali</Text>
+          </TouchableOpacity>
+        </View>
         <View style={styles.header}>
           <Text style={styles.title}>Sign up</Text>
         </View>
@@ -194,6 +209,23 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: 20,
+  },
+  topBar: {
+    marginTop: 12,
+    marginBottom: 12,
+    alignItems: 'flex-start',
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+  },
+  backText: {
+    marginLeft: 6,
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#000',
   },
   header: {
     marginTop: 40,
