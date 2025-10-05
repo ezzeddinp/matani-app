@@ -1,9 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Location from 'expo-location';
-import { useEffect, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Image, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { BASE_URL } from "../../hooks/config";
+
+import { lahanService, supabase, type LahanWithInfo } from '@/hooks/supabase';
+import { BASE_URL } from '../../hooks/config';
 
 interface WeatherCardProps {
   location: string;
@@ -17,13 +20,10 @@ interface WeatherCardProps {
 }
 
 
-interface FieldCardProps {
+interface SavedLahanCardProps {
   name: string;
-  image: any;
-  area: string;
-  status: string;
-  isSelected?: boolean;
-  onPress: () => void;
+  areaHa: number | null;
+  onPress?: () => void;
 }
 
 // Cuaca murni
@@ -38,14 +38,20 @@ interface WeatherData {
   windSpeed: number | null;
 }
 
-// NDVI murni
-interface NDVIData {
-  interval: string;
-  ndvi_min: number;
-  ndvi_max: number;
-  ndvi_mean: number;
-  ndvi_stdev: number;
+interface SavedLahan {
+  id: string;
+  name: string;
+  areaHa: number | null;
 }
+
+const formatHeaderDate = (value: Date) =>
+  new Intl.DateTimeFormat('id-ID', {
+    day: '2-digit',
+    month: '2-digit',
+    year: '2-digit',
+  })
+    .format(value)
+    .replace(/\//g, '.');
 
 const formatGeocodedLocation = (place?: Location.LocationGeocodedAddress | null) => {
   if (!place) return null;
@@ -92,72 +98,76 @@ const WeatherCard = ({ location, temperature, highTemp, lowTemp, humidity, rainf
     
     <View style={styles.temperatureRow}>
       <Text style={styles.temperature}>
-        {temperature !== null ? `${temperature}°` : "--"}
+        {temperature !== null ? `${Math.round(temperature)}°` : "--"}
       </Text>
       <View style={styles.tempRange}>
-        <Text style={styles.tempRangeText}>T: {highTemp !== null ? `${highTemp}°` : "--"}</Text>
-        <Text style={styles.tempRangeText}>R: {lowTemp !== null ? `${lowTemp}°` : "--"}</Text>
+        <Text style={styles.tempRangeText}>T: {highTemp !== null ? `${Math.round(highTemp)}°` : "--"}</Text>
+        <Text style={styles.tempRangeText}>R: {lowTemp !== null ? `${Math.round(lowTemp)}°` : "--"}</Text>
       </View>
     </View>
     
     <View style={styles.weatherStats}>
       <View style={styles.statItem}>
         <Text style={styles.statLabel}>Kelembaban</Text>
-        <Text style={styles.statValue}>{humidity !== null ? `${humidity}%` : "--"}</Text>
+        <Text style={styles.statValue}>{humidity !== null ? `${Math.round(humidity)}%` : "--"}</Text>
       </View>
       <View style={styles.statItem}>
         <Text style={styles.statLabel}>Curah Hujan</Text>
-        <Text style={styles.statValue}>{rainfall !== null ? `${rainfall} mm` : "--"}</Text>
+        <Text style={styles.statValue}>{rainfall !== null ? `${rainfall.toFixed(1)} mm` : "--"}</Text>
       </View>
       <View style={styles.statItem}>
         <Text style={styles.statLabel}>Tekanan</Text>
-        <Text style={styles.statValue}>{pressure !== null ? `${pressure} hPa` : "--"}</Text>
+        <Text style={styles.statValue}>{pressure !== null ? `${Math.round(pressure)} hPa` : "--"}</Text>
       </View>
       <View style={styles.statItem}>
         <Text style={styles.statLabel}>Kec. Angin</Text>
-        <Text style={styles.statValue}>{windSpeed !== null ? `${windSpeed} km/h` : "--"}</Text>
+        <Text style={styles.statValue}>{windSpeed !== null ? `${windSpeed.toFixed(1)} km/jam` : "--"}</Text>
       </View>
     </View>
   </View>
 );
 
 
-const FieldCard = ({ name, image, area, status, isSelected, onPress }: FieldCardProps) => (
-  <View style={styles.fieldCardContainer}>
-    <TouchableOpacity onPress={onPress} style={styles.fieldCard}>
-      <Image source={image} style={styles.fieldImage} />
-      <View style={styles.fieldOverlay}>
-        {/* Status Badge */}
-        <View style={[styles.statusBadge, { backgroundColor: status === 'Sehat' ? '#4CAF50' : '#FF9800' }]}>
-          <Text style={styles.statusBadgeText}>{status}</Text>
-        </View>
-        
-        {/* Shaded Area with Plant Name */}
-        <View style={[styles.shadedArea, { backgroundColor: status === 'Sehat' ? 'rgba(139, 195, 74, 0.8)' : 'rgba(255, 152, 0, 0.8)' }]}>
-          <Text style={styles.plantNameInArea}>{name}</Text>
-        </View>
-        
-        {/* Arrow Button */}
-        <View style={styles.fieldArrowButton}>
-          <Ionicons name="chevron-forward" size={16} color="#fff" />
-        </View>
+const LahanCard = ({ name, areaHa, onPress }: SavedLahanCardProps) => {
+  return (
+    <View style={styles.fieldCardContainer}>
+      <TouchableOpacity
+        onPress={onPress}
+        disabled={!onPress}
+        style={styles.fieldCard}
+        activeOpacity={0.9}
+      >
+        <LinearGradient colors={['#4CAF50', '#2E7D32']} style={styles.fieldGradient}>
+          <View style={styles.statusBadge}>
+            <Text style={styles.statusBadgeText}>Tersimpan</Text>
+          </View>
+          <View style={styles.fieldInfoContent}>
+            <Text style={styles.plantNameInArea}>{name}</Text>
+            <Text style={styles.fieldMeanText}>
+              {areaHa !== null ? `Luas: ${areaHa.toFixed(2)} ha` : 'Luas belum tersedia'}
+            </Text>
+            <Text style={styles.fieldSubtitleText}>Kelola detail lahan ➝</Text>
+          </View>
+          <View style={styles.fieldArrowButton}>
+            <Ionicons name="chevron-forward" size={16} color="#fff" />
+          </View>
+        </LinearGradient>
+      </TouchableOpacity>
+      <View style={styles.cardInfo}>
+        <Text style={styles.cardTitle}>{name}</Text>
+        <Text style={styles.cardSubtitle}>
+          {areaHa !== null ? `${areaHa.toFixed(2)} ha` : 'Luas belum tersedia'}
+        </Text>
       </View>
-    </TouchableOpacity>
-    
-    {/* Card Info Below */}
-    <View style={styles.cardInfo}>
-      <Text style={styles.cardTitle}>{name}</Text>
-      <Text style={styles.cardSubtitle}>{area}</Text>
     </View>
-  </View>
-);
+  );
+};
 
-const getPlantStatus = (ndvi: number) => {
-  if (ndvi > 0.6) return "Sehat";
-  if (ndvi > 0.3) return "Stress Ringan";
-  return "Stress Berat";
-}
 export default function HomeScreen() {
+  const router = useRouter();
+  const [userName, setUserName] = useState<string>('Petani');
+  const [profileImageUri, setProfileImageUri] = useState<string | null>(null);
+  const [dateLabel, setDateLabel] = useState<string>('');
   const [weatherData, setWeatherData] = useState<WeatherData>({
     location: 'Memuat lokasi...',
 
@@ -170,33 +180,55 @@ export default function HomeScreen() {
   windSpeed: null,
   });
   const [loading, setLoading] = useState(true);
-  const [ndviData, setNativeData] = useState<NDVIData[]>([]);
+  const [weatherError, setWeatherError] = useState<string | null>(null);
+  const fallbackUserId = process.env.EXPO_PUBLIC_SUPABASE_DEFAULT_USER_ID;
+ 
+  const [savedLahan, setSavedLahan] = useState<SavedLahan[]>([]);
+  const [lahanError, setLahanError] = useState<string | null>(null);
+  const [lahanLoading, setLahanLoading] = useState(false);
+  const userNameDisplay = useMemo(() => (userName ? userName.toUpperCase() : 'PETANI'), [userName]);
 
-  // Function untuk mengambil NDVI data berdasarkan koordinat
-  const fetchNDVIData = async (latitude: number, longitude: number) => {
-    try {
-      console.log(`Fetching NDVI data for coordinates: ${latitude}, ${longitude}`);
-      
-      // Mengatur bounding box sekitar lokasi user (±0.01 derajat = ~1km)
-      const bbox = [
-        longitude - 0.01, // west
-        latitude - 0.01,  // south  
-        longitude + 0.01, // east
-        latitude + 0.01   // north
-      ];
+  useEffect(() => {
+    let isMounted = true;
+    setDateLabel(formatHeaderDate(new Date()));
 
-      const response = await fetch(`${BASE_URL}/ndvi?bbox=${bbox.join(",")}`);
-      
-      if (!response.ok) return null;
-      const ndviData = await response.json();
-      console.log('NDVI data fetched successfully:', ndviData);
+    const loadUserProfile = async () => {
+      try {
+        const { data } = await supabase.auth.getUser();
+        if (!isMounted) {
+          return;
+        }
 
-      return ndviData;
-    } catch (error) {
-      console.warn('Failed to fetch NDVI data:', error);
-      return null;
-    }
-  };
+        const user = data?.user;
+        if (user) {
+          const fullName = (user.user_metadata?.full_name as string | undefined)?.trim();
+          const email = user.email ?? undefined;
+          const fallbackName = email ? email.split('@')[0] : undefined;
+          const displayName = fullName || fallbackName || 'Petani';
+
+          setUserName(displayName);
+          setProfileImageUri(
+            `https://ui-avatars.com/api/?background=8BC34A&color=ffffff&name=${encodeURIComponent(displayName)}`
+          );
+        } else {
+          setUserName('Petani');
+          setProfileImageUri(null);
+        }
+      } catch (error) {
+        console.warn('Gagal memuat profil pengguna dari Supabase', error);
+        if (isMounted) {
+          setUserName('Petani');
+          setProfileImageUri(null);
+        }
+      }
+    };
+
+    loadUserProfile();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
 // Function untuk ambil cuaca real dari backend
 const fetchWeatherData = async (latitude: number, longitude: number) => {
@@ -212,21 +244,92 @@ const fetchWeatherData = async (latitude: number, longitude: number) => {
     const data = await weatherResponse.json();
     console.log("Weather data fetched:", data);
 
+    const parseNumber = (value: unknown): number | null => {
+      if (typeof value === 'number') return value;
+      if (typeof value === 'string') {
+        const parsed = parseFloat(value);
+        return Number.isFinite(parsed) ? parsed : null;
+      }
+      return null;
+    };
+
     return {
-      location: data.location,
-      temperature: data.temperature,
-      highTemp: data.highTemp,
-      lowTemp: data.lowTemp,
-      humidity: data.humidity,
-      rainfall: data.rainfall,
-      pressure: data.pressure,
-      windSpeed: data.windSpeed,
+      location: typeof data.location === 'string' ? data.location : '',
+      temperature: parseNumber(data.temperature),
+      highTemp: parseNumber(data.highTemp),
+      lowTemp: parseNumber(data.lowTemp),
+      humidity: parseNumber(data.humidity),
+      rainfall: parseNumber(data.rainfall),
+      pressure: parseNumber(data.pressure),
+      windSpeed: parseNumber(data.windSpeed),
     };
   } catch (err) {
     console.error("❌ Weather fetch error:", err);
     return null;
   }
 };
+
+  const loadSavedLahan = useCallback(async () => {
+    setLahanLoading(true);
+    try {
+      setLahanError(null);
+
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+      if (authError) {
+        const message = authError.message ?? '';
+        if (message.includes('Auth session missing')) {
+          setSavedLahan([]);
+          setLahanError('Masuk untuk menyimpan lahan Anda.');
+          return;
+        }
+        throw authError;
+      }
+
+      const userId = authData?.user?.id ?? fallbackUserId;
+      if (!userId) {
+        setSavedLahan([]);
+        setLahanError('Masuk untuk menyimpan lahan Anda.');
+        return;
+      }
+
+      const lahanList = (await lahanService.getLahanByUser(userId)) as LahanWithInfo[];
+      const normalized: SavedLahan[] = Array.isArray(lahanList)
+    ? lahanList.map((item: LahanWithInfo) => {
+      const rawArea = item.area_ha;
+            let areaValue: number | null = null;
+            if (rawArea !== null && rawArea !== undefined) {
+              const parsed = typeof rawArea === 'number' ? rawArea : Number.parseFloat(String(rawArea));
+              areaValue = Number.isFinite(parsed) ? parsed : null;
+            }
+
+            return {
+              id: item.id,
+              name: item.name,
+              areaHa: areaValue,
+            };
+          })
+        : [];
+
+      setSavedLahan(normalized);
+      if (!normalized.length) {
+        setLahanError('Belum ada lahan tersimpan.');
+      } else {
+        setLahanError(null);
+      }
+    } catch (error) {
+      console.error('Gagal memuat lahan tersimpan:', error);
+      setSavedLahan([]);
+      setLahanError('Gagal memuat data lahan.');
+    } finally {
+      setLahanLoading(false);
+    }
+  }, [fallbackUserId]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadSavedLahan();
+    }, [loadSavedLahan])
+  );
 
   useEffect(() => {
     let isMounted = true;
@@ -295,26 +398,27 @@ const fetchWeatherData = async (latitude: number, longitude: number) => {
           }));
         }
 
-        const [weather, ndvi] = await Promise.all([
-          fetchWeatherData(latitude, longitude),
-          fetchNDVIData(latitude, longitude),
-        ]);
+        const weather = await fetchWeatherData(latitude, longitude);
 
         if (isMounted) {
-          setNativeData(ndvi || []);
-          setWeatherData((prev) => ({
-            location: locationName,
-            temperature: weather?.temperature ?? prev.temperature,
-            highTemp: weather?.highTemp ?? prev.highTemp,
-            lowTemp: weather?.lowTemp ?? prev.lowTemp,
-            humidity: weather?.humidity ?? prev.humidity,
-            rainfall: weather?.rainfall ?? prev.rainfall,
-            pressure: weather?.pressure ?? prev.pressure,
-            windSpeed: weather?.windSpeed ?? prev.windSpeed,
-          }));
+          if (weather) {
+            setWeatherError(null);
+            setWeatherData((prev) => ({
+              location: locationName,
+              temperature: weather.temperature ?? prev.temperature,
+              highTemp: weather.highTemp ?? prev.highTemp,
+              lowTemp: weather.lowTemp ?? prev.lowTemp,
+              humidity: weather.humidity ?? prev.humidity,
+              rainfall: weather.rainfall ?? prev.rainfall,
+              pressure: weather.pressure ?? prev.pressure,
+              windSpeed: weather.windSpeed ?? prev.windSpeed,
+            }));
+          } else {
+            setWeatherError('Data cuaca belum tersedia untuk lokasi ini.');
+          }
         }
 
-        console.log("Weather & NDVI data updated successfully");
+  console.log('Weather data updated successfully');
       } catch (error) {
         console.error("Error fetching location or weather:", error);
         if (isMounted) {
@@ -326,6 +430,7 @@ const fetchWeatherData = async (latitude: number, longitude: number) => {
             ...prev,
             location: "Lokasi tidak tersedia",
           }));
+          setWeatherError('Pastikan GPS sudah aktif lalu coba lagi.');
         }
       } finally {
         if (isMounted) {
@@ -350,21 +455,29 @@ const fetchWeatherData = async (latitude: number, longitude: number) => {
       <LinearGradient colors={['#8BC34A', '#689F38']} style={styles.header}>
         <View style={styles.headerTop}>
           <View>
-            <Text style={styles.greeting}>SELAMAT DATANG,</Text>
-            <Text style={styles.userName}>PAK AGUS!</Text>
+            <Text style={styles.greeting}>Selamat Datang,</Text>
+            <Text style={styles.userName}>{userNameDisplay}</Text>
           </View>
           <View style={styles.profilePicture}>
-            <Image 
-              source={{ uri: 'https://i.pravatar.cc/60' }} 
-              style={styles.profileImage} 
-            />
+            {profileImageUri ? (
+              <Image
+                source={{ uri: profileImageUri }}
+                style={styles.profileImage}
+              />
+            ) : (
+              <View style={styles.profileFallback}>
+                <Ionicons name="person" size={24} color="#fff" />
+              </View>
+            )}
           </View>
         </View>
         
         {/* Search Bar */}
         <View style={styles.searchContainer}>
           <Ionicons name="search" size={20} color="#999" style={styles.searchIcon} />
-          <Text style={styles.searchPlaceholder}></Text>
+          <Text style={styles.searchPlaceholder} numberOfLines={1}>
+            {weatherData.location || 'Lokasi belum diketahui'}
+          </Text>
         </View>
         
         {/* Dashboard Title */}
@@ -376,7 +489,7 @@ const fetchWeatherData = async (latitude: number, longitude: number) => {
           
           {/* Date Selector */}
           <View style={styles.dateSelector}>
-            <Text style={styles.dateText}>19.09.25</Text>
+            <Text style={styles.dateText}>{dateLabel || '--.--.--'}</Text>
             <Ionicons name="chevron-down" size={16} color="#fff" />
           </View>
         </View>
@@ -389,36 +502,44 @@ const fetchWeatherData = async (latitude: number, longitude: number) => {
             <Text style={styles.loadingText}>Memuat data cuaca...</Text>
           </View>
         ) : (
-
-          <WeatherCard 
-  location={weatherData.location}
-  temperature={weatherData.temperature}
-  highTemp={weatherData.highTemp}
-  lowTemp={weatherData.lowTemp}
-  humidity={weatherData.humidity}
-  rainfall={weatherData.rainfall}
-  pressure={weatherData.pressure}
-  windSpeed={weatherData.windSpeed}
-/>
-
+          <>
+            <WeatherCard
+              location={weatherData.location}
+              temperature={weatherData.temperature}
+              highTemp={weatherData.highTemp}
+              lowTemp={weatherData.lowTemp}
+              humidity={weatherData.humidity}
+              rainfall={weatherData.rainfall}
+              pressure={weatherData.pressure}
+              windSpeed={weatherData.windSpeed}
+            />
+            {weatherError ? <Text style={styles.errorText}>{weatherError}</Text> : null}
+          </>
         )}
-        <Text style={styles.sectionTitle}>Ladang Saya (6)</Text>
-        
-           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.fieldsContainer}>
-          {ndviData.length > 0 ? (
-            ndviData.map((entry, idx) => (
-              <FieldCard
-                key={idx}
-                name={`Ladang ${idx + 1}`}
-                image={{ uri: "https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b?w=300" }}
-                area={`12 ha / ${entry.interval}`}
-                status={getPlantStatus(entry.ndvi_mean)}
-                isSelected={idx === 0}
-                onPress={() => {}}
+        <Text style={styles.sectionTitle}>Ladang Saya ({savedLahan.length})</Text>
+
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.fieldsContainer}>
+          {lahanLoading ? (
+            <View style={styles.emptyNdviContainer}>
+              <Text style={styles.emptyNdviText}>Memuat data lahan...</Text>
+            </View>
+          ) : savedLahan.length > 0 ? (
+            savedLahan.map((item) => (
+              <LahanCard
+                key={item.id}
+                name={item.name}
+                areaHa={item.areaHa}
+                onPress={() =>
+                  router.push({ pathname: '/detail-lahan-page', params: { id: item.id } })
+                }
               />
             ))
           ) : (
-            <Text style={{ margin: 10 }}>⚠️ NDVI data belum tersedia</Text>
+            <View style={styles.emptyNdviContainer}>
+              <Text style={styles.emptyNdviText}>
+                {lahanError ?? 'Belum ada lahan tersimpan. Simpan lahan dari tab Jelajahi.'}
+              </Text>
+            </View>
           )}
         </ScrollView>
       </ScrollView>
@@ -466,6 +587,13 @@ const styles = StyleSheet.create({
   profileImage: {
     width: '100%',
     height: '100%',
+  },
+  profileFallback: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   searchContainer: {
     flexDirection: 'row',
@@ -587,6 +715,12 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#333',
   },
+  errorText: {
+    color: '#F44336',
+    marginTop: -10,
+    marginBottom: 20,
+    fontSize: 12,
+  },
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
@@ -609,53 +743,50 @@ const styles = StyleSheet.create({
   },
   fieldCard: {
     width: 160,
-    height: 120,
+    height: 140,
     borderRadius: 12,
     overflow: 'hidden',
-    position: 'relative',
     marginBottom: 8,
   },
-  fieldImage: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
-  },
-  fieldOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    padding: 8,
+  fieldGradient: {
+    flex: 1,
+    borderRadius: 12,
+    padding: 12,
+    justifyContent: 'space-between',
   },
   statusBadge: {
     alignSelf: 'flex-start',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 15,
-    marginBottom: 8,
+    marginBottom: 12,
+    backgroundColor: 'rgba(255,255,255,0.2)',
   },
   statusBadgeText: {
     color: '#fff',
     fontSize: 11,
     fontWeight: 'bold',
   },
-  shadedArea: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: '60%',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
-  },
   plantNameInArea: {
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
-    textAlign: 'center',
+    textAlign: 'left',
+  },
+  fieldInfoContent: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  fieldMeanText: {
+    color: 'rgba(255,255,255,0.9)',
+    fontSize: 13,
+    fontWeight: '600',
+    marginTop: 6,
+  },
+  fieldSubtitleText: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 12,
+    marginTop: 2,
   },
   fieldArrowButton: {
     position: 'absolute',
@@ -682,12 +813,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
   },
-  selectedIndicator: {
-    alignSelf: 'flex-end',
-    backgroundColor: 'rgba(255,255,255,0.3)',
-    borderRadius: 15,
-    padding: 5,
-  },
   loadingCard: {
     justifyContent: 'center',
     alignItems: 'center',
@@ -697,5 +822,14 @@ const styles = StyleSheet.create({
     color: '#666',
     fontSize: 16,
     fontStyle: 'italic',
+  },
+  emptyNdviContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+  },
+  emptyNdviText: {
+    color: '#666',
+    fontSize: 14,
   },
 });

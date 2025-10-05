@@ -35,6 +35,37 @@ type SearchSuggestion = {
 
 const { width } = Dimensions.get('window');
 
+const formatGeocodedLocation = (place?: Location.LocationGeocodedAddress | null) => {
+  if (!place) return null;
+
+  const candidateParts = [
+    place.subregion,
+    place.city,
+    place.district,
+    place.region,
+    place.country,
+  ];
+
+  const uniqueParts: string[] = [];
+  candidateParts.forEach((part) => {
+    if (!part) return;
+    const normalised = part.trim();
+    if (!normalised) return;
+    const alreadyIncluded = uniqueParts.some(
+      (existing) => existing.localeCompare(normalised, undefined, { sensitivity: 'accent', usage: 'search' }) === 0
+    );
+    if (!alreadyIncluded) {
+      uniqueParts.push(normalised);
+    }
+  });
+
+  if (uniqueParts.length === 0) {
+    return null;
+  }
+
+  return uniqueParts.slice(0, 3).join(', ');
+};
+
 export default function ExploreScreen() {
   const router = useRouter();
   const fallbackUserId = process.env.EXPO_PUBLIC_SUPABASE_DEFAULT_USER_ID;
@@ -58,6 +89,7 @@ export default function ExploreScreen() {
     latitudeDelta: 0.01,
     longitudeDelta: 0.01,
   });
+  const [locationLabel, setLocationLabel] = useState('Menentukan lokasi...');
 
   const filters = ['NDVI', 'Kontras NDVI', 'Pengendapan', 'Tanah'];
 
@@ -132,6 +164,7 @@ export default function ExploreScreen() {
       if (status !== 'granted') {
         console.log('❌ Location permission denied');
         Alert.alert('Permission Denied', 'Lokasi diperlukan untuk menampilkan peta');
+        setLocationLabel('Izin lokasi belum diberikan');
         return;
       }
 
@@ -145,9 +178,26 @@ export default function ExploreScreen() {
         latitudeDelta: 0.01,
         longitudeDelta: 0.01,
       });
+
+      try {
+        const geocoded = await Location.reverseGeocodeAsync({
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+        });
+        setLocationLabel(
+          formatGeocodedLocation(geocoded?.[0] ?? null) ??
+            `Lat ${location.coords.latitude.toFixed(2)}, Lon ${location.coords.longitude.toFixed(2)}`
+        );
+      } catch (reverseError) {
+        console.warn('Reverse geocode gagal', reverseError);
+        setLocationLabel(
+          `Lat ${location.coords.latitude.toFixed(2)}, Lon ${location.coords.longitude.toFixed(2)}`
+        );
+      }
     } catch (error) {
       console.error('❌ Location error:', error);
       Alert.alert('Error', 'Gagal mendapatkan lokasi');
+      setLocationLabel('Lokasi tidak diketahui');
     }
   }, []);
 
@@ -328,10 +378,12 @@ export default function ExploreScreen() {
       longitude: result.longitude,
     };
 
-    setSearchQuery(result.label);
+  setSearchQuery(result.label);
     setSearchResults([]);
     setShowSearchResults(false);
     setSearchMarker(coordinate);
+
+  setLocationLabel(result.label);
 
     clearActivePath();
     setDrawingMode(false);
@@ -509,7 +561,7 @@ export default function ExploreScreen() {
           </View>
           <View>
             <Text style={styles.headerTitle}>Lokasi Ladang</Text>
-            <Text style={styles.headerSubtitle}>Padang, Jawa Tengah</Text>
+            <Text style={styles.headerSubtitle}>{locationLabel}</Text>
           </View>
         </View>
         <TouchableOpacity style={styles.notificationIcon}>

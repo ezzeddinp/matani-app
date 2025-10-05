@@ -1,8 +1,31 @@
 import { ThemedView } from '@/components/themed-view';
-import { authService } from '@/hooks/supabase';
+import { authService, lahanService, LahanWithInfo, profileService, UserProfile } from '@/hooks/supabase';
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
-import { Alert, ScrollView, StatusBar, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Alert, ScrollView, StatusBar, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
+
+const sanitizeString = (value: any): string | undefined => {
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (trimmed.length > 0) {
+      return trimmed;
+    }
+  }
+  return undefined;
+};
+
+const toNumber = (value: any, defaultValue = 0): number => {
+  const parsed = Number(value);
+  if (Number.isFinite(parsed)) {
+    return parsed;
+  }
+  return defaultValue;
+};
+
+const clampPercentage = (value: number): number => {
+  if (!Number.isFinite(value)) return 0;
+  return Math.max(0, Math.min(100, value));
+};
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -19,6 +42,12 @@ export default function ProfileScreen() {
 
   const [selectedTab, setSelectedTab] = useState('Notifikasi');
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [userMetadata, setUserMetadata] = useState<Record<string, any>>({});
+  const [lahanList, setLahanList] = useState<LahanWithInfo[]>([]);
+  const [isLoadingProfile, setIsLoadingProfile] = useState(true);
+  const [profileError, setProfileError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   const tabs = ['Profil', 'Notifikasi', 'Statistik', 'Pencapaian'];
 
@@ -44,6 +73,230 @@ export default function ProfileScreen() {
     }));
   };
 
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchProfileData = async () => {
+      try {
+    setProfileError(null);
+    setIsLoadingProfile(true);
+
+    const authData = await authService.getCurrentUser();
+    const user = authData?.user;
+
+        if (!user) {
+          if (isMounted) {
+            setIsLoadingProfile(false);
+          }
+          router.replace('/auth/login');
+          return;
+        }
+
+        const [profileRecord, lahanRecords] = await Promise.all([
+          profileService.getProfile(user.id),
+          lahanService.getLahanByUser(user.id),
+        ]);
+
+        if (!isMounted) return;
+
+        const metadata = {
+          ...(user.user_metadata || {}),
+          email: user.email || user.user_metadata?.email,
+          phone: user.phone || user.user_metadata?.phone || user.user_metadata?.phone_number,
+        };
+
+        setUserMetadata(metadata);
+        setProfile(profileRecord ?? null);
+        setLahanList(Array.isArray(lahanRecords) ? lahanRecords : []);
+      } catch (error: any) {
+        if (!isMounted) return;
+        const message: string = error?.message ?? '';
+        console.error('❌ Profile fetch error:', error);
+
+        if (message.includes('Auth session missing')) {
+          router.replace('/auth/login');
+          return;
+        }
+
+        setProfileError(message || 'Terjadi kesalahan saat memuat profil.');
+      } finally {
+        if (isMounted) {
+          setIsLoadingProfile(false);
+        }
+      }
+    };
+
+    fetchProfileData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [reloadKey, router]);
+
+  const handleRetryProfile = () => {
+    setReloadKey((prev) => prev + 1);
+  };
+
+  const formatDecimal = useMemo(
+    () =>
+      new Intl.NumberFormat('id-ID', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+      }),
+    []
+  );
+
+  const formatInteger = useMemo(
+    () =>
+      new Intl.NumberFormat('id-ID', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+      }),
+    []
+  );
+
+  const displayName = useMemo(() => {
+    const fromProfile = sanitizeString(profile?.full_name || '');
+    const fromMetadataName =
+      sanitizeString(userMetadata?.full_name) ||
+      sanitizeString(userMetadata?.name) ||
+      sanitizeString(userMetadata?.display_name);
+
+    if (fromProfile) return fromProfile;
+    if (fromMetadataName) return fromMetadataName;
+    if (profile?.email) {
+      return profile.email.split('@')[0];
+    }
+    const metadataEmail = sanitizeString(userMetadata?.email);
+    if (metadataEmail) {
+      return metadataEmail.split('@')[0];
+    }
+    return 'Pengguna Matani';
+  }, [profile, userMetadata]);
+
+  const emailAddress = useMemo(() => {
+    if (profile?.email) {
+      return profile.email;
+    }
+    const metadataEmail = sanitizeString(userMetadata?.email);
+    if (metadataEmail) {
+      return metadataEmail;
+    }
+    return 'Email belum tersedia';
+  }, [profile, userMetadata]);
+
+  const phoneNumber = useMemo(() => {
+    return (
+      sanitizeString(userMetadata?.phone_number) ||
+      sanitizeString(userMetadata?.phone) ||
+      sanitizeString(userMetadata?.whatsapp) ||
+      'Belum diatur'
+    );
+  }, [userMetadata]);
+
+  const locationLabel = useMemo(() => {
+    return (
+      sanitizeString(userMetadata?.location) ||
+      sanitizeString(userMetadata?.city) ||
+      sanitizeString(userMetadata?.address) ||
+      'Lokasi belum diatur'
+    );
+  }, [userMetadata]);
+
+  const joinedDays = useMemo(() => {
+    if (!profile?.created_at) return 0;
+    const createdDate = new Date(profile.created_at);
+    if (Number.isNaN(createdDate.getTime())) return 0;
+    const diffMs = Date.now() - createdDate.getTime();
+    if (diffMs <= 0) return 0;
+    return Math.max(1, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
+  }, [profile]);
+
+  const joinedDaysLabel = joinedDays > 0 ? `${formatInteger.format(joinedDays)} hari` : 'Baru bergabung';
+
+  const totalLahan = useMemo(() => lahanList.length, [lahanList]);
+
+  const totalAreaHa = useMemo(() => {
+    return lahanList.reduce((sum, lahan) => sum + toNumber(lahan.area_ha, 0), 0);
+  }, [lahanList]);
+
+  const totalAreaLabel = `${formatDecimal.format(totalAreaHa)} hektar`;
+
+  const rawAverageNdvi = userMetadata?.average_ndvi ??
+    userMetadata?.avg_ndvi ??
+    userMetadata?.ndvi_average ??
+    userMetadata?.ndviAvg;
+
+  const averageNdviLabel = useMemo(() => {
+    if (rawAverageNdvi === undefined || rawAverageNdvi === null || rawAverageNdvi === '') {
+      return 'Belum tersedia';
+    }
+    const numeric = Number(rawAverageNdvi);
+    if (Number.isFinite(numeric)) {
+      return numeric.toFixed(3);
+    }
+    const asString = sanitizeString(String(rawAverageNdvi));
+    return asString || 'Belum tersedia';
+  }, [rawAverageNdvi]);
+
+  const ndviChecks = useMemo(
+    () => toNumber(userMetadata?.ndvi_checks ?? userMetadata?.ndviMonitoringCount, 0),
+    [userMetadata]
+  );
+
+  const weatherChecks = useMemo(
+    () => toNumber(userMetadata?.weather_checks ?? userMetadata?.weatherCheckCount, 0),
+    [userMetadata]
+  );
+
+  const alertsReceived = useMemo(
+    () => toNumber(userMetadata?.alerts_received ?? userMetadata?.alertCount, 0),
+    [userMetadata]
+  );
+
+  const educationRead = useMemo(
+    () => toNumber(userMetadata?.education_read ?? userMetadata?.educationCount, 0),
+    [userMetadata]
+  );
+
+  const landHealthScore = useMemo(
+    () => clampPercentage(toNumber(userMetadata?.land_health_score ?? userMetadata?.landHealthScore ?? userMetadata?.land_health, 0)),
+    [userMetadata]
+  );
+
+  const monitoringEfficiencyScore = useMemo(
+    () =>
+      clampPercentage(
+        toNumber(
+          userMetadata?.monitoring_efficiency ??
+            userMetadata?.monitoringEfficiency ??
+            (totalLahan > 0 ? 60 : 0),
+          0
+        )
+      ),
+    [totalLahan, userMetadata]
+  );
+
+  const alertResponseScore = useMemo(
+    () =>
+      clampPercentage(
+        toNumber(
+          userMetadata?.alert_response ??
+            userMetadata?.alertResponse ??
+            userMetadata?.alert_response_score,
+          0
+        )
+      ),
+    [userMetadata]
+  );
+
+  const expertProgress = useMemo(() => {
+    if (totalLahan <= 0) return 0;
+    return clampPercentage((totalLahan / 5) * 100);
+  }, [totalLahan]);
+
+  const targetProgressLabel = `${formatInteger.format(Math.min(totalLahan, 5))}/5 lahan dibuat`;
+
   const renderProfileTab = () => (
     <View style={styles.tabContent}>
       <View style={styles.profileCard}>
@@ -53,27 +306,27 @@ export default function ProfileScreen() {
             <Text style={styles.editIcon}>✏️</Text>
           </View>
         </View>
-        <Text style={styles.profileName}>Agus Santoso</Text>
-        <Text style={styles.profileLocation}>Sleman, Yogyakarta</Text>
+        <Text style={styles.profileName}>{displayName}</Text>
+        <Text style={styles.profileLocation}>{locationLabel}</Text>
       </View>
 
       <View style={styles.infoSection}>
         <Text style={styles.sectionTitle}>Informasi Pribadi</Text>
         <View style={styles.infoItem}>
           <Text style={styles.infoLabel}>Nama Lengkap</Text>
-          <Text style={styles.infoValue}>Agus Santoso</Text>
+          <Text style={styles.infoValue}>{displayName}</Text>
         </View>
         <View style={styles.infoItem}>
           <Text style={styles.infoLabel}>Email</Text>
-          <Text style={styles.infoValue}>santogus@gmail.com</Text>
+          <Text style={styles.infoValue}>{emailAddress}</Text>
         </View>
         <View style={styles.infoItem}>
           <Text style={styles.infoLabel}>Nomor Telepon</Text>
-          <Text style={styles.infoValue}>+62 812-3456-7890</Text>
+          <Text style={styles.infoValue}>{phoneNumber}</Text>
         </View>
         <View style={styles.infoItem}>
           <Text style={styles.infoLabel}>Lokasi</Text>
-          <Text style={styles.infoValue}>Sleman, Yogyakarta</Text>
+          <Text style={styles.infoValue}>{locationLabel}</Text>
         </View>
       </View>
 
@@ -231,19 +484,19 @@ export default function ProfileScreen() {
       <View style={styles.statsContainer}>
         <View style={styles.statsGrid}>
           <View style={styles.statCard}>
-            <Text style={styles.statNumber}>614 hari</Text>
+            <Text style={styles.statNumber}>{joinedDaysLabel}</Text>
             <Text style={styles.statLabel}>Hari Bergabung</Text>
           </View>
           <View style={styles.statCard}>
-            <Text style={styles.statNumber}>6 lahan</Text>
+            <Text style={styles.statNumber}>{formatInteger.format(totalLahan)}</Text>
             <Text style={styles.statLabel}>Total Lahan</Text>
           </View>
           <View style={styles.statCard}>
-            <Text style={styles.statNumber}>60 hektar</Text>
+            <Text style={styles.statNumber}>{totalAreaLabel}</Text>
             <Text style={styles.statLabel}>Luas Total</Text>
           </View>
           <View style={styles.statCard}>
-            <Text style={styles.statNumber}>0.755</Text>
+            <Text style={styles.statNumber}>{averageNdviLabel}</Text>
             <Text style={styles.statLabel}>Rata-rata NDVI</Text>
           </View>
         </View>
@@ -252,19 +505,19 @@ export default function ProfileScreen() {
           <Text style={styles.sectionTitle}>Analisis Penggunaan</Text>
           <View style={styles.analysisItem}>
             <Text style={styles.analysisLabel}>Pemantauan NDVI</Text>
-            <Text style={styles.analysisValue}>47 kali</Text>
+            <Text style={styles.analysisValue}>{`${formatInteger.format(ndviChecks)} kali`}</Text>
           </View>
           <View style={styles.analysisItem}>
             <Text style={styles.analysisLabel}>Cek Prakiraan Cuaca</Text>
-            <Text style={styles.analysisValue}>23 kali</Text>
+            <Text style={styles.analysisValue}>{`${formatInteger.format(weatherChecks)} kali`}</Text>
           </View>
           <View style={styles.analysisItem}>
             <Text style={styles.analysisLabel}>Alert Diterima</Text>
-            <Text style={styles.analysisValue}>12 kali</Text>
+            <Text style={styles.analysisValue}>{`${formatInteger.format(alertsReceived)} kali`}</Text>
           </View>
           <View style={styles.analysisItem}>
             <Text style={styles.analysisLabel}>Edukasi Dibaca</Text>
-            <Text style={styles.analysisValue}>8 artikel</Text>
+            <Text style={styles.analysisValue}>{`${formatInteger.format(educationRead)} artikel`}</Text>
           </View>
         </View>
 
@@ -273,23 +526,23 @@ export default function ProfileScreen() {
           <View style={styles.metricItem}>
             <Text style={styles.metricLabel}>Kesehatan Lahan</Text>
             <View style={styles.progressBar}>
-              <View style={[styles.progressFill, { width: '70%' }]} />
+              <View style={[styles.progressFill, { width: `${landHealthScore}%` }]} />
             </View>
-            <Text style={styles.metricValue}>70%</Text>
+            <Text style={styles.metricValue}>{`${formatInteger.format(landHealthScore)}%`}</Text>
           </View>
           <View style={styles.metricItem}>
             <Text style={styles.metricLabel}>Efisiensi Monitoring</Text>
             <View style={styles.progressBar}>
-              <View style={[styles.progressFill, { width: '85%' }]} />
+              <View style={[styles.progressFill, { width: `${monitoringEfficiencyScore}%` }]} />
             </View>
-            <Text style={styles.metricValue}>85%</Text>
+            <Text style={styles.metricValue}>{`${formatInteger.format(monitoringEfficiencyScore)}%`}</Text>
           </View>
           <View style={styles.metricItem}>
             <Text style={styles.metricLabel}>Response Time Alert</Text>
             <View style={styles.progressBar}>
-              <View style={[styles.progressFill, { width: '90%' }]} />
+              <View style={[styles.progressFill, { width: `${alertResponseScore}%` }]} />
             </View>
-            <Text style={styles.metricValue}>90%</Text>
+            <Text style={styles.metricValue}>{`${formatInteger.format(alertResponseScore)}%`}</Text>
           </View>
         </View>
       </View>
@@ -307,7 +560,9 @@ export default function ProfileScreen() {
           </View>
           <View style={styles.achievementContent}>
             <Text style={styles.achievementTitle}>Petani Digital</Text>
-            <Text style={styles.achievementDescription}>Mendaftar di Matani</Text>
+            <Text style={styles.achievementDescription}>
+              Bergabung pada Matani selama {joinedDaysLabel}
+            </Text>
           </View>
           <View style={styles.achievementBadge}>
             <Text style={styles.badgeText}>❤️</Text>
@@ -320,7 +575,9 @@ export default function ProfileScreen() {
           </View>
           <View style={styles.achievementContent}>
             <Text style={styles.achievementTitle}>Pemetaan Ahli</Text>
-            <Text style={styles.achievementDescription}>Membuat 5+ peta lahan</Text>
+            <Text style={styles.achievementDescription}>
+              {`Sudah membuat ${formatInteger.format(totalLahan)} peta lahan`}
+            </Text>
           </View>
         </View>
 
@@ -330,27 +587,31 @@ export default function ProfileScreen() {
           </View>
           <View style={styles.achievementContent}>
             <Text style={styles.achievementTitle}>Cuaca Master</Text>
-            <Text style={styles.achievementDescription}>Gunakan prakiraan cuaca 50+ kali</Text>
+            <Text style={styles.achievementDescription}>
+              {`Telah mengecek cuaca ${formatInteger.format(weatherChecks)} kali`}
+            </Text>
           </View>
         </View>
 
         <View style={styles.targetCard}>
           <View style={styles.targetHeader}>
             <Text style={styles.targetTitle}>Target Berikutnya</Text>
-            <Text style={styles.targetDescription}>Buat 5 lahan untuk mendapatkan badge &quot;Pemetaan Ahli&quot;</Text>
+            <Text style={styles.targetDescription}>
+              Buat 5 lahan untuk mendapatkan badge &quot;Pemetaan Ahli&quot;
+            </Text>
           </View>
           <View style={styles.progressContainer}>
             <View style={styles.progressBar}>
-              <View style={[styles.progressFill, { width: '20%' }]} />
+              <View style={[styles.progressFill, { width: `${expertProgress}%` }]} />
             </View>
-            <Text style={styles.progressText}>1/5 lahan dibuat</Text>
+            <Text style={styles.progressText}>{targetProgressLabel}</Text>
           </View>
         </View>
       </View>
     </View>
   );
 
-  const renderTabContent = () => {
+  const renderActiveTabContent = () => {
     switch (selectedTab) {
       case 'Profil':
         return renderProfileTab();
@@ -363,6 +624,30 @@ export default function ProfileScreen() {
       default:
         return renderNotificationTab();
     }
+  };
+
+  const renderTabContent = () => {
+    if (isLoadingProfile) {
+      return (
+        <View style={styles.loaderContainer}>
+          <ActivityIndicator size="large" color="#2E7D32" />
+          <Text style={styles.loaderText}>Memuat profil Anda…</Text>
+        </View>
+      );
+    }
+
+    if (profileError) {
+      return (
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>{profileError}</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={handleRetryProfile}>
+            <Text style={styles.retryButtonText}>Coba Lagi</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    return renderActiveTabContent();
   };
 
   return (
@@ -737,6 +1022,41 @@ const styles = StyleSheet.create({
   targetDescription: {
     fontSize: 14,
     color: '#2E7D32',
+  },
+  loaderContainer: {
+    paddingHorizontal: 20,
+    paddingVertical: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loaderText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+  },
+  errorContainer: {
+    paddingHorizontal: 20,
+    paddingVertical: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#C62828',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  retryButton: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    backgroundColor: '#2E7D32',
+    borderRadius: 20,
+  },
+  retryButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
   progressContainer: {
     marginTop: 10,
