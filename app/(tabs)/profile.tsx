@@ -739,7 +739,7 @@ const styles = StyleSheet.create({
   },
   tabNavigation: {
     flexDirection: 'row',
-    backgroundColor: '#333',
+    backgroundColor: '#ffffff',
     borderRadius: 25,
     margin: 20,
     padding: 5,

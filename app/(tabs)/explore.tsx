@@ -2,7 +2,7 @@ import { ThemedView } from '@/components/themed-view';
 import { LahanWithInfo, lahanService, supabase } from '@/hooks/supabase';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -16,7 +16,7 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
-import MapView, { LatLng, MapPressEvent, Marker, Polygon, Polyline } from 'react-native-maps';
+import MapView, { LatLng, MapPressEvent, Marker, Polygon, Polyline, Region } from 'react-native-maps';
 
 type SavedLahanItem = {
   id: string;
@@ -33,7 +33,37 @@ type SearchSuggestion = {
   longitude: number;
 };
 
+type DrawVertex = {
+  id: string;
+  coordinate: LatLng;
+};
+
 const { width } = Dimensions.get('window');
+
+const LAHAN_COLOR_PALETTE = [
+  { stroke: '#2E7D32', fill: 'rgba(76, 175, 80, 0.22)' },
+  { stroke: '#F57C00', fill: 'rgba(255, 183, 77, 0.22)' },
+  { stroke: '#7B1FA2', fill: 'rgba(186, 104, 200, 0.24)' },
+  { stroke: '#0288D1', fill: 'rgba(144, 202, 249, 0.24)' },
+  { stroke: '#C2185B', fill: 'rgba(244, 143, 177, 0.24)' },
+  { stroke: '#00897B', fill: 'rgba(165, 214, 167, 0.24)' },
+];
+
+const clampDeltaValue = (value: number) => Math.min(Math.max(value, 0.0005), 1.8);
+
+const hashString = (value: string) => {
+  let hash = 0;
+  for (let i = 0; i < value.length; i++) {
+    hash = (hash << 5) - hash + value.charCodeAt(i);
+    hash |= 0;
+  }
+  return hash;
+};
+
+const getLahanColor = (id: string) => {
+  const index = Math.abs(hashString(id)) % LAHAN_COLOR_PALETTE.length;
+  return LAHAN_COLOR_PALETTE[index];
+};
 
 const formatGeocodedLocation = (place?: Location.LocationGeocodedAddress | null) => {
   if (!place) return null;
@@ -73,8 +103,26 @@ export default function ExploreScreen() {
   const [drawingMode, setDrawingMode] = useState(false);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [lahanName, setLahanName] = useState('');
-  const [currentPath, setCurrentPath] = useState<LatLng[]>([]);
+  const [currentVertices, setCurrentVertices] = useState<DrawVertex[]>([]);
   const [pendingPolygon, setPendingPolygon] = useState<LatLng[]>([]);
+
+  const activePath = useMemo(
+    () =>
+      currentVertices
+        .map((vertex) => vertex.coordinate)
+        .filter(
+          (coord): coord is LatLng =>
+            Number.isFinite(coord.latitude) && Number.isFinite(coord.longitude)
+        ),
+    [currentVertices]
+  );
+
+  const previewPath = useMemo(() => {
+    if (activePath.length >= 3) {
+      return [...activePath, activePath[0]];
+    }
+    return activePath;
+  }, [activePath]);
   const [savedLahan, setSavedLahan] = useState<SavedLahanItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchSuggestion[]>([]);
@@ -83,6 +131,7 @@ export default function ExploreScreen() {
   const [searchMarker, setSearchMarker] = useState<LatLng | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const mapRef = useRef<MapView>(null);
+  const currentRegionRef = useRef<Region | null>(null);
   const [userLocation, setUserLocation] = useState({
     latitude: -6.2088,
     longitude: 106.8456,
@@ -172,12 +221,17 @@ export default function ExploreScreen() {
       let location = await Location.getCurrentPositionAsync({});
       console.log(`📍 User location: ${location.coords.latitude}, ${location.coords.longitude}`);
       
-      setUserLocation({
+      const baseRegion = currentRegionRef.current;
+      const nextRegion: Region = {
         latitude: location.coords.latitude,
         longitude: location.coords.longitude,
-        latitudeDelta: 0.01,
-        longitudeDelta: 0.01,
-      });
+        latitudeDelta: clampDeltaValue(baseRegion?.latitudeDelta ?? 0.01),
+        longitudeDelta: clampDeltaValue(baseRegion?.longitudeDelta ?? 0.01),
+      };
+
+      setUserLocation(nextRegion);
+      currentRegionRef.current = nextRegion;
+      mapRef.current?.animateToRegion(nextRegion, 350);
 
       try {
         const geocoded = await Location.reverseGeocodeAsync({
@@ -307,20 +361,25 @@ export default function ExploreScreen() {
     if (!drawingMode) return;
 
     const rawCoordinate = event.nativeEvent.coordinate;
-    const coordinate: LatLng = {
-      latitude: rawCoordinate.latitude,
-      longitude: rawCoordinate.longitude,
-    };
-    
-    if (currentPath.length === 0) {
-      // Start new drawing
-      console.log('🖊️ Starting polygon at:', coordinate);
-      setCurrentPath([coordinate]);
-    } else {
-      // Add point to current drawing
-      console.log('➕ Adding point:', coordinate);
-      setCurrentPath(prev => [...prev, coordinate]);
+    const lat = Number(rawCoordinate.latitude);
+    const lon = Number(rawCoordinate.longitude);
+
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+      console.warn('❌ Invalid coordinate from map press:', rawCoordinate);
+      return;
     }
+
+    const coordinate: LatLng = {
+      latitude: lat,
+      longitude: lon,
+    };
+
+    const vertex: DrawVertex = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      coordinate,
+    };
+
+    setCurrentVertices((prev) => [...prev, vertex]);
   };
 
   const calculateArea = (coordinates: LatLng[]) => {
@@ -341,7 +400,7 @@ export default function ExploreScreen() {
   };
 
   const clearActivePath = useCallback(() => {
-    setCurrentPath([]);
+    setCurrentVertices([]);
     setPendingPolygon([]);
   }, []);
 
@@ -389,22 +448,62 @@ export default function ExploreScreen() {
     setDrawingMode(false);
     setShowSaveModal(false);
 
+    const nextRegion: Region = {
+      latitude: coordinate.latitude,
+      longitude: coordinate.longitude,
+      latitudeDelta: 0.008,
+      longitudeDelta: 0.008,
+    };
+
     setUserLocation(prev => ({
       ...prev,
       latitude: coordinate.latitude,
       longitude: coordinate.longitude,
     }));
-
-    mapRef.current?.animateToRegion(
-      {
-        latitude: coordinate.latitude,
-        longitude: coordinate.longitude,
-        latitudeDelta: 0.008,
-        longitudeDelta: 0.008,
-      },
-      350
-    );
+    currentRegionRef.current = nextRegion;
+    mapRef.current?.animateToRegion(nextRegion, 350);
   };
+
+  const animateToRegion = useCallback((region: Region, duration = 200) => {
+    if (!mapRef.current) return;
+    currentRegionRef.current = region;
+    mapRef.current.animateToRegion(region, duration);
+  }, []);
+
+  const handleZoom = useCallback(
+    (direction: 'in' | 'out') => {
+      const baseRegion = currentRegionRef.current ?? {
+        latitude: userLocation.latitude,
+        longitude: userLocation.longitude,
+        latitudeDelta: userLocation.latitudeDelta,
+        longitudeDelta: userLocation.longitudeDelta,
+      };
+
+      const factor = direction === 'in' ? 0.6 : 1.6;
+      const nextRegion: Region = {
+        ...baseRegion,
+        latitudeDelta: clampDeltaValue(baseRegion.latitudeDelta * factor),
+        longitudeDelta: clampDeltaValue(baseRegion.longitudeDelta * factor),
+      };
+
+      animateToRegion(nextRegion);
+    },
+    [animateToRegion, userLocation]
+  );
+
+  const handleRecenter = useCallback(() => {
+    const current = currentRegionRef.current ?? userLocation;
+    const nextRegion: Region = {
+      latitude: userLocation.latitude,
+      longitude: userLocation.longitude,
+      latitudeDelta: clampDeltaValue(current.latitudeDelta ?? userLocation.latitudeDelta),
+      longitudeDelta: clampDeltaValue(current.longitudeDelta ?? userLocation.longitudeDelta),
+    };
+
+    animateToRegion(nextRegion, 300);
+    setSearchMarker(null);
+    getCurrentLocation();
+  }, [animateToRegion, getCurrentLocation, userLocation]);
 
   const startDrawing = () => {
     setDrawingMode(true);
@@ -418,12 +517,12 @@ export default function ExploreScreen() {
   };
 
   const finishDrawing = () => {
-    if (currentPath.length < 3) {
+    if (activePath.length < 3) {
       Alert.alert('Error', 'Minimal 3 titik diperlukan untuk membuat polygon lahan.');
       return;
     }
-    
-    const completedPath = [...currentPath];
+
+    const completedPath = activePath.map((coord) => ({ ...coord }));
     setPendingPolygon(completedPath);
     setDrawingMode(false);
     setShowSaveModal(true);
@@ -437,7 +536,7 @@ export default function ExploreScreen() {
   };
 
   const undoLastPoint = () => {
-    setCurrentPath(prevPath => {
+    setCurrentVertices((prevPath) => {
       if (prevPath.length <= 1) {
         return [];
       }
@@ -519,9 +618,9 @@ export default function ExploreScreen() {
 
       loadSavedLahan();
 
-      setShowSaveModal(false);
-      setLahanName('');
-  clearActivePath();
+    setShowSaveModal(false);
+    setLahanName('');
+    clearActivePath();
       Alert.alert('Sukses', `Lahan "${trimmedName}" berhasil disimpan!\nLuas: ${areaText} ha`);
     } catch (error: any) {
       console.error('❌ Gagal menyimpan lahan:', error);
@@ -543,30 +642,16 @@ export default function ExploreScreen() {
   const pendingArea = calculateArea(pendingPolygon);
   const formattedPendingArea = Number.isFinite(pendingArea) ? pendingArea.toFixed(2) : '0.00';
 
-  const previewPath = currentPath.length >= 3
-    ? [...currentPath, currentPath[0]]
-    : currentPath;
-
   return (
     <ThemedView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#f5f5f5" />
       
       {/* Header */}
       <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <View style={styles.menuIcon}>
-            <View style={styles.menuLine} />
-            <View style={styles.menuLine} />
-            <View style={styles.menuLine} />
-          </View>
-          <View>
-            <Text style={styles.headerTitle}>Lokasi Ladang</Text>
-            <Text style={styles.headerSubtitle}>{locationLabel}</Text>
-          </View>
+        <View>
+          <Text style={styles.headerTitle}>Lokasi Ladang</Text>
+          <Text style={styles.headerSubtitle}>{locationLabel}</Text>
         </View>
-        <TouchableOpacity style={styles.notificationIcon}>
-          <View style={styles.notificationDot} />
-        </TouchableOpacity>
       </View>
 
       {/* Map Container - Real MapView */}
@@ -631,6 +716,9 @@ export default function ExploreScreen() {
           style={styles.map}
           initialRegion={userLocation}
           onPress={handleMapPress}
+          onRegionChangeComplete={(region) => {
+            currentRegionRef.current = region;
+          }}
           mapType="satellite"
           showsUserLocation={true}
           showsMyLocationButton={false}
@@ -638,7 +726,7 @@ export default function ExploreScreen() {
           {/* Render current drawing preview */}
           {drawingMode && previewPath.length > 0 && (
             <>
-              {currentPath.length >= 3 && (
+              {activePath.length >= 3 && (
                 <Polygon
                   coordinates={previewPath}
                   fillColor="rgba(255, 138, 101, 0.25)"
@@ -646,13 +734,13 @@ export default function ExploreScreen() {
                   strokeWidth={2}
                 />
               )}
-              {currentPath.length > 1 && (
+              {activePath.length > 1 && (
                 <Polyline
                   coordinates={previewPath}
                   strokeColor="#FF5722"
                   strokeWidth={6}
                   lineCap="round"
-                  geodesic
+                  geodesic={activePath.length >= 3}
                 />
               )}
             </>
@@ -681,13 +769,14 @@ export default function ExploreScreen() {
 
             const labelIndex = Math.floor(item.coordinates.length / 2);
             const labelCoordinate = item.coordinates[labelIndex] ?? item.coordinates[0];
+            const color = getLahanColor(item.id);
 
             return (
               <React.Fragment key={`saved-${item.id}`}>
                 <Polygon
                   coordinates={item.coordinates}
-                  fillColor="rgba(76, 175, 80, 0.25)"
-                  strokeColor="#388E3C"
+                  fillColor={color.fill}
+                  strokeColor={color.stroke}
                   strokeWidth={3}
                   tappable={false}
                 />
@@ -697,7 +786,8 @@ export default function ExploreScreen() {
                     anchor={{ x: 0.5, y: 0.5 }}
                     tappable={false}
                   >
-                    <View style={styles.savedLahanLabel}>
+                    <View style={[styles.savedLahanLabel, { backgroundColor: color.stroke }]}
+                    >
                       <Text style={styles.savedLahanLabelText}>{item.name}</Text>
                       {typeof item.areaHa === 'number' && Number.isFinite(item.areaHa) && (
                         <Text style={styles.savedLahanLabelSubtext}>
@@ -712,10 +802,10 @@ export default function ExploreScreen() {
           })}
 
           {/* Show vertex points during drawing */}
-          {drawingMode && currentPath.map((coord, index) => (
+          {drawingMode && currentVertices.map((vertex, index) => (
             <Marker
-              key={`draft-point-${index}`}
-              coordinate={coord}
+              key={vertex.id}
+              coordinate={vertex.coordinate}
               anchor={{ x: 0.5, y: 0.5 }}
               zIndex={10 + index}
             >
@@ -723,7 +813,7 @@ export default function ExploreScreen() {
                 style={[
                   styles.drawingVertex,
                   index === 0 && styles.startVertex,
-                  index === currentPath.length - 1 && styles.currentVertex,
+                  index === currentVertices.length - 1 && styles.currentVertex,
                 ]}
               />
             </Marker>
@@ -733,13 +823,13 @@ export default function ExploreScreen() {
 
         {/* Map controls */}
         <View style={styles.mapControls}>
-          <TouchableOpacity style={styles.zoomButton}>
+          <TouchableOpacity style={styles.zoomButton} onPress={() => handleZoom('in')} accessibilityLabel="Perbesar peta">
             <Text style={styles.zoomText}>+</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.zoomButton}>
+          <TouchableOpacity style={styles.zoomButton} onPress={() => handleZoom('out')} accessibilityLabel="Perkecil peta">
             <Text style={styles.zoomText}>-</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.locationButton} onPress={getCurrentLocation}>
+          <TouchableOpacity style={styles.locationButton} onPress={handleRecenter} accessibilityLabel="Kembali ke lokasiku">
             <View style={styles.locationIcon} />
           </TouchableOpacity>
         </View>
@@ -755,7 +845,7 @@ export default function ExploreScreen() {
             <Text style={styles.controlButtonText}>Batal</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.finishButton} onPress={finishDrawing}>
-            <Text style={styles.finishButtonText}>Selesai ({currentPath.length} titik)</Text>
+            <Text style={styles.finishButtonText}>Selesai ({currentVertices.length} titik)</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -787,7 +877,7 @@ export default function ExploreScreen() {
           <Text style={styles.instructionText}>
             Tap pada peta untuk menandai titik lahan.
           </Text>
-          {currentPath.length >= 3 && (
+          {currentVertices.length >= 3 && (
             <Text style={styles.instructionSubtext}>
               Tekan Selesai untuk menutup polygon
             </Text>
@@ -858,26 +948,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f5f5',
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     paddingHorizontal: 20,
     paddingTop: 50,
     paddingBottom: 20,
     backgroundColor: '#f5f5f5',
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  menuIcon: {
-    marginRight: 15,
-  },
-  menuLine: {
-    width: 20,
-    height: 2,
-    backgroundColor: '#333',
-    marginBottom: 3,
   },
   headerTitle: {
     fontSize: 18,
@@ -887,20 +962,6 @@ const styles = StyleSheet.create({
   headerSubtitle: {
     fontSize: 14,
     color: '#666',
-  },
-  notificationIcon: {
-    width: 24,
-    height: 24,
-    backgroundColor: '#ddd',
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  notificationDot: {
-    width: 8,
-    height: 8,
-    backgroundColor: '#ff6b6b',
-    borderRadius: 4,
   },
   mapContainer: {
     flex: 1,
@@ -1061,7 +1122,6 @@ const styles = StyleSheet.create({
     marginTop: 5,
   },
   savedLahanLabel: {
-    backgroundColor: 'rgba(56, 142, 60, 0.9)',
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 8,

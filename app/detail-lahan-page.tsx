@@ -4,12 +4,12 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-    ActivityIndicator,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Defs, Path, Stop, LinearGradient as SvgLinearGradient } from 'react-native-svg';
@@ -52,13 +52,55 @@ type AnalysisResult = {
   recommendations: string[];
 };
 
+type SeverityLevel = 'success' | 'warning' | 'danger';
+
+const severityPalette: Record<SeverityLevel, { background: string; border: string; text: string }> = {
+  success: { background: '#E8F5E9', border: '#C8E6C9', text: '#1B5E20' },
+  warning: { background: '#FFF6E5', border: '#FFE0B2', text: '#6D4C00' },
+  danger: { background: '#FBE9E7', border: '#F5C6CB', text: '#B71C1C' },
+};
+
+const healthSeverityLabels: Record<SeverityLevel, string> = {
+  success: 'Sehat',
+  warning: 'Perlu Perhatian',
+  danger: 'Perlu Aksi',
+};
+
+const riskSeverityLabels: Record<SeverityLevel, string> = {
+  success: 'Rendah',
+  warning: 'Sedang',
+  danger: 'Tinggi',
+};
+
+const NDVI_TIPS = [
+  'Nilai NDVI sehat berada di kisaran 0.5-0.8 dan makin tinggi menunjukkan vegetasi produktif.',
+  'NDVI < 0 menandakan area tanpa vegetasi, 0-0.2 tanah minim tanaman, 0.2-0.5 pertumbuhan sedang, dan > 0.5 vegetasi hijau sehat.',
+  'Manfaatkan NDVI untuk memantau pertumbuhan, mendeteksi stres, serta menjadwalkan tanam dan panen.'
+];
+
+const evaluateNdviSeverity = (value: number): SeverityLevel => {
+  if (value >= 0.75) return 'success';
+  if (value >= 0.6) return 'warning';
+  return 'danger';
+};
+
+const evaluateTrendSeverity = (value: number): SeverityLevel => {
+  if (value >= 0) return 'success';
+  if (value >= -5) return 'warning';
+  return 'danger';
+};
+
+const evaluateRiskSeverity = (value: number): SeverityLevel => {
+  if (value <= 0.45) return 'success';
+  if (value <= 0.65) return 'warning';
+  return 'danger';
+};
+
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
 const toRadians = (value: number) => (value * Math.PI) / 180;
 
 const formatPercent = (value: number, fractionDigits = 1) => `${(value * 100).toFixed(fractionDigits)}%`;
-
-const formatNdvi = (value: number) => value.toFixed(3);
 
 const getDayOfYear = (date: Date) => {
   const start = new Date(date.getFullYear(), 0, 0);
@@ -118,7 +160,8 @@ const computeAnalysis = (coords: Coordinate, areaHa: number | null, createdAt?: 
 
   const pestAlert = pestPressure > 0.6 ? 'Pantau aktivitas hama, lakukan inspeksi visual dan pasang perangkap feromon.' : 'Risiko hama terkendali, lanjutkan monitoring rutin.';
 
-  const stressCategory = stressIndex > 0.65 ? 'Sedang' : stressIndex > 0.5 ? 'Ringan' : 'Minimal';
+  const stressSeverity = evaluateRiskSeverity(stressIndex);
+  const stressCategory = riskSeverityLabels[stressSeverity];
 
   const growthStage = harvestProgress < 0.35 ? 'Vegetatif Aktif' : harvestProgress < 0.7 ? 'Pembungaan & Pengisian' : 'Menjelang Panen';
 
@@ -325,6 +368,75 @@ export default function DetailLahanPage() {
     return `${completed}/${analysis.harvestCycleDays}`;
   }, [analysis]);
 
+  const healthMetrics = useMemo(() => {
+    if (!analysis) return [];
+
+    const ndviSeverity = evaluateNdviSeverity(analysis.ndviCurrent);
+    const trendSeverity = evaluateTrendSeverity(analysis.ndviTrendPercent);
+    const pestSeverity = evaluateRiskSeverity(analysis.pestPressure);
+
+    return [
+      {
+        key: 'ndvi',
+        title: 'Nilai NDVI',
+        value: formatPercent(analysis.ndviCurrent),
+        caption: healthSeverityLabels[ndviSeverity],
+        palette: severityPalette[ndviSeverity],
+      },
+      {
+        key: 'trend',
+        title: 'Tren 7 Hari',
+        value: `${analysis.ndviTrendPercent >= 0 ? '+' : ''}${analysis.ndviTrendPercent.toFixed(1)}%`,
+        caption:
+          analysis.ndviTrendPercent >= 0
+            ? 'Membaik'
+            : trendSeverity === 'warning'
+            ? 'Menurun Tipis'
+            : 'Menurun Tajam',
+        palette: severityPalette[trendSeverity],
+      },
+      {
+        key: 'pest',
+        title: 'Serangan Hama',
+        value: formatPercent(analysis.pestPressure),
+        caption: riskSeverityLabels[pestSeverity],
+        palette: severityPalette[pestSeverity],
+      },
+    ];
+  }, [analysis]);
+
+  const riskMetrics = useMemo(() => {
+    if (!analysis) return [];
+
+    const pestSeverity = evaluateRiskSeverity(analysis.pestPressure);
+    const diseaseSeverity = evaluateRiskSeverity(analysis.diseaseRisk);
+    const stressSeverity = evaluateRiskSeverity(analysis.stressIndex);
+
+    return [
+      {
+        key: 'pest',
+        title: 'Serangan Hama',
+        value: formatPercent(analysis.pestPressure),
+        caption: riskSeverityLabels[pestSeverity],
+        palette: severityPalette[pestSeverity],
+      },
+      {
+        key: 'disease',
+        title: 'Risiko Penyakit',
+        value: formatPercent(analysis.diseaseRisk),
+        caption: riskSeverityLabels[diseaseSeverity],
+        palette: severityPalette[diseaseSeverity],
+      },
+      {
+        key: 'stress',
+        title: 'Stres Tanaman',
+        value: formatPercent(analysis.stressIndex),
+        caption: riskSeverityLabels[stressSeverity],
+        palette: severityPalette[stressSeverity],
+      },
+    ];
+  }, [analysis]);
+
   return (
     <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
       <StatusBar style="auto" />
@@ -445,28 +557,19 @@ export default function DetailLahanPage() {
               </View>
             ) : (
               <View style={styles.sectionCard}>
-                <Text style={styles.sectionTitle}>Profil Risiko Tanaman</Text>
-                <Text style={styles.sectionSubtitle}>Evaluasi berbasis lokasi untuk risiko utama</Text>
+                <Text style={[styles.sectionTitle, styles.sectionTitleCentered]}>Profil Risiko Tanaman</Text>
+                <Text style={[styles.sectionSubtitle, styles.sectionSubtitleCentered]}>Evaluasi berbasis lokasi untuk risiko utama</Text>
                 <View style={styles.metricsRow}>
-                  <View style={[styles.metricPill, styles.metricPillGreen]}>
-                    <Text style={styles.metricPillLabel}>Serangan Hama</Text>
-                    <Text style={styles.metricPillValue}>{formatPercent(analysis.pestPressure)}</Text>
-                    <Text style={styles.metricPillStatus}>
-                      {analysis.pestPressure > 0.6 ? 'Waspada' : 'Normal'}
-                    </Text>
-                  </View>
-                  <View style={[styles.metricPill, styles.metricPillAmber]}>
-                    <Text style={styles.metricPillLabel}>Risiko Penyakit</Text>
-                    <Text style={styles.metricPillValue}>{formatPercent(analysis.diseaseRisk)}</Text>
-                    <Text style={styles.metricPillStatus}>
-                      {analysis.diseaseRisk > 0.55 ? 'Perlu Pantau' : 'Stabil'}
-                    </Text>
-                  </View>
-                  <View style={[styles.metricPill, styles.metricPillNeutral]}>
-                    <Text style={styles.metricPillLabel}>Stres Tanaman</Text>
-                    <Text style={styles.metricPillValue}>{formatPercent(analysis.stressIndex)}</Text>
-                    <Text style={styles.metricPillStatus}>{analysis.stressCategory}</Text>
-                  </View>
+                  {riskMetrics.map((metric) => (
+                    <View
+                      key={metric.key}
+                      style={[styles.metricPill, { backgroundColor: metric.palette.background, borderColor: metric.palette.border }]}
+                    >
+                      <Text style={[styles.metricPillLabel, { color: metric.palette.text }]}>{metric.title}</Text>
+                      <Text style={[styles.metricPillValue, { color: metric.palette.text }]}>{metric.value}</Text>
+                      <Text style={[styles.metricPillStatus, { color: metric.palette.text }]}>{metric.caption}</Text>
+                    </View>
+                  ))}
                 </View>
               </View>
             )}
@@ -476,26 +579,20 @@ export default function DetailLahanPage() {
                 <View style={styles.statusCard}>
                   <Text style={styles.statusTitle}>Status Kesehatan Tanaman</Text>
                   <View style={styles.statusMetricsRow}>
-                    <View style={[styles.statusMetricBox, styles.statusMetricGreen]}>
-                      <Text style={styles.statusMetricLabel}>Nilai NDVI</Text>
-                      <Text style={styles.statusMetricValue}>{formatNdvi(analysis.ndviCurrent)}</Text>
-                      <Text style={styles.statusMetricCaption}>Sehat</Text>
-                    </View>
-                    <View style={[styles.statusMetricBox, styles.statusMetricNeutral]}>
-                      <Text style={styles.statusMetricLabel}>Tren 7 Hari</Text>
-                      <Text style={styles.statusMetricValue}>
-                        {analysis.ndviTrendPercent >= 0 ? '+' : ''}
-                        {analysis.ndviTrendPercent.toFixed(1)}%
-                      </Text>
-                      <Text style={styles.statusMetricCaption}>Naik</Text>
-                    </View>
-                    <View style={[styles.statusMetricBox, styles.statusMetricYellow]}>
-                      <Text style={styles.statusMetricLabel}>Serangan Hama</Text>
-                      <Text style={styles.statusMetricValue}>{formatPercent(analysis.pestPressure)}</Text>
-                      <Text style={styles.statusMetricCaption}>
-                        {analysis.pestPressure > 0.6 ? 'Perlu Aksi' : 'Normal'}
-                      </Text>
-                    </View>
+                    {healthMetrics.map((metric, index) => (
+                      <View
+                        key={metric.key}
+                        style={[
+                          styles.statusMetricBox,
+                          index === healthMetrics.length - 1 && styles.statusMetricBoxLast,
+                          { backgroundColor: metric.palette.background, borderColor: metric.palette.border },
+                        ]}
+                      >
+                        <Text style={[styles.statusMetricLabel, { color: metric.palette.text }]}>{metric.title}</Text>
+                        <Text style={[styles.statusMetricValue, { color: metric.palette.text }]}>{metric.value}</Text>
+                        <Text style={[styles.statusMetricCaption, { color: metric.palette.text }]}>{metric.caption}</Text>
+                      </View>
+                    ))}
                   </View>
 
                   <View style={styles.noticeCard}>
@@ -513,27 +610,29 @@ export default function DetailLahanPage() {
                       <Ionicons name="bulb" size={20} color="#2E7D32" />
                       <View style={styles.tipTextContainer}>
                         <Text style={styles.tipTitle}>Tips</Text>
-                        <Text style={styles.tipDescription}>
-                          NDVI optimal untuk tanaman jagung idealnya berada antara 0.7 - 0.9. Nilai di bawah 0.6 menandakan
-                          tanaman mungkin kekurangan nutrisi atau air.
-                        </Text>
+                        {NDVI_TIPS.map((tip, index) => (
+                          <View key={index} style={styles.tipListItem}>
+                            <Text style={styles.tipListBullet}>•</Text>
+                            <Text style={styles.tipDescription}>{tip}</Text>
+                          </View>
+                        ))}
                       </View>
                     </View>
 
                     <View style={styles.extendedMetricsRow}>
                       <View style={styles.extendedMetricBox}>
                         <Text style={styles.extendedMetricLabel}>Nilai Tertinggi</Text>
-                        <Text style={styles.extendedMetricValue}>{formatNdvi(analysis.ndviHighest)}</Text>
+                        <Text style={styles.extendedMetricValue}>{formatPercent(analysis.ndviHighest, 1)}</Text>
                         <Text style={styles.extendedMetricCaption}>30 hari</Text>
                       </View>
                       <View style={styles.extendedMetricBox}>
                         <Text style={styles.extendedMetricLabel}>Nilai Terendah</Text>
-                        <Text style={styles.extendedMetricValue}>{formatNdvi(analysis.ndviLowest)}</Text>
+                        <Text style={styles.extendedMetricValue}>{formatPercent(analysis.ndviLowest, 1)}</Text>
                         <Text style={styles.extendedMetricCaption}>30 hari</Text>
                       </View>
                       <View style={styles.extendedMetricBox}>
                         <Text style={styles.extendedMetricLabel}>Nilai Rata-rata</Text>
-                        <Text style={styles.extendedMetricValue}>{formatNdvi(analysis.ndviAverage)}</Text>
+                        <Text style={styles.extendedMetricValue}>{formatPercent(analysis.ndviAverage, 1)}</Text>
                         <Text style={styles.extendedMetricCaption}>30 hari</Text>
                       </View>
                     </View>
@@ -832,10 +931,16 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#2E7D32',
   },
+  sectionTitleCentered: {
+    textAlign: 'center',
+  },
   sectionSubtitle: {
     fontSize: 13,
     color: '#7a7c74',
     marginTop: 2,
+  },
+  sectionSubtitleCentered: {
+    textAlign: 'center',
   },
   chartContainer: {
     marginTop: 16,
@@ -876,29 +981,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     marginHorizontal: 4,
     alignItems: 'center',
-  },
-  metricPillGreen: {
-    backgroundColor: '#E8F5E9',
-  },
-  metricPillAmber: {
-    backgroundColor: '#FFF8E1',
-  },
-  metricPillNeutral: {
-    backgroundColor: '#ECEFF1',
+    borderWidth: 1,
   },
   metricPillLabel: {
     fontSize: 13,
     color: '#424242',
+    textAlign: 'center',
   },
   metricPillValue: {
     fontSize: 20,
     fontWeight: '700',
     color: '#2E7D32',
     marginVertical: 6,
+    textAlign: 'center',
   },
   metricPillStatus: {
     fontSize: 12,
     color: '#616161',
+    textAlign: 'center',
   },
   statusCard: {
     marginHorizontal: 16,
@@ -906,6 +1006,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 20,
     padding: 20,
+    alignItems: 'center',
     shadowColor: '#000',
     shadowOpacity: 0.08,
     shadowOffset: { width: 0, height: 4 },
@@ -914,44 +1015,45 @@ const styles = StyleSheet.create({
   },
   statusTitle: {
     fontSize: 18,
+    textAlign: 'center',
     fontWeight: '700',
     color: '#2E7D32',
     marginBottom: 16,
   },
   statusMetricsRow: {
+    textAlign: 'center',
     flexDirection: 'row',
     marginBottom: 20,
   },
   statusMetricBox: {
     flex: 1,
+    textAlign: 'center',
     borderRadius: 16,
     padding: 16,
     marginRight: 12,
+    borderWidth: 1,
+    alignItems: 'center',
   },
-  statusMetricGreen: {
-    backgroundColor: '#C8E6C9',
-  },
-  statusMetricNeutral: {
-    backgroundColor: '#E8F5E9',
-  },
-  statusMetricYellow: {
-    backgroundColor: '#FFF8E1',
+  statusMetricBoxLast: {
     marginRight: 0,
   },
   statusMetricLabel: {
     fontSize: 12,
     color: '#2E7D32',
     marginBottom: 6,
+    textAlign: 'center',
   },
   statusMetricValue: {
     fontSize: 22,
     fontWeight: '700',
     color: '#1B5E20',
+    textAlign: 'center',
   },
   statusMetricCaption: {
     fontSize: 12,
     color: '#33691E',
     marginTop: 4,
+    textAlign: 'center',
   },
   noticeCard: {
     backgroundColor: '#F9FBF6',
@@ -960,6 +1062,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E0E6D8',
     marginTop: 12,
+    alignSelf: 'stretch',
+    width: '100%',
   },
   noticeHeader: {
     flexDirection: 'row',
@@ -995,6 +1099,18 @@ const styles = StyleSheet.create({
   tipDescription: {
     fontSize: 13,
     color: '#2E7D32',
+    flex: 1,
+  },
+  tipListItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginTop: 6,
+  },
+  tipListBullet: {
+    fontSize: 16,
+    color: '#2E7D32',
+    marginRight: 8,
+    lineHeight: 18,
   },
   extendedMetricsRow: {
     flexDirection: 'row',

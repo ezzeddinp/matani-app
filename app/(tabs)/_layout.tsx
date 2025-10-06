@@ -1,4 +1,4 @@
-import { Feather, Ionicons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -6,17 +6,9 @@ import { StyleSheet, View } from 'react-native';
 import { HapticTab } from '@/components/haptic-tab';
 
 export default function TabLayout() {
-  const renderIcon = (
-    focused: boolean,
-    activeName: keyof typeof Ionicons.glyphMap,
-    inactiveName: keyof typeof Ionicons.glyphMap,
-  ) => (
-    <View style={[styles.iconBase, focused && styles.iconActive]}> 
-      <Ionicons
-        name={focused ? activeName : inactiveName}
-        size={22}
-        color={focused ? '#2E7D32' : '#1F1F1F'}
-      />
+  const renderIcon = (focused: boolean, name: React.ComponentProps<typeof Feather>['name']) => (
+    <View style={[styles.iconBase, focused && styles.iconActive]}>
+      <Feather name={name} size={24} color={focused ? '#2E7D32' : '#1F1F1F'} />
     </View>
   );
 
@@ -29,49 +21,42 @@ export default function TabLayout() {
         tabBarButton: HapticTab,
         tabBarStyle: styles.tabBar,
         tabBarLabelStyle: styles.label,
-        tabBarIconStyle: styles.iconStyle,
+        tabBarIconStyle: styles.icon,
+        tabBarItemStyle: styles.item,
       }}>
       <Tabs.Screen
         name="index"
         options={{
           title: 'Beranda',
-          tabBarIcon: ({ focused }) => (
-            <View style={[styles.iconBase, focused && styles.iconActive]}>
-              <Feather
-                name="home"
-                size={24}
-                color={focused ? '#2E7D32' : '#1F1F1F'}
-              />
-            </View>
-          ),
+          tabBarIcon: ({ focused }) => renderIcon(focused, 'home'),
         }}
       />
       <Tabs.Screen
         name="explore"
         options={{
           title: 'Ladang',
-          tabBarIcon: ({ focused }) => renderIcon(focused, 'leaf', 'leaf-outline'),
+          tabBarIcon: ({ focused }) => renderIcon(focused, 'feather'),
         }}
       />
       <Tabs.Screen
         name="education"
         options={{
           title: 'Edukasi',
-          tabBarIcon: ({ focused }) => renderIcon(focused, 'school', 'school-outline'),
+          tabBarIcon: ({ focused }) => renderIcon(focused, 'book-open'),
         }}
       />
       <Tabs.Screen
         name="weather"
         options={{
           title: 'Cuaca',
-          tabBarIcon: ({ focused }) => renderIcon(focused, 'partly-sunny', 'partly-sunny-outline'),
+          tabBarIcon: ({ focused }) => renderIcon(focused, 'sun'),
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
           title: 'Profil',
-          tabBarIcon: ({ focused }) => renderIcon(focused, 'person', 'person-outline'),
+          tabBarIcon: ({ focused }) => renderIcon(focused, 'user'),
         }}
       />
     </Tabs>
@@ -84,7 +69,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#E6E6E6',
     paddingTop: 14,
-    paddingBottom: 24,
+    paddingBottom: 28,
     height: 100,
     elevation: 0,
     shadowOpacity: 0,
@@ -92,15 +77,18 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 11,
     fontWeight: '600',
-    marginTop: 4,
+    marginTop: 12,
   },
-  iconStyle: {
-    marginBottom: 2,
+  icon: {
+    marginBottom: 4,
+  },
+  item: {
+    paddingVertical: 2,
   },
   iconBase: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'transparent',
