@@ -16,7 +16,7 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
-import MapView, { LatLng, MapPressEvent, Marker, Polygon, Polyline, Region, PROVIDER_GOOGLE } from 'react-native-maps';
+import MapView, { LatLng, MapPressEvent, Marker, PROVIDER_GOOGLE, Polygon, Polyline, Region } from 'react-native-maps';
 
 type SavedLahanItem = {
   id: string;
