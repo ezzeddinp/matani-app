@@ -16,7 +16,7 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
-import MapView, { LatLng, MapPressEvent, Marker, Polygon, Polyline, Region } from 'react-native-maps';
+import MapView, { LatLng, MapPressEvent, Marker, Polygon, Polyline, Region, PROVIDER_GOOGLE } from 'react-native-maps';
 
 type SavedLahanItem = {
   id: string;
@@ -719,9 +719,12 @@ export default function ExploreScreen() {
           onRegionChangeComplete={(region) => {
             currentRegionRef.current = region;
           }}
+          provider={PROVIDER_GOOGLE}
           mapType="satellite"
           showsUserLocation={true}
           showsMyLocationButton={false}
+          showsCompass={false}
+          showsScale={false}
         >
           {/* Render current drawing preview */}
           {drawingMode && previewPath.length > 0 && (
