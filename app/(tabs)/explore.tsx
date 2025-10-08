@@ -9,11 +9,13 @@ import {
   Dimensions,
   Keyboard,
   Modal,
+  ScrollView,
   StatusBar,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   View
 } from 'react-native';
 import MapView, { LatLng, MapPressEvent, Marker, PROVIDER_GOOGLE, Polygon, Polyline, Region } from 'react-native-maps';
@@ -38,7 +40,35 @@ type DrawVertex = {
   coordinate: LatLng;
 };
 
+type LahanHealthRecord = {
+  id: string;
+  lahan_id: string;
+  ndvi_score: number | null;
+  status: string | null;
+  captured_at: string | null;
+  created_at: string | null;
+};
+
+type LahanNoteRecord = {
+  id: string;
+  lahan_id: string | null;
+  title: string;
+  content: string;
+  created_at: string;
+};
+
+type NdviClassificationKey = 'healthy' | 'warning' | 'danger' | 'unknown';
+
+type NdviClassification = {
+  key: NdviClassificationKey;
+  title: string;
+  description: string;
+  color: string;
+  background?: string;
+};
+
 const { width } = Dimensions.get('window');
+const MAP_HEIGHT = Math.max(320, Math.min(width * 1.15, 520));
 
 const LAHAN_COLOR_PALETTE = [
   { stroke: '#2E7D32', fill: 'rgba(76, 175, 80, 0.22)' },
@@ -63,6 +93,116 @@ const hashString = (value: string) => {
 const getLahanColor = (id: string) => {
   const index = Math.abs(hashString(id)) % LAHAN_COLOR_PALETTE.length;
   return LAHAN_COLOR_PALETTE[index];
+};
+
+const NDVI_SEVERITY_CONFIG: NdviClassification[] = [
+  {
+    key: 'healthy',
+    title: 'Sehat',
+    description: 'Pertumbuhan tanaman optimal dan hijau merata',
+    color: '#2E7D32',
+    background: 'rgba(76, 175, 80, 0.14)',
+  },
+  {
+    key: 'warning',
+    title: 'Perlu Perhatian',
+    description: 'Ada area yang mulai mengalami stres ringan',
+    color: '#F57C00',
+    background: 'rgba(255, 167, 38, 0.18)',
+  },
+  {
+    key: 'danger',
+    title: 'Bahaya',
+    description: 'Terjadi penurunan tajam vegetasi, perlu tindakan segera',
+    color: '#C62828',
+    background: 'rgba(198, 40, 40, 0.18)',
+  },
+];
+
+const NDVI_UNKNOWN_CONFIG: NdviClassification = {
+  key: 'unknown',
+  title: 'Belum Ada Data',
+  description: 'Belum ada pemantauan NDVI terbaru untuk lahan ini',
+  color: '#546E7A',
+  background: 'rgba(84, 110, 122, 0.14)',
+};
+
+const parseDateToTime = (value?: string | null) => {
+  if (!value) {
+    return 0;
+  }
+  const time = Date.parse(value);
+  return Number.isNaN(time) ? 0 : time;
+};
+
+const applyAlphaToHex = (hex: string, alpha: number) => {
+  const normalisedAlpha = Math.max(0, Math.min(alpha, 1));
+  const alphaValue = Math.round(normalisedAlpha * 255)
+    .toString(16)
+    .padStart(2, '0');
+  return `${hex}${alphaValue}`;
+};
+
+const classifyNdviStatus = (ndviScore: number | null, rawStatus: string | null): NdviClassification => {
+  if (typeof ndviScore === 'number') {
+    if (ndviScore >= 0.45) {
+      return NDVI_SEVERITY_CONFIG[0];
+    }
+    if (ndviScore >= 0.3) {
+      return NDVI_SEVERITY_CONFIG[1];
+    }
+    if (ndviScore >= 0) {
+      return NDVI_SEVERITY_CONFIG[2];
+    }
+  }
+
+  if (rawStatus) {
+    const normalised = rawStatus.trim().toLowerCase();
+    if (['healthy', 'baik', 'normal'].includes(normalised)) {
+      return NDVI_SEVERITY_CONFIG[0];
+    }
+    if (['warning', 'moderate', 'perlu perhatian'].includes(normalised)) {
+      return NDVI_SEVERITY_CONFIG[1];
+    }
+    if (['danger', 'low', 'buruk', 'needs_attention'].includes(normalised)) {
+      return NDVI_SEVERITY_CONFIG[2];
+    }
+  }
+
+  return NDVI_UNKNOWN_CONFIG;
+};
+
+const formatDisplayDate = (value?: string | null) => {
+  const time = parseDateToTime(value ?? undefined);
+  if (!time) {
+    return 'Baru';
+  }
+
+  try {
+    const formatter = new Intl.DateTimeFormat('id-ID', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    });
+    return formatter.format(time);
+  } catch {
+    return new Date(time).toISOString().split('T')[0];
+  }
+};
+
+const formatHa = (value?: number | null) => {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return '-';
+  }
+  return `${value.toFixed(2)} ha`;
+};
+
+const formatYearLabel = (value?: string | null) => {
+  const time = parseDateToTime(value ?? undefined);
+  if (!time) {
+    return 'Lahan baru';
+  }
+  return `Sejak ${new Date(time).getFullYear()}`;
 };
 
 const formatGeocodedLocation = (place?: Location.LocationGeocodedAddress | null) => {
@@ -130,6 +270,16 @@ export default function ExploreScreen() {
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [searchMarker, setSearchMarker] = useState<LatLng | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [lahanHealth, setLahanHealth] = useState<LahanHealthRecord[]>([]);
+  const [lahanHealthLoading, setLahanHealthLoading] = useState(false);
+  const [notes, setNotes] = useState<LahanNoteRecord[]>([]);
+  const [notesLoading, setNotesLoading] = useState(false);
+  const [showNoteModal, setShowNoteModal] = useState(false);
+  const [noteTitle, setNoteTitle] = useState('');
+  const [noteContent, setNoteContent] = useState('');
+  const [isSavingNote, setIsSavingNote] = useState(false);
+  const [selectedNoteLahanId, setSelectedNoteLahanId] = useState<string | null>(null);
+  const [isLahanPickerVisible, setIsLahanPickerVisible] = useState(false);
   const mapRef = useRef<MapView>(null);
   const currentRegionRef = useRef<Region | null>(null);
   const [userLocation, setUserLocation] = useState({
@@ -197,14 +347,87 @@ export default function ExploreScreen() {
           name: item.name,
           coordinates: toLatLngCoordinates(item.geojson),
           areaHa: item.area_ha,
+          createdAt: item.created_at ?? null,
         }))
         .filter(item => item.coordinates.length >= 3);
+
+      mapped.sort((a, b) => parseDateToTime(b.createdAt) - parseDateToTime(a.createdAt));
 
       setSavedLahan(mapped);
     } catch (error) {
       console.error('❌ Gagal memuat data lahan:', error);
     }
   }, [fallbackUserId, toLatLngCoordinates]);
+
+  const loadLahanHealth = useCallback(async (targetIds: string[]) => {
+    if (!Array.isArray(targetIds) || targetIds.length === 0) {
+      setLahanHealth([]);
+      return;
+    }
+
+    try {
+      setLahanHealthLoading(true);
+      const { data, error } = await supabase
+        .from('lahan_health')
+        .select('id,lahan_id,ndvi_score,status,captured_at,created_at')
+        .in('lahan_id', targetIds)
+        .order('captured_at', { ascending: false, nullsFirst: true })
+        .order('created_at', { ascending: false, nullsFirst: true });
+
+      if (error) {
+        throw error;
+      }
+
+      setLahanHealth(Array.isArray(data) ? (data as LahanHealthRecord[]) : []);
+    } catch (error) {
+      console.error('❌ Gagal memuat kesehatan lahan:', error);
+      setLahanHealth([]);
+    } finally {
+      setLahanHealthLoading(false);
+    }
+  }, []);
+
+  const loadNotes = useCallback(async () => {
+    try {
+      setNotesLoading(true);
+
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+      if (authError) {
+        const message = authError.message ?? '';
+        if (message.includes('Auth session missing')) {
+          setNotes([]);
+          setNotesLoading(false);
+          return;
+        }
+        throw authError;
+      }
+
+      const userId = authData?.user?.id ?? fallbackUserId;
+      if (!userId) {
+        setNotes([]);
+        setNotesLoading(false);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('lahan_notes')
+        .select('id,lahan_id,title,content,created_at')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      if (error) {
+        throw error;
+      }
+
+      setNotes(Array.isArray(data) ? (data as LahanNoteRecord[]) : []);
+    } catch (error) {
+      console.error('❌ Gagal memuat catatan:', error);
+      setNotes([]);
+    } finally {
+      setNotesLoading(false);
+    }
+  }, [fallbackUserId]);
 
   const getCurrentLocation = useCallback(async () => {
     try {
@@ -259,6 +482,25 @@ export default function ExploreScreen() {
     getCurrentLocation();
     loadSavedLahan();
   }, [getCurrentLocation, loadSavedLahan]);
+
+  useEffect(() => {
+    loadNotes();
+  }, [loadNotes]);
+
+  useEffect(() => {
+    if (savedLahan.length === 0) {
+      setLahanHealth([]);
+      setSelectedNoteLahanId(null);
+      return;
+    }
+
+    const lahanIds = savedLahan.map((item) => item.id).filter(Boolean);
+    setSelectedNoteLahanId((prev) => prev ?? lahanIds[0] ?? null);
+
+    if (lahanIds.length > 0) {
+      loadLahanHealth(lahanIds);
+    }
+  }, [loadLahanHealth, savedLahan]);
 
   useEffect(() => {
     const query = searchQuery.trim();
@@ -639,282 +881,575 @@ export default function ExploreScreen() {
     clearActivePath();
   };
 
+  const lahanNameLookup = useMemo(() => {
+    const map = new Map<string, SavedLahanItem>();
+    savedLahan.forEach((item) => {
+      map.set(item.id, item);
+    });
+    return map;
+  }, [savedLahan]);
+
+  const latestHealthByLahan = useMemo(() => {
+    const map = new Map<string, LahanHealthRecord>();
+    lahanHealth.forEach((record) => {
+      if (!record?.lahan_id) {
+        return;
+      }
+
+      const existing = map.get(record.lahan_id);
+      if (!existing) {
+        map.set(record.lahan_id, record);
+        return;
+      }
+
+      const recordTime = Math.max(parseDateToTime(record.captured_at), parseDateToTime(record.created_at));
+      const existingTime = Math.max(parseDateToTime(existing.captured_at), parseDateToTime(existing.created_at));
+
+      if (recordTime >= existingTime) {
+        map.set(record.lahan_id, record);
+      }
+    });
+    return map;
+  }, [lahanHealth]);
+
+  const lahanCards = useMemo(() => {
+    return savedLahan.map((item) => {
+      const latestHealth = latestHealthByLahan.get(item.id);
+      const classification = classifyNdviStatus(latestHealth?.ndvi_score ?? null, latestHealth?.status ?? null);
+      return {
+        ...item,
+        latestHealth,
+        classification,
+      };
+    });
+  }, [latestHealthByLahan, savedLahan]);
+
+  const lahanHealthSummary = useMemo(() => {
+    return lahanCards.reduce(
+      (acc, card) => {
+        acc[card.classification.key] += 1;
+        return acc;
+      },
+      {
+        healthy: 0,
+        warning: 0,
+        danger: 0,
+        unknown: 0,
+      } as Record<NdviClassificationKey, number>
+    );
+  }, [lahanCards]);
+
+  const notesWithMetadata = useMemo(() => {
+    return notes.map((note) => ({
+      ...note,
+      lahanName: note.lahan_id ? lahanNameLookup.get(note.lahan_id)?.name ?? null : null,
+    }));
+  }, [lahanNameLookup, notes]);
+
+  const selectedNoteLahanName = useMemo(() => {
+    if (!selectedNoteLahanId) {
+      return null;
+    }
+    return lahanNameLookup.get(selectedNoteLahanId)?.name ?? null;
+  }, [lahanNameLookup, selectedNoteLahanId]);
+
+  const handleOpenNoteModal = () => {
+    if (!selectedNoteLahanId && savedLahan.length > 0) {
+      setSelectedNoteLahanId(savedLahan[0].id);
+    }
+    setShowNoteModal(true);
+    setIsLahanPickerVisible(false);
+  };
+
+  const closeNoteModal = () => {
+    setShowNoteModal(false);
+    setIsLahanPickerVisible(false);
+  };
+
+  const resetNoteForm = () => {
+    setNoteTitle('');
+    setNoteContent('');
+  };
+
+  const handleCancelNote = () => {
+    resetNoteForm();
+    closeNoteModal();
+  };
+
+  const handleSelectNoteLahan = (id: string | null) => {
+    setSelectedNoteLahanId(id);
+    setIsLahanPickerVisible(false);
+  };
+
+  const handleSaveNote = async () => {
+    const trimmedTitle = noteTitle.trim();
+    const trimmedContent = noteContent.trim();
+
+    if (!trimmedTitle || !trimmedContent) {
+      Alert.alert('Catatan belum lengkap', 'Judul dan isi catatan wajib diisi.');
+      return;
+    }
+
+    if (isSavingNote) {
+      return;
+    }
+
+    try {
+      setIsSavingNote(true);
+
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+      if (authError) {
+        const message = authError.message ?? '';
+        if (message.includes('Auth session missing')) {
+          promptAuthSignup();
+          closeNoteModal();
+          return;
+        }
+        throw authError;
+      }
+
+      const userId = authData?.user?.id ?? fallbackUserId;
+      if (!userId) {
+        promptAuthSignup();
+        closeNoteModal();
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('lahan_notes')
+        .insert([
+          {
+            user_id: userId,
+            lahan_id: selectedNoteLahanId,
+            title: trimmedTitle,
+            content: trimmedContent,
+          },
+        ])
+        .select('id,lahan_id,title,content,created_at')
+        .single();
+
+      if (error) {
+        throw error;
+      }
+
+      const newNote = data as LahanNoteRecord;
+      setNotes((prev) => {
+        const filtered = prev.filter((item) => item.id !== newNote.id);
+        return [newNote, ...filtered];
+      });
+      resetNoteForm();
+      closeNoteModal();
+    } catch (error: any) {
+      console.error('❌ Gagal menyimpan catatan:', error);
+      const message = error?.message ?? 'Terjadi kesalahan saat menyimpan catatan.';
+      Alert.alert('Gagal menyimpan catatan', message);
+    } finally {
+      setIsSavingNote(false);
+    }
+  };
+
   const pendingArea = calculateArea(pendingPolygon);
   const formattedPendingArea = Number.isFinite(pendingArea) ? pendingArea.toFixed(2) : '0.00';
+  const isNoteFormValid = noteTitle.trim().length > 0 && noteContent.trim().length > 0;
 
   return (
-    <ThemedView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#f5f5f5" />
-      
-      {/* Header */}
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.headerTitle}>Lokasi Ladang</Text>
-          <Text style={styles.headerSubtitle}>{locationLabel}</Text>
-        </View>
-      </View>
+    <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()} accessible={false}>
+      <ThemedView style={styles.container}>
+        <StatusBar barStyle="dark-content" backgroundColor="#f5f5f5" />
 
-      {/* Map Container - Real MapView */}
-      <View style={styles.mapContainer}>
-        <View style={styles.searchContainer} pointerEvents="box-none">
-          <View style={styles.searchInputWrapper}>
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Cari lokasi lahan..."
-              placeholderTextColor="#999999"
-              value={searchQuery}
-              onChangeText={handleSearchChange}
-              onFocus={handleSearchFocus}
-              returnKeyType="search"
-            />
-            {isSearching ? (
-              <ActivityIndicator size="small" color="#4CAF50" style={styles.searchSpinner} />
-            ) : searchQuery.length > 0 ? (
-              <TouchableOpacity
-                onPress={handleClearSearch}
-                style={styles.clearSearchButton}
-                accessibilityLabel="Hapus pencarian"
-              >
-                <Text style={styles.clearSearchText}>×</Text>
-              </TouchableOpacity>
-            ) : null}
+        <ScrollView
+          style={styles.contentScroll}
+          contentContainerStyle={styles.contentScrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+        <View style={styles.header}>
+          <View>
+            <Text style={styles.headerTitle}>Lokasi Ladang</Text>
+            <Text style={styles.headerSubtitle}>{locationLabel}</Text>
           </View>
+        </View>
 
-          {showSearchResults && (
-            <View style={styles.searchResultsContainer}>
+        <View style={styles.mapContainer}>
+          <View style={styles.searchContainer} pointerEvents="box-none">
+            <View style={styles.searchInputWrapper}>
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Cari lokasi lahan..."
+                placeholderTextColor="#999999"
+                value={searchQuery}
+                onChangeText={handleSearchChange}
+                onFocus={handleSearchFocus}
+                returnKeyType="search"
+              />
               {isSearching ? (
-                <View style={styles.searchLoadingRow}>
-                  <ActivityIndicator size="small" color="#4CAF50" />
-                  <Text style={styles.searchLoadingText}>Mencari lokasi…</Text>
-                </View>
-              ) : searchResults.length > 0 ? (
-                searchResults.map(result => (
-                  <TouchableOpacity
-                    key={result.id}
-                    style={styles.searchResultItem}
-                    onPress={() => handleSelectSearchResult(result)}
-                  >
-                    <Text style={styles.searchResultTitle} numberOfLines={1}>
-                      {result.label}
-                    </Text>
-                    {result.subtitle && (
-                      <Text style={styles.searchResultSubtitle} numberOfLines={1}>
-                        {result.subtitle}
-                      </Text>
-                    )}
-                  </TouchableOpacity>
-                ))
-              ) : searchQuery.trim().length >= 3 ? (
-                <Text style={styles.searchResultEmpty}>Lokasi tidak ditemukan</Text>
+                <ActivityIndicator size="small" color="#4CAF50" style={styles.searchSpinner} />
+              ) : searchQuery.length > 0 ? (
+                <TouchableOpacity
+                  onPress={handleClearSearch}
+                  style={styles.clearSearchButton}
+                  accessibilityLabel="Hapus pencarian"
+                >
+                  <Text style={styles.clearSearchText}>×</Text>
+                </TouchableOpacity>
               ) : null}
             </View>
-          )}
-        </View>
 
-        <MapView
-          ref={mapRef}
-          style={styles.map}
-          initialRegion={userLocation}
-          onPress={handleMapPress}
-          onRegionChangeComplete={(region) => {
-            currentRegionRef.current = region;
-          }}
-          provider={PROVIDER_GOOGLE}
-          mapType="satellite"
-          showsUserLocation={true}
-          showsMyLocationButton={false}
-          showsCompass={false}
-          showsScale={false}
-        >
-          {/* Render current drawing preview */}
-          {drawingMode && previewPath.length > 0 && (
-            <>
-              {activePath.length >= 3 && (
-                <Polygon
-                  coordinates={previewPath}
-                  fillColor="rgba(255, 138, 101, 0.25)"
-                  strokeColor="rgba(255, 87, 34, 0.8)"
-                  strokeWidth={2}
-                />
-              )}
-              {activePath.length > 1 && (
-                <Polyline
-                  coordinates={previewPath}
-                  strokeColor="#FF5722"
-                  strokeWidth={6}
-                  lineCap="round"
-                  geodesic={activePath.length >= 3}
-                />
-              )}
-            </>
-          )}
-
-          {!drawingMode && pendingPolygon.length > 2 && (
-            <Polygon
-              coordinates={pendingPolygon}
-              fillColor="rgba(255, 138, 101, 0.25)"
-              strokeColor="#FF7043"
-              strokeWidth={3}
-            />
-          )}
-
-          {searchMarker && (
-            <Marker
-              coordinate={searchMarker}
-              pinColor="#2E7D32"
-            />
-          )}
-
-          {savedLahan.map(item => {
-            if (!item.coordinates || item.coordinates.length < 3) {
-              return null;
-            }
-
-            const labelIndex = Math.floor(item.coordinates.length / 2);
-            const labelCoordinate = item.coordinates[labelIndex] ?? item.coordinates[0];
-            const color = getLahanColor(item.id);
-
-            return (
-              <React.Fragment key={`saved-${item.id}`}>
-                <Polygon
-                  coordinates={item.coordinates}
-                  fillColor={color.fill}
-                  strokeColor={color.stroke}
-                  strokeWidth={3}
-                  tappable={false}
-                />
-                {labelCoordinate && (
-                  <Marker
-                    coordinate={labelCoordinate}
-                    anchor={{ x: 0.5, y: 0.5 }}
-                    tappable={false}
-                  >
-                    <View style={[styles.savedLahanLabel, { backgroundColor: color.stroke }]}
+            {showSearchResults && (
+              <View style={styles.searchResultsContainer}>
+                {isSearching ? (
+                  <View style={styles.searchLoadingRow}>
+                    <ActivityIndicator size="small" color="#4CAF50" />
+                    <Text style={styles.searchLoadingText}>Mencari lokasi…</Text>
+                  </View>
+                ) : searchResults.length > 0 ? (
+                  searchResults.map((result) => (
+                    <TouchableOpacity
+                      key={result.id}
+                      style={styles.searchResultItem}
+                      onPress={() => handleSelectSearchResult(result)}
                     >
-                      <Text style={styles.savedLahanLabelText}>{item.name}</Text>
-                      {typeof item.areaHa === 'number' && Number.isFinite(item.areaHa) && (
-                        <Text style={styles.savedLahanLabelSubtext}>
-                          {item.areaHa.toFixed(2)} ha
+                      <Text style={styles.searchResultTitle} numberOfLines={1}>
+                        {result.label}
+                      </Text>
+                      {result.subtitle && (
+                        <Text style={styles.searchResultSubtitle} numberOfLines={1}>
+                          {result.subtitle}
                         </Text>
                       )}
-                    </View>
-                  </Marker>
-                )}
-              </React.Fragment>
-            );
-          })}
+                    </TouchableOpacity>
+                  ))
+                ) : searchQuery.trim().length >= 3 ? (
+                  <Text style={styles.searchResultEmpty}>Lokasi tidak ditemukan</Text>
+                ) : null}
+              </View>
+            )}
+          </View>
 
-          {/* Show vertex points during drawing */}
-          {drawingMode && currentVertices.map((vertex, index) => (
-            <Marker
-              key={vertex.id}
-              coordinate={vertex.coordinate}
-              anchor={{ x: 0.5, y: 0.5 }}
-              zIndex={10 + index}
-            >
-              <View
-                style={[
-                  styles.drawingVertex,
-                  index === 0 && styles.startVertex,
-                  index === currentVertices.length - 1 && styles.currentVertex,
-                ]}
-              />
-            </Marker>
-          ))}
-
-        </MapView>
-
-        {/* Map controls */}
-        <View style={styles.mapControls}>
-          <TouchableOpacity style={styles.zoomButton} onPress={() => handleZoom('in')} accessibilityLabel="Perbesar peta">
-            <Text style={styles.zoomText}>+</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.zoomButton} onPress={() => handleZoom('out')} accessibilityLabel="Perkecil peta">
-            <Text style={styles.zoomText}>-</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.locationButton} onPress={handleRecenter} accessibilityLabel="Kembali ke lokasiku">
-            <View style={styles.locationIcon} />
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* Drawing controls */}
-      {drawingMode && (
-        <View style={styles.drawingControls}>
-          <TouchableOpacity style={styles.controlButton} onPress={undoLastPoint}>
-            <Text style={styles.controlButtonText}>Undo</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.controlButton} onPress={cancelDrawing}>
-            <Text style={styles.controlButtonText}>Batal</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.finishButton} onPress={finishDrawing}>
-            <Text style={styles.finishButtonText}>Selesai ({currentVertices.length} titik)</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-
-      {/* Filter buttons */}
-      <View style={styles.filterContainer}>
-        {filters.map((filter) => (
-          <TouchableOpacity
-            key={filter}
-            style={[
-              styles.filterButton,
-              selectedFilter === filter && styles.activeFilterButton
-            ]}
-            onPress={() => setSelectedFilter(filter)}
+          <MapView
+            ref={mapRef}
+            style={styles.map}
+            initialRegion={userLocation}
+            onPress={handleMapPress}
+            onRegionChangeComplete={(region) => {
+              currentRegionRef.current = region;
+            }}
+            provider={PROVIDER_GOOGLE}
+            mapType="satellite"
+            showsUserLocation
+            showsMyLocationButton={false}
+            showsCompass={false}
+            showsScale={false}
           >
-            <Text style={[
-              styles.filterText,
-              selectedFilter === filter && styles.activeFilterText
-            ]}>
-              {filter}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+            {drawingMode && previewPath.length > 0 && (
+              <>
+                {activePath.length >= 3 && (
+                  <Polygon
+                    coordinates={previewPath}
+                    fillColor="rgba(255, 138, 101, 0.25)"
+                    strokeColor="rgba(255, 87, 34, 0.8)"
+                    strokeWidth={2}
+                  />
+                )}
+                {activePath.length > 1 && (
+                  <Polyline
+                    coordinates={previewPath}
+                    strokeColor="#FF5722"
+                    strokeWidth={6}
+                    lineCap="round"
+                    geodesic={activePath.length >= 3}
+                  />
+                )}
+              </>
+            )}
 
-      {/* Drawing Instructions */}
-      {drawingMode && (
-        <View style={styles.instructionBanner}>
-          <Text style={styles.instructionText}>
-            Tap pada peta untuk menandai titik lahan.
-          </Text>
-          {currentVertices.length >= 3 && (
-            <Text style={styles.instructionSubtext}>
-              Tekan Selesai untuk menutup polygon
+            {!drawingMode && pendingPolygon.length > 2 && (
+              <Polygon
+                coordinates={pendingPolygon}
+                fillColor="rgba(255, 138, 101, 0.25)"
+                strokeColor="#FF7043"
+                strokeWidth={3}
+              />
+            )}
+
+            {searchMarker && <Marker coordinate={searchMarker} pinColor="#2E7D32" />}
+
+            {savedLahan.map((item) => {
+              if (!item.coordinates || item.coordinates.length < 3) {
+                return null;
+              }
+
+              const labelIndex = Math.floor(item.coordinates.length / 2);
+              const labelCoordinate = item.coordinates[labelIndex] ?? item.coordinates[0];
+              const color = getLahanColor(item.id);
+
+              return (
+                <React.Fragment key={`saved-${item.id}`}>
+                  <Polygon
+                    coordinates={item.coordinates}
+                    fillColor={color.fill}
+                    strokeColor={color.stroke}
+                    strokeWidth={3}
+                    tappable={false}
+                  />
+                  {labelCoordinate && (
+                    <Marker coordinate={labelCoordinate} anchor={{ x: 0.5, y: 0.5 }} tappable={false}>
+                      <View style={[styles.savedLahanLabel, { backgroundColor: color.stroke }]}
+                      >
+                        <Text style={styles.savedLahanLabelText}>{item.name}</Text>
+                        {typeof item.areaHa === 'number' && Number.isFinite(item.areaHa) && (
+                          <Text style={styles.savedLahanLabelSubtext}>{item.areaHa.toFixed(2)} ha</Text>
+                        )}
+                      </View>
+                    </Marker>
+                  )}
+                </React.Fragment>
+              );
+            })}
+
+            {drawingMode &&
+              currentVertices.map((vertex, index) => (
+                <Marker
+                  key={vertex.id}
+                  coordinate={vertex.coordinate}
+                  anchor={{ x: 0.5, y: 0.5 }}
+                  zIndex={10 + index}
+                >
+                  <View
+                    style={[
+                      styles.drawingVertex,
+                      index === 0 && styles.startVertex,
+                      index === currentVertices.length - 1 && styles.currentVertex,
+                    ]}
+                  />
+                </Marker>
+              ))}
+          </MapView>
+
+          <View style={styles.mapControls}>
+            <TouchableOpacity style={styles.zoomButton} onPress={() => handleZoom('in')} accessibilityLabel="Perbesar peta">
+              <Text style={styles.zoomText}>+</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.zoomButton} onPress={() => handleZoom('out')} accessibilityLabel="Perkecil peta">
+              <Text style={styles.zoomText}>-</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.locationButton} onPress={handleRecenter} accessibilityLabel="Kembali ke lokasiku">
+              <View style={styles.locationIcon} />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {drawingMode && (
+          <View style={styles.drawingControls}>
+            <TouchableOpacity style={styles.controlButton} onPress={undoLastPoint}>
+              <Text style={styles.controlButtonText}>Undo</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.controlButton} onPress={cancelDrawing}>
+              <Text style={styles.controlButtonText}>Batal</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.finishButton} onPress={finishDrawing}>
+              <Text style={styles.finishButtonText}>Selesai ({currentVertices.length} titik)</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        <View style={styles.filterContainer}>
+          {filters.map((filter) => (
+            <TouchableOpacity
+              key={filter}
+              style={[styles.filterButton, selectedFilter === filter && styles.activeFilterButton]}
+              onPress={() => setSelectedFilter(filter)}
+            >
+              <Text style={[styles.filterText, selectedFilter === filter && styles.activeFilterText]}>{filter}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {drawingMode && (
+          <View style={styles.instructionBanner}>
+            <Text style={styles.instructionText}>Tap pada peta untuk menandai titik lahan.</Text>
+            {currentVertices.length >= 3 && (
+              <Text style={styles.instructionSubtext}>Tekan Selesai untuk menutup polygon</Text>
+            )}
+          </View>
+        )}
+
+        <TouchableOpacity
+          style={[styles.newFieldButton, drawingMode && styles.disabledButton]}
+          onPress={startDrawing}
+          disabled={drawingMode}
+        >
+          <View style={styles.cameraIcon} />
+          <Text style={styles.newFieldText}>{drawingMode ? 'Mode Gambar Aktif' : 'Gambar Lahan Baru'}</Text>
+        </TouchableOpacity>
+
+        <View style={styles.sectionContainer}>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionTitle}>Lahan Saya</Text>
+            {savedLahan.length > 0 && <Text style={styles.sectionSubtitle}>{savedLahan.length} lahan</Text>}
+          </View>
+          {savedLahan.length === 0 ? (
+            <Text style={styles.sectionEmptyText}>
+              Belum ada lahan tersimpan. Gunakan tombol “Gambar Lahan Baru” di atas.
             </Text>
+          ) : (
+            lahanCards.map((card) => (
+              <TouchableOpacity
+                key={`lahan-card-${card.id}`}
+                style={styles.lahanCard}
+                activeOpacity={0.9}
+                onPress={() => router.push({ pathname: '/detail-lahan-page', params: { id: card.id } })}
+              >
+                <View
+                  style={[
+                    styles.lahanCardBadge,
+                    {
+                      borderColor: card.classification.color,
+                      backgroundColor:
+                        card.classification.background ?? applyAlphaToHex(card.classification.color, 0.12),
+                    },
+                  ]}
+                >
+                  <Text style={[styles.lahanCardBadgeText, { color: card.classification.color }]}>
+                    {card.classification.title}
+                  </Text>
+                </View>
+                <View style={styles.lahanCardContent}>
+                  <Text style={styles.lahanCardTitle}>{card.name}</Text>
+                  <Text style={styles.lahanCardSubtitle}>
+                    {formatHa(card.areaHa)}
+                    {card.createdAt ? ` · ${formatYearLabel(card.createdAt)}` : ''}
+                  </Text>
+                  {card.latestHealth?.ndvi_score !== undefined && card.latestHealth?.ndvi_score !== null ? (
+                    <Text style={styles.lahanCardMeta}>
+                      NDVI {card.latestHealth.ndvi_score.toFixed(2)} · {card.classification.description}
+                    </Text>
+                  ) : (
+                    <Text style={styles.lahanCardMeta}>Belum ada data NDVI terbaru</Text>
+                  )}
+                  {card.latestHealth?.captured_at && (
+                    <Text style={styles.lahanCardMetaSecondary}>
+                      Data diambil {formatDisplayDate(card.latestHealth.captured_at)}
+                    </Text>
+                  )}
+                </View>
+              </TouchableOpacity>
+            ))
           )}
         </View>
-      )}
 
-      {/* New Field Button */}
-      <TouchableOpacity 
-        style={[styles.newFieldButton, drawingMode && styles.disabledButton]} 
-        onPress={startDrawing}
-        disabled={drawingMode}
-      >
-        <View style={styles.cameraIcon} />
-        <Text style={styles.newFieldText}>
-          {drawingMode ? 'Mode Gambar Aktif' : 'Gambar Lahan Baru'}
-        </Text>
-      </TouchableOpacity>
+        <View style={styles.sectionContainer}>
+          <Text style={[styles.sectionTitle, styles.sectionTitleSpaced]}>Status Kesehatan Tanaman</Text>
+          <View style={styles.healthLegendGrid}>
+            {NDVI_SEVERITY_CONFIG.map((item) => (
+              <View
+                key={`legend-${item.key}`}
+                style={[
+                  styles.healthLegendItem,
+                  { backgroundColor: item.background ?? applyAlphaToHex(item.color, 0.12) },
+                ]}
+              >
+                <View style={[styles.healthLegendColor, { backgroundColor: item.color }]} />
+                <View style={styles.healthLegendCopy}>
+                  <Text style={[styles.healthLegendTitle, { color: item.color }]}>{item.title}</Text>
+                  <Text style={styles.healthLegendDescription}>{item.description}</Text>
+                </View>
+                <Text style={styles.healthLegendCount}>{lahanHealthSummary[item.key]} lahan</Text>
+              </View>
+            ))}
+            <View
+              style={[styles.healthLegendItem, { backgroundColor: NDVI_UNKNOWN_CONFIG.background }]}
+            >
+              <View style={[styles.healthLegendColor, { backgroundColor: NDVI_UNKNOWN_CONFIG.color }]} />
+              <View style={styles.healthLegendCopy}>
+                <Text style={[styles.healthLegendTitle, { color: NDVI_UNKNOWN_CONFIG.color }]}>
+                  {NDVI_UNKNOWN_CONFIG.title}
+                </Text>
+                <Text style={styles.healthLegendDescription}>{NDVI_UNKNOWN_CONFIG.description}</Text>
+              </View>
+              <Text style={styles.healthLegendCount}>{lahanHealthSummary.unknown} lahan</Text>
+            </View>
+          </View>
 
-      {/* Save Modal */}
-      <Modal
-        visible={showSaveModal}
-        transparent={true}
-        animationType="slide"
-      >
+          <View style={styles.healthListContainer}>
+            {lahanHealthLoading ? (
+              <ActivityIndicator size="small" color="#4CAF50" />
+            ) : lahanCards.some((card) => card.latestHealth) ? (
+              lahanCards
+                .filter((card) => !!card.latestHealth)
+                .slice(0, 5)
+                .map((card) => (
+                  <View key={`health-${card.id}`} style={styles.healthListItem}>
+                    <View style={styles.healthListLabel}>
+                      <View style={[styles.healthStatusDot, { backgroundColor: card.classification.color }]} />
+                      <Text style={styles.healthListTitle}>{card.name}</Text>
+                    </View>
+                    <View style={styles.healthListMeta}>
+                      <Text style={[styles.healthListValue, { color: card.classification.color }]}>
+                        {card.latestHealth?.ndvi_score?.toFixed(2) ?? '-'}
+                      </Text>
+                      <Text style={styles.healthListDate}>
+                        {formatDisplayDate(
+                          card.latestHealth?.captured_at ?? card.latestHealth?.created_at ?? null
+                        )}
+                      </Text>
+                    </View>
+                  </View>
+                ))
+            ) : (
+              <Text style={styles.sectionEmptyText}>Belum ada analisa kesehatan yang tersimpan.</Text>
+            )}
+          </View>
+        </View>
+
+        <View style={[styles.sectionContainer, styles.tipsSection]}>
+          <Text style={[styles.sectionTitle, styles.sectionTitleSpaced]}>Tips Penggunaan</Text>
+          <View style={styles.tipCard}>
+            <Text style={styles.tipBullet}>• Tap lahan di peta untuk melihat detail</Text>
+            <Text style={styles.tipBullet}>• Gunakan zoom untuk gambar lebih presisi</Text>
+            <Text style={styles.tipBullet}>• Simpan catatan untuk melacak perubahan lapangan</Text>
+          </View>
+        </View>
+
+        <View style={styles.sectionContainer}>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionTitle}>Catatan</Text>
+            {notesLoading && <ActivityIndicator size="small" color="#4CAF50" />}
+          </View>
+          {notesLoading ? (
+            <Text style={styles.sectionLoadingText}>Memuat catatan…</Text>
+          ) : notesWithMetadata.length === 0 ? (
+            <Text style={styles.sectionEmptyText}>
+              Belum ada catatan. Simpan setiap temuan agar progress selalu tercatat.
+            </Text>
+          ) : (
+            notesWithMetadata.slice(0, 6).map((note) => (
+              <View key={`note-${note.id}`} style={styles.noteCard}>
+                <View style={styles.noteCardHeader}>
+                  <Text style={styles.noteTimestamp}>{formatDisplayDate(note.created_at)}</Text>
+                  {note.lahanName && <Text style={styles.noteLahan}>{note.lahanName}</Text>}
+                </View>
+                <Text style={styles.noteTitle}>{note.title}</Text>
+                <Text style={styles.noteContent} numberOfLines={3}>
+                  {note.content}
+                </Text>
+              </View>
+            ))
+          )}
+
+          <TouchableOpacity style={styles.newNoteButton} onPress={handleOpenNoteModal}>
+            <Text style={styles.newNoteButtonIcon}>+</Text>
+            <Text style={styles.newNoteButtonText}>Tambah Catatan Baru</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+
+      <Modal visible={showSaveModal} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Simpan Lahan</Text>
-            <Text style={styles.modalSubtitle}>
-              Luas: {formattedPendingArea} ha
-            </Text>
-            <Text style={styles.modalSubtitle}>
-              {pendingPolygon.length} titik koordinat
-            </Text>
+            <Text style={styles.modalSubtitle}>Luas: {formattedPendingArea} ha</Text>
+            <Text style={styles.modalSubtitle}>{pendingPolygon.length} titik koordinat</Text>
             <TextInput
               style={styles.textInput}
               placeholder="Nama lahan (contoh: Lahan Jagung A)"
@@ -922,10 +1457,7 @@ export default function ExploreScreen() {
               onChangeText={setLahanName}
             />
             <View style={styles.modalButtons}>
-              <TouchableOpacity 
-                style={styles.modalCancelButton} 
-                onPress={handleCancelSave}
-              >
+              <TouchableOpacity style={styles.modalCancelButton} onPress={handleCancelSave}>
                 <Text style={styles.modalCancelText}>Batal</Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -933,15 +1465,89 @@ export default function ExploreScreen() {
                 onPress={saveLahan}
                 disabled={isSaving}
               >
+                <Text style={styles.modalSaveText}>{isSaving ? 'Menyimpan...' : 'Simpan'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={showNoteModal} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.noteModalContent}>
+            <Text style={styles.modalTitle}>Catatan Baru</Text>
+            <Text style={styles.modalSubtitle}>Catat hal penting dari lapangan agar tidak terlewat.</Text>
+
+            <TouchableOpacity
+              style={styles.notePickerButton}
+              onPress={() => setIsLahanPickerVisible((prev) => !prev)}
+            >
+              <Text style={styles.notePickerLabel}>
+                {selectedNoteLahanName ?? 'Pilih lahan (opsional)'}
+              </Text>
+            </TouchableOpacity>
+
+            {isLahanPickerVisible && (
+              <View style={styles.notePickerDropdown}>
+                <ScrollView style={styles.notePickerList} keyboardShouldPersistTaps="handled">
+                  <TouchableOpacity
+                    key="picker-none"
+                    style={styles.notePickerOption}
+                    onPress={() => handleSelectNoteLahan(null)}
+                  >
+                    <Text style={styles.notePickerOptionText}>Tanpa lahan</Text>
+                  </TouchableOpacity>
+                  {savedLahan.map((item) => (
+                    <TouchableOpacity
+                      key={`picker-${item.id}`}
+                      style={styles.notePickerOption}
+                      onPress={() => handleSelectNoteLahan(item.id)}
+                    >
+                      <Text style={styles.notePickerOptionText}>{item.name}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+
+            <TextInput
+              style={styles.textInput}
+              placeholder="Judul catatan"
+              value={noteTitle}
+              onChangeText={setNoteTitle}
+            />
+            <TextInput
+              style={[styles.textInput, styles.noteInput]}
+              placeholder="Isi catatan..."
+              value={noteContent}
+              onChangeText={setNoteContent}
+              multiline
+              numberOfLines={4}
+              textAlignVertical="top"
+            />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={styles.modalCancelButton}
+                onPress={handleCancelNote}
+                disabled={isSavingNote}
+              >
+                <Text style={styles.modalCancelText}>Batal</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalSaveButton, (!isNoteFormValid || isSavingNote) && styles.modalSaveButtonDisabled]}
+                onPress={handleSaveNote}
+                disabled={!isNoteFormValid || isSavingNote}
+              >
                 <Text style={styles.modalSaveText}>
-                  {isSaving ? 'Menyimpan...' : 'Simpan'}
+                  {isSavingNote ? 'Menyimpan...' : 'Simpan'}
                 </Text>
               </TouchableOpacity>
             </View>
           </View>
         </View>
       </Modal>
-    </ThemedView>
+      </ThemedView>
+    </TouchableWithoutFeedback>
   );
 }
 
@@ -949,6 +1555,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
+  },
+  contentScroll: {
+    flex: 1,
+  },
+  contentScrollContent: {
+    paddingBottom: 32,
   },
   header: {
     alignItems: 'flex-start',
@@ -966,12 +1578,55 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
   },
+  sectionContainer: {
+    marginHorizontal: 20,
+    marginBottom: 24,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    elevation: 2,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#2E7D32',
+  },
+  sectionTitleSpaced: {
+    marginBottom: 16,
+    paddingBottom: 4,
+  },
+  sectionSubtitle: {
+    fontSize: 14,
+    color: '#607D8B',
+  },
+  sectionEmptyText: {
+    fontSize: 14,
+    color: '#78909C',
+    lineHeight: 20,
+  },
+  sectionLoadingText: {
+    fontSize: 14,
+    color: '#78909C',
+  },
   mapContainer: {
-    flex: 1,
-    margin: 20,
+    height: MAP_HEIGHT,
+    marginHorizontal: 20,
+    marginTop: 10,
+    marginBottom: 24,
     borderRadius: 15,
     overflow: 'hidden',
     position: 'relative',
+    backgroundColor: '#D7CCC8',
   },
   searchContainer: {
     position: 'absolute',
@@ -1262,6 +1917,184 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#2E7D32',
   },
+  lahanCard: {
+    backgroundColor: '#F9FBE7',
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 1,
+  },
+  lahanCardBadge: {
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginBottom: 12,
+  },
+  lahanCardBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
+  lahanCardContent: {
+  },
+  lahanCardTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#1B5E20',
+  },
+  lahanCardSubtitle: {
+    fontSize: 13,
+    color: '#33691E',
+  },
+  lahanCardMeta: {
+    fontSize: 13,
+    color: '#4E342E',
+  },
+  lahanCardMetaSecondary: {
+    fontSize: 12,
+    color: '#6D4C41',
+  },
+  healthLegendGrid: {
+    flexDirection: 'column',
+  },
+  healthLegendItem: {
+    borderRadius: 16,
+    padding: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  healthLegendColor: {
+    width: 14,
+    height: 42,
+    borderRadius: 8,
+    marginRight: 12,
+  },
+  healthLegendCopy: {
+    flex: 1,
+  },
+  healthLegendTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  healthLegendDescription: {
+    fontSize: 12,
+    color: '#546E7A',
+  },
+  healthLegendCount: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#37474F',
+  },
+  healthListContainer: {
+    marginTop: 18,
+  },
+  healthListItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#F1F8E9',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginBottom: 12,
+  },
+  healthListLabel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  healthStatusDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginRight: 10,
+  },
+  healthListTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#2E7D32',
+  },
+  healthListMeta: {
+    alignItems: 'flex-end',
+  },
+  healthListValue: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  healthListDate: {
+    fontSize: 11,
+    color: '#607D8B',
+  },
+  tipsSection: {
+    backgroundColor: '#E8F5E9',
+  },
+  tipCard: {
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    padding: 14,
+  },
+  tipBullet: {
+    fontSize: 13,
+    color: '#37474F',
+    marginBottom: 4,
+  },
+  noteCard: {
+    backgroundColor: '#FFF3E0',
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 14,
+  },
+  noteCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  noteTimestamp: {
+    fontSize: 12,
+    color: '#757575',
+  },
+  noteLahan: {
+    fontSize: 12,
+    color: '#5D4037',
+    fontWeight: '600',
+  },
+  noteTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#4E342E',
+    marginBottom: 4,
+  },
+  noteContent: {
+    fontSize: 13,
+    color: '#6D4C41',
+    lineHeight: 18,
+  },
+  newNoteButton: {
+    marginTop: 12,
+    borderRadius: 30,
+    backgroundColor: '#4CAF50',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+  },
+  newNoteButtonIcon: {
+    fontSize: 18,
+    color: '#FFFFFF',
+    fontWeight: '700',
+    marginRight: 6,
+  },
+  newNoteButtonText: {
+    fontSize: 15,
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
   // Modal styles
   modalOverlay: {
     flex: 1,
@@ -1319,6 +2152,47 @@ const styles = StyleSheet.create({
   modalSaveText: {
     color: 'white',
     fontWeight: 'bold',
+  },
+  noteModalContent: {
+    backgroundColor: '#FFFFFF',
+    padding: 20,
+    borderRadius: 12,
+    width: width * 0.88,
+  },
+  notePickerButton: {
+    borderWidth: 1,
+    borderColor: '#C8E6C9',
+    borderRadius: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginBottom: 16,
+    backgroundColor: '#F1F8E9',
+  },
+  notePickerLabel: {
+    fontSize: 14,
+    color: '#2E7D32',
+  },
+  notePickerDropdown: {
+    borderWidth: 1,
+    borderColor: '#C8E6C9',
+    borderRadius: 12,
+    maxHeight: 180,
+    marginBottom: 16,
+    backgroundColor: '#FFFFFF',
+  },
+  notePickerList: {
+    paddingVertical: 6,
+  },
+  notePickerOption: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  notePickerOptionText: {
+    fontSize: 14,
+    color: '#37474F',
+  },
+  noteInput: {
+    minHeight: 120,
   },
   drawingCursor: {
     width: 20,

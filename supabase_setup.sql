@@ -142,3 +142,92 @@ CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW
   EXECUTE FUNCTION public.handle_new_user();
+
+-- =====================================================================
+-- Tabel kesehatan lahan (NDVI history)
+-- =====================================================================
+
+CREATE TABLE IF NOT EXISTS public.lahan_health (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  lahan_id UUID REFERENCES public.lahan(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  ndvi_score NUMERIC,
+  status TEXT,
+  captured_at TIMESTAMP WITH TIME ZONE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+ALTER TABLE public.lahan_health ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view health data for their lahan" ON public.lahan_health
+  FOR SELECT USING (
+    auth.uid() IS NOT NULL AND EXISTS (
+      SELECT 1 FROM public.lahan l WHERE l.id = lahan_id AND l.user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "Users can insert health data for their lahan" ON public.lahan_health
+  FOR INSERT WITH CHECK (
+    auth.uid() IS NOT NULL AND EXISTS (
+      SELECT 1 FROM public.lahan l WHERE l.id = lahan_id AND l.user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "Users can update health data for their lahan" ON public.lahan_health
+  FOR UPDATE USING (
+    auth.uid() IS NOT NULL AND EXISTS (
+      SELECT 1 FROM public.lahan l WHERE l.id = lahan_id AND l.user_id = auth.uid()
+    )
+  ) WITH CHECK (
+    auth.uid() IS NOT NULL AND EXISTS (
+      SELECT 1 FROM public.lahan l WHERE l.id = lahan_id AND l.user_id = auth.uid()
+    )
+  );
+
+CREATE INDEX IF NOT EXISTS idx_lahan_health_lahan_id ON public.lahan_health(lahan_id);
+CREATE INDEX IF NOT EXISTS idx_lahan_health_captured_at ON public.lahan_health(captured_at DESC NULLS LAST);
+
+CREATE TRIGGER update_lahan_health_updated_at
+  BEFORE UPDATE ON public.lahan_health
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+GRANT SELECT, INSERT, UPDATE ON public.lahan_health TO authenticated;
+
+-- =====================================================================
+-- Tabel catatan lahan
+-- =====================================================================
+
+CREATE TABLE IF NOT EXISTS public.lahan_notes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  lahan_id UUID REFERENCES public.lahan(id) ON DELETE SET NULL,
+  title TEXT NOT NULL,
+  content TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+ALTER TABLE public.lahan_notes ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view their own lahan notes" ON public.lahan_notes
+  FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert their own lahan notes" ON public.lahan_notes
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own lahan notes" ON public.lahan_notes
+  FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete their own lahan notes" ON public.lahan_notes
+  FOR DELETE USING (auth.uid() = user_id);
+
+CREATE INDEX IF NOT EXISTS idx_lahan_notes_user_id ON public.lahan_notes(user_id);
+CREATE INDEX IF NOT EXISTS idx_lahan_notes_lahan_id ON public.lahan_notes(lahan_id);
+CREATE INDEX IF NOT EXISTS idx_lahan_notes_created_at ON public.lahan_notes(created_at DESC);
+
+CREATE TRIGGER update_lahan_notes_updated_at
+  BEFORE UPDATE ON public.lahan_notes
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.lahan_notes TO authenticated;
