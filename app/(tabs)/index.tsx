@@ -1,9 +1,24 @@
 import { Ionicons } from '@expo/vector-icons';
+import { classifyNdviStatus, formatNdviValue, NDVI_UNKNOWN_CONFIG, type NdviClassification } from '@/constants/ndvi';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Location from 'expo-location';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Image, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  Dimensions,
+  Image,
+  ImageBackground,
+  Modal,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 
 import { lahanService, supabase, type LahanWithInfo } from '@/hooks/supabase';
 import { BASE_URL } from '../../hooks/config';
@@ -23,6 +38,9 @@ interface WeatherCardProps {
 interface SavedLahanCardProps {
   name: string;
   areaHa: number | null;
+  classification?: NdviClassification;
+  ndviScore?: number | null;
+  capturedAt?: string | null;
   onPress?: () => void;
 }
 
@@ -43,6 +61,77 @@ interface SavedLahan {
   name: string;
   areaHa: number | null;
 }
+
+interface LahanNoteRecord {
+  id: string;
+  lahan_id: string | null;
+  title: string;
+  content: string;
+  created_at: string;
+}
+
+type LahanHealthRecord = {
+  id: string;
+  lahan_id: string;
+  ndvi_score: number | null;
+  status: string | null;
+  captured_at: string | null;
+  created_at: string | null;
+};
+
+type LahanHealthSummary = {
+  classification: NdviClassification;
+  ndviScore: number | null;
+  capturedAt: string | null;
+};
+
+const parseDateToTime = (value?: string | null) => {
+  if (!value) {
+    return 0;
+  }
+  const time = Date.parse(value);
+  return Number.isNaN(time) ? 0 : time;
+};
+
+const hexToRgba = (hex: string, alpha: number) => {
+  const sanitized = hex.replace('#', '').trim();
+  const normalised = sanitized.length === 3
+    ? sanitized.split('').map((char) => `${char}${char}`).join('')
+    : sanitized.padStart(6, '0');
+
+  const numeric = Number.parseInt(normalised, 16);
+  const r = (numeric >> 16) & 255;
+  const g = (numeric >> 8) & 255;
+  const b = numeric & 255;
+
+  return `rgba(${r}, ${g}, ${b}, ${Math.max(0, Math.min(alpha, 1))})`;
+};
+
+const formatDisplayDate = (value?: string | null) => {
+  if (!value) {
+    return '--';
+  }
+  const time = Date.parse(value);
+  if (Number.isNaN(time)) {
+    return '--';
+  }
+  try {
+    return new Intl.DateTimeFormat('id-ID', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    }).format(time);
+  } catch (error) {
+    console.warn('Gagal memformat tanggal catatan:', error);
+    return '--';
+  }
+};
+
+const HOME_USAGE_TIPS = [
+  'Tap lahan di peta untuk melihat detail dan status kesehatan.',
+  'Gunakan zoom agar penggambaran batas lahan lebih presisi.',
+  'Simpan catatan lapangan secara rutin untuk memantau perubahan.',
+];
 
 const formatHeaderDate = (value: Date) =>
   new Intl.DateTimeFormat('id-ID', {
@@ -82,6 +171,17 @@ const formatGeocodedLocation = (place?: Location.LocationGeocodedAddress | null)
   }
 
   return uniqueParts.slice(0, 3).join(', ');
+};
+
+const parseOptionalNumber = (value: unknown): number | null => {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : null;
+  }
+  if (typeof value === 'string') {
+    const parsed = Number.parseFloat(value.trim());
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
 };
 
 const WeatherCard = ({ location, temperature, highTemp, lowTemp, humidity, rainfall, pressure, windSpeed }: WeatherCardProps) => (
@@ -128,37 +228,58 @@ const WeatherCard = ({ location, temperature, highTemp, lowTemp, humidity, rainf
 );
 
 
-const LahanCard = ({ name, areaHa, onPress }: SavedLahanCardProps) => {
+const { width } = Dimensions.get('window');
+
+const DEFAULT_FIELD_IMAGE = {
+  uri: 'https://images.unsplash.com/photo-1582719478181-2cf4e9b123c9?auto=format&fit=crop&w=900&q=80',
+} as const;
+
+const LahanCard = ({ name, areaHa, classification, ndviScore, capturedAt, onPress }: SavedLahanCardProps) => {
+  const areaLabel = areaHa !== null ? `${areaHa.toFixed(2)} ha` : 'Luas belum tersedia';
+  const statusInfo = classification ?? NDVI_UNKNOWN_CONFIG;
+  const normalizedNdviScore = parseOptionalNumber(ndviScore);
+  const ndviLabel = normalizedNdviScore !== null
+    ? `NDVI ${formatNdviValue(normalizedNdviScore)}`
+    : 'NDVI belum tersedia';
+  const capturedLabel = capturedAt ? formatDisplayDate(capturedAt) : null;
+  const pillStyle = [styles.fieldStatusPill, { backgroundColor: hexToRgba(statusInfo.color, 0.82) }];
+
   return (
     <View style={styles.fieldCardContainer}>
       <TouchableOpacity
         onPress={onPress}
         disabled={!onPress}
         style={styles.fieldCard}
-        activeOpacity={0.9}
+        activeOpacity={0.88}
       >
-        <LinearGradient colors={['#4CAF50', '#2E7D32']} style={styles.fieldGradient}>
-          <View style={styles.statusBadge}>
-            <Text style={styles.statusBadgeText}>Tersimpan</Text>
+        <ImageBackground
+          source={DEFAULT_FIELD_IMAGE}
+          style={styles.fieldImage}
+          imageStyle={styles.fieldImageRadius}
+          resizeMode="cover"
+        >
+          <View style={styles.fieldImageOverlay}>
+            <View style={pillStyle}>
+              <Text style={styles.fieldStatusPillText}>{statusInfo.title}</Text>
+            </View>
+            <View style={styles.fieldImageLabel}>
+              <Text style={styles.fieldImageTitle}>{areaLabel}</Text>
+            </View>
           </View>
-          <View style={styles.fieldInfoContent}>
-            <Text style={styles.plantNameInArea}>{name}</Text>
-            <Text style={styles.fieldMeanText}>
-              {areaHa !== null ? `Luas: ${areaHa.toFixed(2)} ha` : 'Luas belum tersedia'}
-            </Text>
-            <Text style={styles.fieldSubtitleText}>Kelola detail lahan ➝</Text>
+        </ImageBackground>
+        <View style={styles.fieldCardFooter}>
+          <View>
+            <Text style={styles.cardTitle}>{name}</Text>
+            <Text style={styles.cardSubtitle}>{ndviLabel}</Text>
+            {capturedLabel ? (
+              <Text style={styles.cardMeta}>Data · {capturedLabel}</Text>
+            ) : null}
           </View>
           <View style={styles.fieldArrowButton}>
             <Ionicons name="chevron-forward" size={16} color="#fff" />
           </View>
-        </LinearGradient>
+        </View>
       </TouchableOpacity>
-      <View style={styles.cardInfo}>
-        <Text style={styles.cardTitle}>{name}</Text>
-        <Text style={styles.cardSubtitle}>
-          {areaHa !== null ? `${areaHa.toFixed(2)} ha` : 'Luas belum tersedia'}
-        </Text>
-      </View>
     </View>
   );
 };
@@ -186,7 +307,50 @@ export default function HomeScreen() {
   const [savedLahan, setSavedLahan] = useState<SavedLahan[]>([]);
   const [lahanError, setLahanError] = useState<string | null>(null);
   const [lahanLoading, setLahanLoading] = useState(false);
+  const [lahanHealthMap, setLahanHealthMap] = useState<Record<string, LahanHealthSummary>>({});
+  const [notes, setNotes] = useState<LahanNoteRecord[]>([]);
+  const [notesLoading, setNotesLoading] = useState(false);
+  const [notesError, setNotesError] = useState<string | null>(null);
+  const [showNoteModal, setShowNoteModal] = useState(false);
+  const [noteTitle, setNoteTitle] = useState('');
+  const [noteContent, setNoteContent] = useState('');
+  const [selectedNoteLahanId, setSelectedNoteLahanId] = useState<string | null>(null);
+  const [isLahanPickerVisible, setIsLahanPickerVisible] = useState(false);
+  const [isSavingNote, setIsSavingNote] = useState(false);
   const userNameDisplay = useMemo(() => (userName ? userName.toUpperCase() : 'PETANI'), [userName]);
+
+  const lahanNameLookup = useMemo(() => {
+    const map = new Map<string, string>();
+    savedLahan.forEach((item) => {
+      map.set(item.id, item.name);
+    });
+    return map;
+  }, [savedLahan]);
+
+  const notesWithMetadata = useMemo(() => {
+    return notes.map((note) => ({
+      ...note,
+      lahanName: note.lahan_id ? lahanNameLookup.get(note.lahan_id) ?? null : null,
+    }));
+  }, [lahanNameLookup, notes]);
+
+  const selectedNoteLahanName = useMemo(() => {
+    if (!selectedNoteLahanId) {
+      return null;
+    }
+    return lahanNameLookup.get(selectedNoteLahanId) ?? null;
+  }, [lahanNameLookup, selectedNoteLahanId]);
+
+  const isNoteFormValid = useMemo(() => {
+    return noteTitle.trim().length > 0 && noteContent.trim().length > 0;
+  }, [noteContent, noteTitle]);
+
+  const featuredTips = useMemo(() => {
+    const daySeed = new Date().getDate();
+    const rotated = [...HOME_USAGE_TIPS];
+    const shift = daySeed % HOME_USAGE_TIPS.length;
+    return rotated.slice(shift).concat(rotated.slice(0, shift));
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -288,7 +452,7 @@ const fetchWeatherData = async (latitude: number, longitude: number) => {
       const userId = authData?.user?.id ?? fallbackUserId;
       if (!userId) {
         setSavedLahan([]);
-        setLahanError('Masuk untuk menyimpan lahan Anda.');
+  setLahanError('Masuk untuk menyimpan lahan Anda.');
         return;
       }
 
@@ -325,11 +489,224 @@ const fetchWeatherData = async (latitude: number, longitude: number) => {
     }
   }, [fallbackUserId]);
 
+  const loadLahanHealth = useCallback(async (targetIds: string[]) => {
+    if (!Array.isArray(targetIds) || targetIds.length === 0) {
+      setLahanHealthMap({});
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('lahan_health')
+        .select('id,lahan_id,ndvi_score,status,captured_at,created_at')
+        .in('lahan_id', targetIds)
+        .order('captured_at', { ascending: false, nullsFirst: true })
+        .order('created_at', { ascending: false, nullsFirst: true });
+
+      if (error) {
+        throw error;
+      }
+
+      const latestEntries = new Map<string, LahanHealthRecord>();
+      (Array.isArray(data) ? (data as LahanHealthRecord[]) : []).forEach((record) => {
+        if (!record?.lahan_id) {
+          return;
+        }
+
+        const existing = latestEntries.get(record.lahan_id);
+        if (!existing) {
+          latestEntries.set(record.lahan_id, record);
+          return;
+        }
+
+        const recordTime = Math.max(parseDateToTime(record.captured_at), parseDateToTime(record.created_at));
+        const existingTime = Math.max(
+          parseDateToTime(existing.captured_at),
+          parseDateToTime(existing.created_at)
+        );
+
+        if (recordTime >= existingTime) {
+          latestEntries.set(record.lahan_id, record);
+        }
+      });
+
+      const next = targetIds.reduce<Record<string, LahanHealthSummary>>((acc, id) => {
+        const record = latestEntries.get(id);
+        if (record) {
+          const parsedScore = parseOptionalNumber(record.ndvi_score);
+          acc[id] = {
+            classification: classifyNdviStatus(parsedScore, record.status),
+            ndviScore: parsedScore,
+            capturedAt: record.captured_at ?? record.created_at ?? null,
+          };
+        } else {
+          acc[id] = {
+            classification: NDVI_UNKNOWN_CONFIG,
+            ndviScore: null,
+            capturedAt: null,
+          };
+        }
+        return acc;
+      }, {});
+
+      setLahanHealthMap(next);
+    } catch (error) {
+      console.error('Gagal memuat kesehatan lahan:', error);
+      const fallback = targetIds.reduce<Record<string, LahanHealthSummary>>((acc, id) => {
+        acc[id] = {
+          classification: NDVI_UNKNOWN_CONFIG,
+          ndviScore: null,
+          capturedAt: null,
+        };
+        return acc;
+      }, {});
+      setLahanHealthMap(fallback);
+    }
+  }, []);
+
+  const loadNotes = useCallback(async () => {
+    setNotesLoading(true);
+    try {
+      setNotesError(null);
+
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+      if (authError) {
+        const message = authError.message ?? '';
+        if (message.includes('Auth session missing')) {
+          setNotes([]);
+          setNotesError('Masuk untuk melihat catatan lapangan.');
+          return;
+        }
+        throw authError;
+      }
+
+      const userId = authData?.user?.id ?? fallbackUserId;
+      if (!userId) {
+        setNotes([]);
+  setNotesError('Masuk untuk melihat catatan lapangan.');
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('lahan_notes')
+        .select('id,lahan_id,title,content,created_at')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(12);
+
+      if (error) {
+        throw error;
+      }
+
+      setNotes(Array.isArray(data) ? (data as LahanNoteRecord[]) : []);
+    } catch (error) {
+      console.error('Gagal memuat catatan lapangan:', error);
+      setNotes([]);
+      setNotesError('Belum ada catatan yang dapat ditampilkan.');
+    } finally {
+      setNotesLoading(false);
+    }
+  }, [fallbackUserId]);
+
+  const resetNoteForm = () => {
+    setNoteTitle('');
+    setNoteContent('');
+    setSelectedNoteLahanId(null);
+  };
+
+  const closeNoteModal = () => {
+    setShowNoteModal(false);
+    setIsLahanPickerVisible(false);
+  };
+
+  const handleOpenNoteModal = () => {
+    if (!selectedNoteLahanId && savedLahan.length > 0) {
+      setSelectedNoteLahanId(savedLahan[0].id);
+    }
+    setShowNoteModal(true);
+    setIsLahanPickerVisible(false);
+  };
+
+  const handleCancelNote = () => {
+    resetNoteForm();
+    closeNoteModal();
+  };
+
+  const handleSelectNoteLahan = (id: string | null) => {
+    setSelectedNoteLahanId(id);
+    setIsLahanPickerVisible(false);
+  };
+
+  const handleSaveNote = async () => {
+    const trimmedTitle = noteTitle.trim();
+    const trimmedContent = noteContent.trim();
+
+    if (!trimmedTitle || !trimmedContent) {
+      Alert.alert('Catatan belum lengkap', 'Judul dan isi catatan wajib diisi.');
+      return;
+    }
+
+    if (isSavingNote) {
+      return;
+    }
+
+    try {
+      setIsSavingNote(true);
+
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+      if (authError) {
+        const message = authError.message ?? '';
+        if (message.includes('Auth session missing')) {
+          Alert.alert('Perlu masuk', 'Masuk untuk menyimpan catatan baru.');
+          closeNoteModal();
+          return;
+        }
+        throw authError;
+      }
+
+      const userId = authData?.user?.id ?? fallbackUserId;
+      if (!userId) {
+  Alert.alert('Perlu masuk', 'Masuk untuk menyimpan catatan baru.');
+        closeNoteModal();
+        return;
+      }
+
+      const { error } = await supabase.from('lahan_notes').insert([
+        {
+          user_id: userId,
+          lahan_id: selectedNoteLahanId,
+          title: trimmedTitle,
+          content: trimmedContent,
+        },
+      ]);
+
+      if (error) {
+        throw error;
+      }
+
+      await loadNotes();
+      resetNoteForm();
+      closeNoteModal();
+    } catch (error: any) {
+      console.error('Gagal menyimpan catatan:', error);
+      const message = error?.message ?? 'Terjadi kesalahan saat menyimpan catatan.';
+      Alert.alert('Gagal menyimpan catatan', message);
+    } finally {
+      setIsSavingNote(false);
+    }
+  };
+
   useFocusEffect(
     useCallback(() => {
       loadSavedLahan();
-    }, [loadSavedLahan])
+      loadNotes();
+    }, [loadNotes, loadSavedLahan])
   );
+
+  useEffect(() => {
+    const ids = savedLahan.map((item) => item.id);
+    loadLahanHealth(ids);
+  }, [savedLahan, loadLahanHealth]);
 
   useEffect(() => {
     let isMounted = true;
@@ -529,6 +906,9 @@ const fetchWeatherData = async (latitude: number, longitude: number) => {
                 key={item.id}
                 name={item.name}
                 areaHa={item.areaHa}
+                classification={lahanHealthMap[item.id]?.classification}
+                ndviScore={lahanHealthMap[item.id]?.ndviScore ?? null}
+                capturedAt={lahanHealthMap[item.id]?.capturedAt ?? null}
                 onPress={() =>
                   router.push({ pathname: '/detail-lahan-page', params: { id: item.id } })
                 }
@@ -542,7 +922,146 @@ const fetchWeatherData = async (latitude: number, longitude: number) => {
             </View>
           )}
         </ScrollView>
+
+        <View style={styles.notesSection}>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionTitle}>Catatan</Text>
+            <View style={styles.sectionActions}>
+              {notesLoading && <ActivityIndicator size="small" color="#4CAF50" style={styles.sectionActionSpinner} />}
+              <TouchableOpacity style={styles.addNoteButton} onPress={handleOpenNoteModal}>
+                <Ionicons name="add" size={16} color="#fff" style={styles.addNoteButtonIcon} />
+                <Text style={styles.addNoteButtonText}>Tambah</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+          {notesLoading ? (
+            <Text style={styles.sectionSupportingText}>Memuat catatan…</Text>
+          ) : notesWithMetadata.length === 0 ? (
+            <Text style={styles.sectionSupportingText}>
+              {notesError ?? 'Belum ada catatan tersimpan.'}
+            </Text>
+          ) : (
+            notesWithMetadata.slice(0, 3).map((note) => (
+              <View key={note.id} style={styles.noteCard}>
+                <View style={styles.noteCardHeader}>
+                  <Text style={styles.noteTitle} numberOfLines={1}>
+                    {note.title || 'Catatan Tanpa Judul'}
+                  </Text>
+                  {note.lahanName ? (
+                    <View style={styles.noteBadge}>
+                      <Text style={styles.noteBadgeText}>{note.lahanName}</Text>
+                    </View>
+                  ) : null}
+                </View>
+                <Text style={styles.noteMeta}>{formatDisplayDate(note.created_at)}</Text>
+                <Text style={styles.noteContent} numberOfLines={2}>
+                  {note.content || 'Catatan kosong.'}
+                </Text>
+              </View>
+            ))
+          )}
+        </View>
+
+        <View style={styles.tipsSection}>
+          <Text style={styles.sectionTitle}>Tips Penggunaan</Text>
+          <View style={styles.tipCard}>
+            {featuredTips.map((tip, index) => (
+              <Text key={`home-tip-${index}`} style={styles.tipBullet}>
+                • {tip}
+              </Text>
+            ))}
+          </View>
+        </View>
       </ScrollView>
+      <Modal
+        visible={showNoteModal}
+        transparent
+        animationType="fade"
+        onRequestClose={handleCancelNote}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.noteModalContent}>
+            <Text style={styles.modalTitle}>Catatan Baru</Text>
+            <Text style={styles.modalSubtitle}>
+              Simpan temuan lapangan langsung dari beranda.
+            </Text>
+
+            <TouchableOpacity
+              style={styles.notePickerButton}
+              onPress={() => setIsLahanPickerVisible((prev) => !prev)}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.notePickerLabel} numberOfLines={1}>
+                {selectedNoteLahanName ?? 'Pilih lahan (opsional)'}
+              </Text>
+            </TouchableOpacity>
+
+            {isLahanPickerVisible && (
+              <View style={styles.notePickerDropdown}>
+                <ScrollView
+                  style={styles.notePickerList}
+                  keyboardShouldPersistTaps="handled"
+                >
+                  <TouchableOpacity
+                    style={styles.notePickerOption}
+                    onPress={() => handleSelectNoteLahan(null)}
+                  >
+                    <Text style={styles.notePickerOptionText}>Tanpa lahan</Text>
+                  </TouchableOpacity>
+                  {savedLahan.map((item) => (
+                    <TouchableOpacity
+                      key={`home-note-picker-${item.id}`}
+                      style={styles.notePickerOption}
+                      onPress={() => handleSelectNoteLahan(item.id)}
+                    >
+                      <Text style={styles.notePickerOptionText} numberOfLines={1}>
+                        {item.name}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+
+            <TextInput
+              style={styles.textInput}
+              placeholder="Judul catatan"
+              value={noteTitle}
+              onChangeText={setNoteTitle}
+            />
+
+            <TextInput
+              style={[styles.textInput, styles.noteInput]}
+              placeholder="Isi catatan..."
+              value={noteContent}
+              onChangeText={setNoteContent}
+              multiline
+              numberOfLines={4}
+              textAlignVertical="top"
+            />
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={styles.modalCancelButton}
+                onPress={handleCancelNote}
+                disabled={isSavingNote}
+              >
+                <Text style={styles.modalCancelText}>Batal</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalSaveButton, (!isNoteFormValid || isSavingNote) && styles.modalSaveButtonDisabled]}
+                onPress={handleSaveNote}
+                disabled={!isNoteFormValid || isSavingNote}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.modalSaveText}>
+                  {isSavingNote ? 'Menyimpan...' : 'Simpan'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -733,80 +1252,76 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   fieldCardContainer: {
-    marginRight: 15,
-    backgroundColor: '#fff',
-    borderRadius: 15,
-    padding: 8,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    marginRight: 16,
   },
   fieldCard: {
-    width: 160,
-    height: 140,
-    borderRadius: 12,
+    width: 190,
+    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
     overflow: 'hidden',
-    marginBottom: 8,
+    elevation: 4,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 5,
   },
-  fieldGradient: {
+  fieldImage: {
+    height: 116,
+  },
+  fieldImageRadius: {
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+  },
+  fieldImageOverlay: {
     flex: 1,
-    borderRadius: 12,
     padding: 12,
     justifyContent: 'space-between',
+    backgroundColor: 'rgba(0, 0, 0, 0.28)',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
   },
-  statusBadge: {
+  fieldStatusPill: {
     alignSelf: 'flex-start',
+    backgroundColor: 'rgba(0, 0, 0, 0.55)',
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 15,
-    marginBottom: 12,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 14,
   },
-  statusBadgeText: {
-    color: '#fff',
+  fieldStatusPillText: {
+    color: '#FFFFFF',
     fontSize: 11,
-    fontWeight: 'bold',
+    fontWeight: '700',
+    letterSpacing: 0.4,
   },
-  plantNameInArea: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-    textAlign: 'left',
+  fieldImageLabel: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255, 255, 255, 0.88)',
   },
-  fieldInfoContent: {
-    flex: 1,
-    justifyContent: 'center',
+  fieldImageTitle: {
+    color: '#1B5E20',
+    fontSize: 14,
+    fontWeight: '700',
   },
-  fieldMeanText: {
-    color: 'rgba(255,255,255,0.9)',
-    fontSize: 13,
-    fontWeight: '600',
-    marginTop: 6,
-  },
-  fieldSubtitleText: {
-    color: 'rgba(255,255,255,0.8)',
-    fontSize: 12,
-    marginTop: 2,
+  fieldCardFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
   },
   fieldArrowButton: {
-    position: 'absolute',
-    bottom: 8,
-    right: 8,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#1C1C1E',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  cardInfo: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
   cardTitle: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: 'bold',
     color: '#333',
     marginBottom: 2,
@@ -814,6 +1329,11 @@ const styles = StyleSheet.create({
   cardSubtitle: {
     fontSize: 12,
     color: '#666',
+  },
+  cardMeta: {
+    fontSize: 11,
+    color: '#8E8E8E',
+    marginTop: 2,
   },
   loadingCard: {
     justifyContent: 'center',
@@ -824,6 +1344,206 @@ const styles = StyleSheet.create({
     color: '#666',
     fontSize: 16,
     fontStyle: 'italic',
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  sectionActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  sectionActionSpinner: {
+    marginRight: 10,
+  },
+  addNoteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#4CAF50',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  addNoteButtonIcon: {
+    marginRight: 6,
+  },
+  addNoteButtonText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '600',
+    letterSpacing: 0.3,
+  },
+  sectionSupportingText: {
+    fontSize: 13,
+    color: '#666',
+    marginBottom: 12,
+  },
+  notesSection: {
+    marginBottom: 24,
+  },
+  noteCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(76, 175, 80, 0.12)',
+  },
+  noteCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  noteTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#2E7D32',
+    flex: 1,
+    marginRight: 8,
+  },
+  noteBadge: {
+    backgroundColor: 'rgba(76, 175, 80, 0.18)',
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  noteBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#1B5E20',
+  },
+  noteMeta: {
+    fontSize: 12,
+    color: '#607D8B',
+    marginBottom: 6,
+  },
+  noteContent: {
+    fontSize: 13,
+    color: '#4E4E4E',
+    lineHeight: 18,
+  },
+  tipsSection: {
+    marginBottom: 36,
+  },
+  tipCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(76, 175, 80, 0.08)',
+  },
+  tipBullet: {
+    fontSize: 13,
+    color: '#37474F',
+    marginBottom: 6,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 10,
+    color: '#2E7D32',
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: '#666666',
+    textAlign: 'center',
+    marginBottom: 15,
+  },
+  notePickerButton: {
+    borderWidth: 1,
+    borderColor: '#C8E6C9',
+    borderRadius: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginBottom: 16,
+    backgroundColor: '#F1F8E9',
+  },
+  notePickerLabel: {
+    fontSize: 14,
+    color: '#2E7D32',
+  },
+  notePickerDropdown: {
+    borderWidth: 1,
+    borderColor: '#C8E6C9',
+    borderRadius: 12,
+    maxHeight: 180,
+    marginBottom: 16,
+    backgroundColor: '#FFFFFF',
+  },
+  notePickerList: {
+    paddingVertical: 6,
+  },
+  notePickerOption: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  notePickerOptionText: {
+    fontSize: 14,
+    color: '#37474F',
+  },
+  textInput: {
+    borderWidth: 1,
+    borderColor: '#DDDDDD',
+    borderRadius: 5,
+    padding: 10,
+    marginBottom: 20,
+    fontSize: 14,
+    color: '#333333',
+    backgroundColor: '#FFFFFF',
+  },
+  noteInput: {
+    minHeight: 120,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+  },
+  modalCancelButton: {
+    backgroundColor: '#CCCCCC',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 5,
+  },
+  modalCancelText: {
+    color: '#333333',
+    fontSize: 14,
+  },
+  modalSaveButton: {
+    backgroundColor: '#4CAF50',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 5,
+  },
+  modalSaveButtonDisabled: {
+    opacity: 0.6,
+  },
+  modalSaveText: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  noteModalContent: {
+    backgroundColor: '#FFFFFF',
+    padding: 20,
+    borderRadius: 12,
+    width: width * 0.88,
   },
   emptyNdviContainer: {
     justifyContent: 'center',

@@ -15,14 +15,16 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Defs, Path, Stop, LinearGradient as SvgLinearGradient } from 'react-native-svg';
 
 import { lahanService, type LahanDetail } from '@/hooks/supabase';
+import {
+  buildNdviSeries,
+  clamp,
+  Coordinate,
+  getDayOfYear,
+  toRadians,
+} from '@/utils/ndvi-simulator';
 
 export const options = {
   headerShown: false,
-};
-
-type Coordinate = {
-  latitude: number;
-  longitude: number;
 };
 
 type AnalysisResult = {
@@ -72,15 +74,21 @@ const riskSeverityLabels: Record<SeverityLevel, string> = {
   danger: 'Tinggi',
 };
 
+const heroGradientPalette: Record<SeverityLevel, [string, string]> = {
+  success: ['#2E7D32', '#1B5E20'],
+  warning: ['#FFB74D', '#F57C00'],
+  danger: ['#EF5350', '#C62828'],
+};
+
 const NDVI_TIPS = [
-  'Nilai NDVI sehat berada di kisaran 0.5-0.8 dan makin tinggi menunjukkan vegetasi produktif.',
-  'NDVI < 0 menandakan area tanpa vegetasi, 0-0.2 tanah minim tanaman, 0.2-0.5 pertumbuhan sedang, dan > 0.5 vegetasi hijau sehat.',
-  'Manfaatkan NDVI untuk memantau pertumbuhan, mendeteksi stres, serta menjadwalkan tanam dan panen.'
+  'Nilai NDVI sangat sehat berada di kisaran 0.6–1.0 dan menunjukkan kanopi hijau pekat.',
+  'Rentang 0.2–0.6 menandakan pertumbuhan wajar, 0.0–0.2 vegetasi rendah, sedangkan -1.0–0.0 berarti tanpa vegetasi.',
+  'Gunakan tren NDVI untuk memantau stres tanaman, menjadwalkan pemupukan, serta menentukan waktu panen.'
 ];
 
 const evaluateNdviSeverity = (value: number): SeverityLevel => {
-  if (value >= 0.75) return 'success';
-  if (value >= 0.6) return 'warning';
+  if (value >= 0.6) return 'success';
+  if (value >= 0.2) return 'warning';
   return 'danger';
 };
 
@@ -96,33 +104,8 @@ const evaluateRiskSeverity = (value: number): SeverityLevel => {
   return 'danger';
 };
 
-const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
-
-const toRadians = (value: number) => (value * Math.PI) / 180;
-
 const formatPercent = (value: number, fractionDigits = 1) => `${(value * 100).toFixed(fractionDigits)}%`;
-
-const getDayOfYear = (date: Date) => {
-  const start = new Date(date.getFullYear(), 0, 0);
-  const diff = date.getTime() - start.getTime();
-  const oneDay = 1000 * 60 * 60 * 24;
-  return Math.floor(diff / oneDay);
-};
-
-const buildNdviSeries = (lat: number, lon: number, areaHa = 1, referenceDate: Date): AnalysisResult['ndviHistory'] => {
-  const dayOfYear = getDayOfYear(referenceDate);
-  const points = 6; // 1 bulan, data mingguan
-  return Array.from({ length: points }, (_, index) => {
-    const daysAgo = (points - index - 1) * 6;
-    const day = dayOfYear - daysAgo;
-    const nir = 0.62 + 0.18 * Math.sin(toRadians(lat + day / 2)) + 0.05 * Math.cos(toRadians(lon / 3 + areaHa));
-    const red = 0.3 + 0.1 * Math.cos(toRadians(lat / 2 - day / 3)) + 0.03 * Math.sin(toRadians(lon / 4));
-    const ndvi = clamp((nir - red) / (nir + red), 0.05, 0.95);
-    const date = new Date(referenceDate);
-    date.setDate(referenceDate.getDate() - daysAgo);
-    return { date, value: ndvi };
-  });
-};
+const formatNdviValue = (value: number, fractionDigits = 2) => value.toFixed(fractionDigits);
 
 const computeAnalysis = (coords: Coordinate, areaHa: number | null, createdAt?: string): AnalysisResult => {
   const today = new Date();
@@ -302,6 +285,15 @@ export default function DetailLahanPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'health' | 'risk'>('health');
 
+  const heroSeverity = useMemo<SeverityLevel>(() => {
+    if (!analysis) {
+      return 'success';
+    }
+    return evaluateNdviSeverity(analysis.ndviCurrent);
+  }, [analysis]);
+
+  const heroGradientColors = heroGradientPalette[heroSeverity];
+
   useEffect(() => {
     let isMounted = true;
     const load = async () => {
@@ -379,7 +371,7 @@ export default function DetailLahanPage() {
       {
         key: 'ndvi',
         title: 'Nilai NDVI',
-        value: formatPercent(analysis.ndviCurrent),
+        value: formatNdviValue(analysis.ndviCurrent),
         caption: healthSeverityLabels[ndviSeverity],
         palette: severityPalette[ndviSeverity],
       },
@@ -449,7 +441,7 @@ export default function DetailLahanPage() {
           </TouchableOpacity>
         </View>
         <View style={styles.heroContainer}>
-          <LinearGradient colors={["#2E7D32", "#1B5E20"]} style={styles.heroGradient}>
+          <LinearGradient colors={heroGradientColors} style={styles.heroGradient}>
             <View style={styles.heroContent}>
               <Text style={styles.fieldName}>{detail?.name ?? 'Ladang'}</Text>
               <Text style={styles.fieldMeta}>

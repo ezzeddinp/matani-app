@@ -1,5 +1,9 @@
 import { ThemedView } from '@/components/themed-view';
+import { NDVI_SEVERITY_CONFIG, NDVI_UNKNOWN_CONFIG, classifyNdviStatus, formatNdviValue, type NdviClassification, type NdviClassificationKey } from '@/constants/ndvi';
+import { BASE_URL } from '@/hooks/config';
 import { LahanWithInfo, lahanService, supabase } from '@/hooks/supabase';
+import { computeSyntheticNdviForPolygon } from '@/utils/ndvi-simulator';
+import { LinearGradient } from 'expo-linear-gradient';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -16,29 +20,9 @@ import {
   TextInput,
   TouchableOpacity,
   TouchableWithoutFeedback,
-  View
+  View,
 } from 'react-native';
 import MapView, { LatLng, MapPressEvent, Marker, PROVIDER_GOOGLE, Polygon, Polyline, Region } from 'react-native-maps';
-
-type SavedLahanItem = {
-  id: string;
-  name: string;
-  coordinates: LatLng[];
-  areaHa?: number | null;
-};
-
-type SearchSuggestion = {
-  id: string;
-  label: string;
-  subtitle?: string;
-  latitude: number;
-  longitude: number;
-};
-
-type DrawVertex = {
-  id: string;
-  coordinate: LatLng;
-};
 
 type LahanHealthRecord = {
   id: string;
@@ -57,18 +41,47 @@ type LahanNoteRecord = {
   created_at: string;
 };
 
-type NdviClassificationKey = 'healthy' | 'warning' | 'danger' | 'unknown';
+type SavedLahanItem = {
+  id: string;
+  name: string;
+  coordinates: LatLng[];
+  areaHa: number | null;
+  createdAt: string | null;
+};
 
-type NdviClassification = {
-  key: NdviClassificationKey;
-  title: string;
-  description: string;
-  color: string;
-  background?: string;
+type SearchSuggestion = {
+  id: string;
+  label: string;
+  subtitle?: string;
+  latitude: number;
+  longitude: number;
+};
+
+type DrawVertex = {
+  id: string;
+  coordinate: LatLng;
+};
+
+type LahanCard = SavedLahanItem & {
+  latestHealth?: LahanHealthRecord | null | undefined;
+  classification: NdviClassification;
+};
+
+type NdviStatistic = {
+  interval: string;
+  ndvi_min: number;
+  ndvi_max: number;
+  ndvi_mean: number;
+  ndvi_stdev: number;
 };
 
 const { width } = Dimensions.get('window');
 const MAP_HEIGHT = Math.max(320, Math.min(width * 1.15, 520));
+const NDVI_BBOX_PADDING = 0.0004;
+
+const ndviStatisticCache = new Map<string, NdviStatistic | null>();
+const ndviStatisticInflight = new Map<string, Promise<NdviStatistic | null>>();
+const ndviStatisticErrorCount = new Map<string, number>();
 
 const LAHAN_COLOR_PALETTE = [
   { stroke: '#2E7D32', fill: 'rgba(76, 175, 80, 0.22)' },
@@ -95,36 +108,97 @@ const getLahanColor = (id: string) => {
   return LAHAN_COLOR_PALETTE[index];
 };
 
-const NDVI_SEVERITY_CONFIG: NdviClassification[] = [
-  {
-    key: 'healthy',
-    title: 'Sehat',
-    description: 'Pertumbuhan tanaman optimal dan hijau merata',
-    color: '#2E7D32',
-    background: 'rgba(76, 175, 80, 0.14)',
-  },
-  {
-    key: 'warning',
-    title: 'Perlu Perhatian',
-    description: 'Ada area yang mulai mengalami stres ringan',
-    color: '#F57C00',
-    background: 'rgba(255, 167, 38, 0.18)',
-  },
-  {
-    key: 'danger',
-    title: 'Bahaya',
-    description: 'Terjadi penurunan tajam vegetasi, perlu tindakan segera',
-    color: '#C62828',
-    background: 'rgba(198, 40, 40, 0.18)',
-  },
-];
+const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
 
-const NDVI_UNKNOWN_CONFIG: NdviClassification = {
-  key: 'unknown',
-  title: 'Belum Ada Data',
-  description: 'Belum ada pemantauan NDVI terbaru untuk lahan ini',
-  color: '#546E7A',
-  background: 'rgba(84, 110, 122, 0.14)',
+const ensureSpread = (minValue: number, maxValue: number, minimumSpread: number, lowerBound: number, upperBound: number) => {
+  if (!Number.isFinite(minValue) || !Number.isFinite(maxValue)) {
+    return [minValue, maxValue] as const;
+  }
+
+  if (maxValue - minValue >= minimumSpread) {
+    return [minValue, maxValue] as const;
+  }
+
+  const midPoint = (maxValue + minValue) / 2;
+  const halfSpread = minimumSpread / 2;
+  const adjustedMin = clamp(midPoint - halfSpread, lowerBound, upperBound);
+  const adjustedMax = clamp(midPoint + halfSpread, lowerBound, upperBound);
+  return [adjustedMin, adjustedMax] as const;
+};
+
+const getBoundingBoxFromCoordinates = (coordinates: LatLng[]): [number, number, number, number] | null => {
+  if (!Array.isArray(coordinates) || coordinates.length === 0) {
+    return null;
+  }
+
+  let minLat = Infinity;
+  let minLon = Infinity;
+  let maxLat = -Infinity;
+  let maxLon = -Infinity;
+
+  coordinates.forEach(({ latitude, longitude }) => {
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+      return;
+    }
+    minLat = Math.min(minLat, latitude);
+    minLon = Math.min(minLon, longitude);
+    maxLat = Math.max(maxLat, latitude);
+    maxLon = Math.max(maxLon, longitude);
+  });
+
+  if (!Number.isFinite(minLat) || !Number.isFinite(minLon) || !Number.isFinite(maxLat) || !Number.isFinite(maxLon)) {
+    return null;
+  }
+
+  const paddedMinLat = clamp(minLat - NDVI_BBOX_PADDING, -90, 90);
+  const paddedMinLon = clamp(minLon - NDVI_BBOX_PADDING, -180, 180);
+  const paddedMaxLat = clamp(maxLat + NDVI_BBOX_PADDING, -90, 90);
+  const paddedMaxLon = clamp(maxLon + NDVI_BBOX_PADDING, -180, 180);
+
+  const [adjustedMinLat, adjustedMaxLat] = ensureSpread(paddedMinLat, paddedMaxLat, 0.0008, -90, 90);
+  const [adjustedMinLon, adjustedMaxLon] = ensureSpread(paddedMinLon, paddedMaxLon, 0.0008, -180, 180);
+
+  return [adjustedMinLon, adjustedMinLat, adjustedMaxLon, adjustedMaxLat];
+};
+
+const createNdviRecordFromStatistic = (lahanId: string, stat: NdviStatistic | null): LahanHealthRecord | null => {
+  if (!stat || typeof stat.ndvi_mean !== 'number' || Number.isNaN(stat.ndvi_mean)) {
+    return null;
+  }
+
+  const capturedDateIso = stat.interval ? `${stat.interval}T00:00:00Z` : null;
+
+  return {
+    id: `ndvi-${lahanId}-${stat.interval ?? Date.now()}`,
+    lahan_id: lahanId,
+    ndvi_score: stat.ndvi_mean,
+    status: null,
+    captured_at: capturedDateIso,
+    created_at: new Date().toISOString(),
+  };
+};
+
+const createSyntheticNdviRecord = (lahan: SavedLahanItem): LahanHealthRecord | null => {
+  if (!Array.isArray(lahan.coordinates) || lahan.coordinates.length === 0) {
+    return null;
+  }
+
+  const synthetic = computeSyntheticNdviForPolygon(lahan.coordinates, lahan.areaHa ?? null);
+  if (!synthetic) {
+    return null;
+  }
+
+  const ndviScore = Number(synthetic.ndviCurrent.toFixed(2));
+  const latestHistory = synthetic.ndviHistory.at(-1);
+
+  return {
+    id: `ndvi-synthetic-${lahan.id}`,
+    lahan_id: lahan.id,
+    ndvi_score: ndviScore,
+    status: 'synthetic',
+    captured_at: latestHistory?.date?.toISOString() ?? new Date().toISOString(),
+    created_at: new Date().toISOString(),
+  };
 };
 
 const parseDateToTime = (value?: string | null) => {
@@ -143,33 +217,29 @@ const applyAlphaToHex = (hex: string, alpha: number) => {
   return `${hex}${alphaValue}`;
 };
 
-const classifyNdviStatus = (ndviScore: number | null, rawStatus: string | null): NdviClassification => {
-  if (typeof ndviScore === 'number') {
-    if (ndviScore >= 0.45) {
-      return NDVI_SEVERITY_CONFIG[0];
-    }
-    if (ndviScore >= 0.3) {
-      return NDVI_SEVERITY_CONFIG[1];
-    }
-    if (ndviScore >= 0) {
-      return NDVI_SEVERITY_CONFIG[2];
-    }
-  }
+const lightenHex = (hex: string, intensity: number) => {
+  const normalised = Math.max(0, Math.min(intensity, 1));
+  const parsed = hex.replace('#', '').trim();
+  const expanded = parsed.length === 3
+    ? parsed.split('').map((char) => `${char}${char}`).join('')
+    : parsed;
 
-  if (rawStatus) {
-    const normalised = rawStatus.trim().toLowerCase();
-    if (['healthy', 'baik', 'normal'].includes(normalised)) {
-      return NDVI_SEVERITY_CONFIG[0];
-    }
-    if (['warning', 'moderate', 'perlu perhatian'].includes(normalised)) {
-      return NDVI_SEVERITY_CONFIG[1];
-    }
-    if (['danger', 'low', 'buruk', 'needs_attention'].includes(normalised)) {
-      return NDVI_SEVERITY_CONFIG[2];
-    }
-  }
+  const numeric = parseInt(expanded, 16);
+  const r = (numeric >> 16) & 255;
+  const g = (numeric >> 8) & 255;
+  const b = numeric & 255;
 
-  return NDVI_UNKNOWN_CONFIG;
+  const mix = (channel: number) => Math.round(channel + (255 - channel) * normalised);
+  const next = (mix(r) << 16) | (mix(g) << 8) | mix(b);
+
+  return `#${next.toString(16).padStart(6, '0')}`;
+};
+
+const getThumbnailGradient = (classification: NdviClassification) => {
+  const primary = classification.color;
+  const soft = lightenHex(primary, 0.55);
+  const medium = lightenHex(primary, 0.25);
+  return [soft, medium, primary] as const;
 };
 
 const formatDisplayDate = (value?: string | null) => {
@@ -271,7 +341,6 @@ export default function ExploreScreen() {
   const [searchMarker, setSearchMarker] = useState<LatLng | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [lahanHealth, setLahanHealth] = useState<LahanHealthRecord[]>([]);
-  const [lahanHealthLoading, setLahanHealthLoading] = useState(false);
   const [notes, setNotes] = useState<LahanNoteRecord[]>([]);
   const [notesLoading, setNotesLoading] = useState(false);
   const [showNoteModal, setShowNoteModal] = useState(false);
@@ -280,6 +349,8 @@ export default function ExploreScreen() {
   const [isSavingNote, setIsSavingNote] = useState(false);
   const [selectedNoteLahanId, setSelectedNoteLahanId] = useState<string | null>(null);
   const [isLahanPickerVisible, setIsLahanPickerVisible] = useState(false);
+  const [ndviOverrides, setNdviOverrides] = useState<Record<string, LahanHealthRecord | null | undefined>>({});
+  const [ndviFetchingMap, setNdviFetchingMap] = useState<Record<string, boolean>>({});
   const mapRef = useRef<MapView>(null);
   const currentRegionRef = useRef<Region | null>(null);
   const [userLocation, setUserLocation] = useState({
@@ -366,7 +437,6 @@ export default function ExploreScreen() {
     }
 
     try {
-      setLahanHealthLoading(true);
       const { data, error } = await supabase
         .from('lahan_health')
         .select('id,lahan_id,ndvi_score,status,captured_at,created_at')
@@ -382,8 +452,6 @@ export default function ExploreScreen() {
     } catch (error) {
       console.error('❌ Gagal memuat kesehatan lahan:', error);
       setLahanHealth([]);
-    } finally {
-      setLahanHealthLoading(false);
     }
   }, []);
 
@@ -712,6 +780,72 @@ export default function ExploreScreen() {
     mapRef.current.animateToRegion(region, duration);
   }, []);
 
+  const fetchNdviStatistic = useCallback(async (bbox: [number, number, number, number]): Promise<NdviStatistic | null> => {
+    const bboxKey = bbox.map((value) => value.toFixed(6)).join(',');
+
+    if (ndviStatisticCache.has(bboxKey)) {
+      return ndviStatisticCache.get(bboxKey) ?? null;
+    }
+
+    if (ndviStatisticInflight.has(bboxKey)) {
+      return ndviStatisticInflight.get(bboxKey) ?? null;
+    }
+
+    const request = (async () => {
+      try {
+        const searchParams = new URLSearchParams();
+        searchParams.set('bbox', bboxKey);
+
+        const response = await fetch(`${BASE_URL}/ndvi?${searchParams.toString()}`);
+        if (!response.ok) {
+          throw new Error(`NDVI request failed with status ${response.status}`);
+        }
+
+        const payload = await response.json();
+        if (!Array.isArray(payload) || payload.length === 0) {
+          ndviStatisticCache.set(bboxKey, null);
+          return null;
+        }
+
+        const latestEntry = payload[payload.length - 1] as Partial<NdviStatistic>;
+        if (typeof latestEntry?.ndvi_mean !== 'number' || Number.isNaN(latestEntry.ndvi_mean)) {
+          ndviStatisticCache.set(bboxKey, null);
+          return null;
+        }
+
+        const result: NdviStatistic = {
+          interval:
+            typeof latestEntry.interval === 'string'
+              ? latestEntry.interval
+              : new Date().toISOString().split('T')[0],
+          ndvi_mean: latestEntry.ndvi_mean,
+          ndvi_min:
+            typeof latestEntry.ndvi_min === 'number' ? latestEntry.ndvi_min : latestEntry.ndvi_mean,
+          ndvi_max:
+            typeof latestEntry.ndvi_max === 'number' ? latestEntry.ndvi_max : latestEntry.ndvi_mean,
+          ndvi_stdev:
+            typeof latestEntry.ndvi_stdev === 'number' ? latestEntry.ndvi_stdev : 0,
+        };
+
+        ndviStatisticCache.set(bboxKey, result);
+        return result;
+      } catch (error) {
+        const count = (ndviStatisticErrorCount.get(bboxKey) ?? 0) + 1;
+        ndviStatisticErrorCount.set(bboxKey, count);
+        if (__DEV__ && count <= 3) {
+          console.warn('⚠️ NDVI fetch fallback akan digunakan:', error);
+        }
+        ndviStatisticCache.set(bboxKey, null);
+        return null;
+      } finally {
+        ndviStatisticInflight.delete(bboxKey);
+      }
+    })();
+
+    ndviStatisticInflight.set(bboxKey, request);
+    return request;
+  }, []);
+
   const handleZoom = useCallback(
     (direction: 'in' | 'out') => {
       const baseRegion = currentRegionRef.current ?? {
@@ -851,6 +985,7 @@ export default function ExploreScreen() {
         name: trimmedName,
         coordinates: polygonToPersist,
         areaHa: savedArea,
+        createdAt: savedEntry?.created_at ?? new Date().toISOString(),
       };
 
       setSavedLahan(prev => {
@@ -912,9 +1047,36 @@ export default function ExploreScreen() {
     return map;
   }, [lahanHealth]);
 
-  const lahanCards = useMemo(() => {
+  useEffect(() => {
+    if (savedLahan.length === 0) {
+      return;
+    }
+
+    setNdviOverrides((prev) => {
+      const updates: Record<string, LahanHealthRecord | null | undefined> = {};
+
+      savedLahan.forEach((lahan) => {
+        if (prev[lahan.id] === undefined) {
+          updates[lahan.id] = createSyntheticNdviRecord(lahan) ?? null;
+        }
+      });
+
+      if (Object.keys(updates).length === 0) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        ...updates,
+      };
+    });
+  }, [savedLahan]);
+
+  const lahanCards = useMemo<LahanCard[]>(() => {
     return savedLahan.map((item) => {
-      const latestHealth = latestHealthByLahan.get(item.id);
+      const supabaseHealth = latestHealthByLahan.get(item.id);
+      const override = ndviOverrides[item.id];
+      const latestHealth = supabaseHealth ?? (override !== undefined ? (override ?? undefined) : undefined);
       const classification = classifyNdviStatus(latestHealth?.ndvi_score ?? null, latestHealth?.status ?? null);
       return {
         ...item,
@@ -922,21 +1084,29 @@ export default function ExploreScreen() {
         classification,
       };
     });
-  }, [latestHealthByLahan, savedLahan]);
+  }, [latestHealthByLahan, ndviOverrides, savedLahan]);
+
+  const lahanCardsById = useMemo(() => {
+    const map = new Map<string, LahanCard>();
+    lahanCards.forEach((card) => {
+      map.set(card.id, card);
+    });
+    return map;
+  }, [lahanCards]);
 
   const lahanHealthSummary = useMemo(() => {
-    return lahanCards.reduce(
-      (acc, card) => {
-        acc[card.classification.key] += 1;
+    const seed = NDVI_SEVERITY_CONFIG.reduce(
+      (acc, item) => {
+        acc[item.key] = 0;
         return acc;
       },
-      {
-        healthy: 0,
-        warning: 0,
-        danger: 0,
-        unknown: 0,
-      } as Record<NdviClassificationKey, number>
+      { unknown: 0 } as Record<NdviClassificationKey, number>
     );
+
+    return lahanCards.reduce((acc, card) => {
+      acc[card.classification.key] += 1;
+      return acc;
+    }, seed);
   }, [lahanCards]);
 
   const notesWithMetadata = useMemo(() => {
@@ -952,6 +1122,76 @@ export default function ExploreScreen() {
     }
     return lahanNameLookup.get(selectedNoteLahanId)?.name ?? null;
   }, [lahanNameLookup, selectedNoteLahanId]);
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    const lahanWithoutHealth = savedLahan.filter((item) => {
+      if (!item.coordinates || item.coordinates.length < 3) {
+        return false;
+      }
+      const hasSupabaseHealth = latestHealthByLahan.get(item.id);
+      const overrideState = ndviOverrides[item.id];
+      const isFetching = ndviFetchingMap[item.id];
+      return !hasSupabaseHealth && overrideState === undefined && !isFetching;
+    });
+
+    if (lahanWithoutHealth.length === 0) {
+      return () => {
+        isCancelled = true;
+      };
+    }
+
+    lahanWithoutHealth.forEach((lahan) => {
+      const bbox = getBoundingBoxFromCoordinates(lahan.coordinates);
+      if (!bbox) {
+        setNdviOverrides((prev) => ({
+          ...prev,
+          [lahan.id]: createSyntheticNdviRecord(lahan) ?? null,
+        }));
+        return;
+      }
+
+      setNdviFetchingMap((prev) => ({ ...prev, [lahan.id]: true }));
+
+      fetchNdviStatistic(bbox)
+        .then((stat) => {
+          if (isCancelled) {
+            return;
+          }
+          const recordFromApi = createNdviRecordFromStatistic(lahan.id, stat);
+          const fallbackRecord = recordFromApi ?? createSyntheticNdviRecord(lahan);
+          setNdviOverrides((prev) => ({
+            ...prev,
+            [lahan.id]: fallbackRecord ?? null,
+          }));
+        })
+        .catch((error) => {
+          if (isCancelled) {
+            return;
+          }
+          console.error(`❌ Gagal memproses NDVI lahan ${lahan.id}:`, error);
+          setNdviOverrides((prev) => ({
+            ...prev,
+            [lahan.id]: createSyntheticNdviRecord(lahan) ?? null,
+          }));
+        })
+        .finally(() => {
+          if (isCancelled) {
+            return;
+          }
+          setNdviFetchingMap((prev) => {
+            const next = { ...prev };
+            delete next[lahan.id];
+            return next;
+          });
+        });
+    });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [savedLahan, latestHealthByLahan, ndviOverrides, ndviFetchingMap, fetchNdviStatistic]);
 
   const handleOpenNoteModal = () => {
     if (!selectedNoteLahanId && savedLahan.length > 0) {
@@ -1181,20 +1421,24 @@ export default function ExploreScreen() {
 
               const labelIndex = Math.floor(item.coordinates.length / 2);
               const labelCoordinate = item.coordinates[labelIndex] ?? item.coordinates[0];
-              const color = getLahanColor(item.id);
+              const paletteColor = getLahanColor(item.id);
+              const cardInfo = lahanCardsById.get(item.id);
+              const strokeColor = cardInfo?.classification.color ?? paletteColor.stroke;
+              const fillColor = cardInfo?.classification.background ?? paletteColor.fill;
+              const labelBackground = strokeColor;
 
               return (
                 <React.Fragment key={`saved-${item.id}`}>
                   <Polygon
                     coordinates={item.coordinates}
-                    fillColor={color.fill}
-                    strokeColor={color.stroke}
+                    fillColor={fillColor}
+                    strokeColor={strokeColor}
                     strokeWidth={3}
                     tappable={false}
                   />
                   {labelCoordinate && (
                     <Marker coordinate={labelCoordinate} anchor={{ x: 0.5, y: 0.5 }} tappable={false}>
-                      <View style={[styles.savedLahanLabel, { backgroundColor: color.stroke }]}
+                      <View style={[styles.savedLahanLabel, { backgroundColor: labelBackground }]}
                       >
                         <Text style={styles.savedLahanLabelText}>{item.name}</Text>
                         {typeof item.areaHa === 'number' && Number.isFinite(item.areaHa) && (
@@ -1296,42 +1540,56 @@ export default function ExploreScreen() {
             lahanCards.map((card) => (
               <TouchableOpacity
                 key={`lahan-card-${card.id}`}
-                style={styles.lahanCard}
+                style={[
+                  styles.lahanCard,
+                  {
+                    backgroundColor:
+                      card.classification.background ?? applyAlphaToHex(card.classification.color, 0.12),
+                  },
+                ]}
                 activeOpacity={0.9}
                 onPress={() => router.push({ pathname: '/detail-lahan-page', params: { id: card.id } })}
               >
-                <View
-                  style={[
-                    styles.lahanCardBadge,
-                    {
-                      borderColor: card.classification.color,
-                      backgroundColor:
-                        card.classification.background ?? applyAlphaToHex(card.classification.color, 0.12),
-                    },
-                  ]}
-                >
-                  <Text style={[styles.lahanCardBadgeText, { color: card.classification.color }]}>
-                    {card.classification.title}
-                  </Text>
-                </View>
-                <View style={styles.lahanCardContent}>
-                  <Text style={styles.lahanCardTitle}>{card.name}</Text>
-                  <Text style={styles.lahanCardSubtitle}>
-                    {formatHa(card.areaHa)}
-                    {card.createdAt ? ` · ${formatYearLabel(card.createdAt)}` : ''}
-                  </Text>
-                  {card.latestHealth?.ndvi_score !== undefined && card.latestHealth?.ndvi_score !== null ? (
-                    <Text style={styles.lahanCardMeta}>
-                      NDVI {card.latestHealth.ndvi_score.toFixed(2)} · {card.classification.description}
+                <View style={styles.lahanCardRow}>
+                  <LinearGradient
+                    colors={getThumbnailGradient(card.classification)}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.lahanCardThumbnail}
+                  />
+                  <View style={styles.lahanCardContent}>
+                    <View
+                      style={[
+                        styles.lahanCardBadge,
+                        {
+                          borderColor: card.classification.color,
+                          backgroundColor:
+                            card.classification.background ?? applyAlphaToHex(card.classification.color, 0.12),
+                        },
+                      ]}
+                    >
+                      <Text style={[styles.lahanCardBadgeText, { color: card.classification.color }]}>
+                        {card.classification.title}
+                      </Text>
+                    </View>
+                    <Text style={styles.lahanCardTitle}>{card.name}</Text>
+                    <Text style={styles.lahanCardSubtitle}>
+                      {formatHa(card.areaHa)}
+                      {card.createdAt ? ` · ${formatYearLabel(card.createdAt)}` : ''}
                     </Text>
-                  ) : (
-                    <Text style={styles.lahanCardMeta}>Belum ada data NDVI terbaru</Text>
-                  )}
-                  {card.latestHealth?.captured_at && (
-                    <Text style={styles.lahanCardMetaSecondary}>
-                      Data diambil {formatDisplayDate(card.latestHealth.captured_at)}
-                    </Text>
-                  )}
+                    {card.latestHealth?.ndvi_score !== undefined && card.latestHealth?.ndvi_score !== null ? (
+                      <Text style={styles.lahanCardMeta}>
+                        NDVI {formatNdviValue(card.latestHealth.ndvi_score)}
+                      </Text>
+                    ) : (
+                      <Text style={styles.lahanCardMeta}>Belum ada data NDVI terbaru</Text>
+                    )}
+                    {card.latestHealth?.captured_at && (
+                      <Text style={styles.lahanCardMetaSecondary}>
+                        Data diambil {formatDisplayDate(card.latestHealth.captured_at)}
+                      </Text>
+                    )}
+                  </View>
                 </View>
               </TouchableOpacity>
             ))
@@ -1352,6 +1610,9 @@ export default function ExploreScreen() {
                 <View style={[styles.healthLegendColor, { backgroundColor: item.color }]} />
                 <View style={styles.healthLegendCopy}>
                   <Text style={[styles.healthLegendTitle, { color: item.color }]}>{item.title}</Text>
+                  <Text style={[styles.healthLegendRange, { color: item.color }]}>
+                    NDVI {item.range}
+                  </Text>
                   <Text style={styles.healthLegendDescription}>{item.description}</Text>
                 </View>
                 <Text style={styles.healthLegendCount}>{lahanHealthSummary[item.key]} lahan</Text>
@@ -1365,41 +1626,13 @@ export default function ExploreScreen() {
                 <Text style={[styles.healthLegendTitle, { color: NDVI_UNKNOWN_CONFIG.color }]}>
                   {NDVI_UNKNOWN_CONFIG.title}
                 </Text>
+                <Text style={[styles.healthLegendRange, { color: NDVI_UNKNOWN_CONFIG.color }]}>NDVI {NDVI_UNKNOWN_CONFIG.range}</Text>
                 <Text style={styles.healthLegendDescription}>{NDVI_UNKNOWN_CONFIG.description}</Text>
               </View>
               <Text style={styles.healthLegendCount}>{lahanHealthSummary.unknown} lahan</Text>
             </View>
           </View>
 
-          <View style={styles.healthListContainer}>
-            {lahanHealthLoading ? (
-              <ActivityIndicator size="small" color="#4CAF50" />
-            ) : lahanCards.some((card) => card.latestHealth) ? (
-              lahanCards
-                .filter((card) => !!card.latestHealth)
-                .slice(0, 5)
-                .map((card) => (
-                  <View key={`health-${card.id}`} style={styles.healthListItem}>
-                    <View style={styles.healthListLabel}>
-                      <View style={[styles.healthStatusDot, { backgroundColor: card.classification.color }]} />
-                      <Text style={styles.healthListTitle}>{card.name}</Text>
-                    </View>
-                    <View style={styles.healthListMeta}>
-                      <Text style={[styles.healthListValue, { color: card.classification.color }]}>
-                        {card.latestHealth?.ndvi_score?.toFixed(2) ?? '-'}
-                      </Text>
-                      <Text style={styles.healthListDate}>
-                        {formatDisplayDate(
-                          card.latestHealth?.captured_at ?? card.latestHealth?.created_at ?? null
-                        )}
-                      </Text>
-                    </View>
-                  </View>
-                ))
-            ) : (
-              <Text style={styles.sectionEmptyText}>Belum ada analisa kesehatan yang tersimpan.</Text>
-            )}
-          </View>
         </View>
 
         <View style={[styles.sectionContainer, styles.tipsSection]}>
@@ -1928,6 +2161,20 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 1,
   },
+  lahanCardRow: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+  },
+  lahanCardThumbnail: {
+    width: 112,
+    alignSelf: 'stretch',
+    minHeight: 72,
+    borderRadius: 12,
+    marginRight: 14,
+    overflow: 'hidden',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   lahanCardBadge: {
     alignSelf: 'flex-start',
     borderWidth: 1,
@@ -1942,6 +2189,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
   lahanCardContent: {
+    flex: 1,
   },
   lahanCardTitle: {
     fontSize: 16,
@@ -1983,6 +2231,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
   },
+  healthLegendRange: {
+    fontSize: 12,
+    fontWeight: '700',
+    marginTop: 2,
+  },
   healthLegendDescription: {
     fontSize: 12,
     color: '#546E7A',
@@ -1991,45 +2244,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: '#37474F',
-  },
-  healthListContainer: {
-    marginTop: 18,
-  },
-  healthListItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#F1F8E9',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    marginBottom: 12,
-  },
-  healthListLabel: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  healthStatusDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    marginRight: 10,
-  },
-  healthListTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#2E7D32',
-  },
-  healthListMeta: {
-    alignItems: 'flex-end',
-  },
-  healthListValue: {
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  healthListDate: {
-    fontSize: 11,
-    color: '#607D8B',
   },
   tipsSection: {
     backgroundColor: '#E8F5E9',
