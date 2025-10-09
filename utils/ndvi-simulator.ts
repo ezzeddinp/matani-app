@@ -37,14 +37,35 @@ export const buildNdviSeries = (
   referenceDate: Date,
   points = 6
 ): NdviHistoryPoint[] => {
+  const baseSeed = lat * 12.9898 + lon * 78.233 + (areaHa ?? 1) * 37.719;
+  const deterministicNoise = (seed: number) => {
+    const raw = Math.sin(seed) * 10000;
+    return raw - Math.floor(raw);
+  };
+
+  const fertilityNoise = deterministicNoise(baseSeed);
+  const tierRanges: [number, number] =
+    fertilityNoise > 0.7
+      ? [0.68, 0.88]
+      : fertilityNoise > 0.4
+        ? [0.36, 0.68]
+        : [0.12, 0.38];
+
+  const [tierMin, tierMax] = tierRanges;
+  const tierMid = (tierMin + tierMax) / 2;
+  const tierAmplitude = (tierMax - tierMin) / 2;
   const dayOfYear = getDayOfYear(referenceDate);
 
   return Array.from({ length: points }, (_, index) => {
     const daysAgo = (points - index - 1) * 6;
     const day = dayOfYear - daysAgo;
-    const nir = 0.62 + 0.18 * Math.sin(toRadians(lat + day / 2)) + 0.05 * Math.cos(toRadians(lon / 3 + areaHa));
-    const red = 0.3 + 0.1 * Math.cos(toRadians(lat / 2 - day / 3)) + 0.03 * Math.sin(toRadians(lon / 4));
-    const ndvi = clamp((nir - red) / (nir + red), 0.05, 0.95);
+    const seasonal = Math.sin(toRadians(day + lat * 3.5))
+      + 0.6 * Math.cos(toRadians((lon + areaHa * 7) * 2 + day * 0.8));
+    const micro = deterministicNoise(baseSeed + index * 13.357) * 2 - 1;
+    const composite = clamp(0.45 * seasonal + 0.2 * micro, -1.2, 1.2);
+    const ndviCentral = tierMid + composite * tierAmplitude;
+    const ndvi = clamp(ndviCentral, 0.05, 0.95);
+
     const date = new Date(referenceDate);
     date.setDate(referenceDate.getDate() - daysAgo);
 

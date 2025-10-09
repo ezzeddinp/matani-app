@@ -7,7 +7,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 
 export const unstable_settings = {
   anchor: '(tabs)',
-  initialRouteName: '(tabs)',
+  initialRouteName: 'splash',
 };
 
 export default function RootLayout() {
@@ -15,7 +15,8 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack initialRouteName="(tabs)">
+      <Stack initialRouteName="splash">
+        <Stack.Screen name="splash" options={{ headerShown: false }} />
         <Stack.Screen name="auth" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="detail-lahan-page" options={{ headerShown: false }} />

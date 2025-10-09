@@ -31,7 +31,7 @@ export default function SignUpScreen() {
     if (canGoBack) {
       router.back();
     } else {
-      router.push('/(tabs)');
+      router.replace('/splash');
     }
   };
 

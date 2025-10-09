@@ -57,14 +57,12 @@ type SearchSuggestion = {
   longitude: number;
 };
 
-type DrawVertex = {
-  id: string;
-  coordinate: LatLng;
-};
-
 type LahanCard = SavedLahanItem & {
   latestHealth?: LahanHealthRecord | null | undefined;
   classification: NdviClassification;
+  centroid: LatLng | null;
+  coordinateCount: number;
+  locationLabel: string | null;
 };
 
 type NdviStatistic = {
@@ -78,10 +76,47 @@ type NdviStatistic = {
 const { width } = Dimensions.get('window');
 const MAP_HEIGHT = Math.max(320, Math.min(width * 1.15, 520));
 const NDVI_BBOX_PADDING = 0.0004;
+const LAHAN_PAGE_SIZE = 5;
 
 const ndviStatisticCache = new Map<string, NdviStatistic | null>();
 const ndviStatisticInflight = new Map<string, Promise<NdviStatistic | null>>();
 const ndviStatisticErrorCount = new Map<string, number>();
+
+const computePolygonCentroid = (points: LatLng[]): LatLng | null => {
+  if (!Array.isArray(points) || points.length === 0) {
+    return null;
+  }
+
+  const validPoints = points.filter(
+    (coord): coord is LatLng =>
+      Number.isFinite(coord?.latitude) && Number.isFinite(coord?.longitude)
+  );
+
+  if (validPoints.length === 0) {
+    return null;
+  }
+
+  const sum = validPoints.reduce(
+    (acc, coord) => {
+      acc.latitude += coord.latitude;
+      acc.longitude += coord.longitude;
+      return acc;
+    },
+    { latitude: 0, longitude: 0 }
+  );
+
+  return {
+    latitude: sum.latitude / validPoints.length,
+    longitude: sum.longitude / validPoints.length,
+  };
+};
+
+const formatCoordinateValue = (value: number | null | undefined) => {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return '--';
+  }
+  return value.toFixed(4);
+};
 
 const LAHAN_COLOR_PALETTE = [
   { stroke: '#2E7D32', fill: 'rgba(76, 175, 80, 0.22)' },
@@ -313,13 +348,16 @@ export default function ExploreScreen() {
   const [drawingMode, setDrawingMode] = useState(false);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [lahanName, setLahanName] = useState('');
-  const [currentVertices, setCurrentVertices] = useState<DrawVertex[]>([]);
+  const [currentVertices, setCurrentVertices] = useState<LatLng[]>([]);
   const [pendingPolygon, setPendingPolygon] = useState<LatLng[]>([]);
 
   const activePath = useMemo(
     () =>
       currentVertices
-        .map((vertex) => vertex.coordinate)
+        .map((coord) => ({
+          latitude: coord.latitude,
+          longitude: coord.longitude,
+        }))
         .filter(
           (coord): coord is LatLng =>
             Number.isFinite(coord.latitude) && Number.isFinite(coord.longitude)
@@ -329,11 +367,13 @@ export default function ExploreScreen() {
 
   const previewPath = useMemo(() => {
     if (activePath.length >= 3) {
-      return [...activePath, activePath[0]];
+      return [...activePath, { ...activePath[0] }];
     }
     return activePath;
   }, [activePath]);
   const [savedLahan, setSavedLahan] = useState<SavedLahanItem[]>([]);
+  const [lahanLocationLabels, setLahanLocationLabels] = useState<Record<string, string | null>>({});
+  const [lahanPage, setLahanPage] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchSuggestion[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -559,11 +599,30 @@ export default function ExploreScreen() {
     if (savedLahan.length === 0) {
       setLahanHealth([]);
       setSelectedNoteLahanId(null);
+      setLahanLocationLabels({});
       return;
     }
 
     const lahanIds = savedLahan.map((item) => item.id).filter(Boolean);
     setSelectedNoteLahanId((prev) => prev ?? lahanIds[0] ?? null);
+
+    setLahanLocationLabels((prev) => {
+      const next: Record<string, string | null> = {};
+      let changed = false;
+      savedLahan.forEach((item) => {
+        if (prev[item.id] !== undefined) {
+          next[item.id] = prev[item.id] ?? null;
+        } else {
+          changed = true;
+        }
+      });
+
+      if (!changed && Object.keys(prev).length === savedLahan.length) {
+        return prev;
+      }
+
+      return next;
+    });
 
     if (lahanIds.length > 0) {
       loadLahanHealth(lahanIds);
@@ -661,6 +720,64 @@ export default function ExploreScreen() {
       clearTimeout(timeoutId);
     };
   }, [searchQuery]);
+
+  useEffect(() => {
+    if (savedLahan.length === 0) {
+      return;
+    }
+
+    const pending = savedLahan.filter((item) => {
+      if (!Array.isArray(item.coordinates) || item.coordinates.length === 0) {
+        return false;
+      }
+      return lahanLocationLabels[item.id] === undefined;
+    });
+
+    if (pending.length === 0) {
+      return;
+    }
+
+    let isCancelled = false;
+
+    (async () => {
+      const updates: Record<string, string | null> = {};
+
+      for (const lahan of pending) {
+        const centroid = computePolygonCentroid(lahan.coordinates);
+        if (!centroid) {
+          updates[lahan.id] = null;
+          continue;
+        }
+
+        try {
+          const result = await Location.reverseGeocodeAsync({
+            latitude: centroid.latitude,
+            longitude: centroid.longitude,
+          });
+          const formatted = formatGeocodedLocation(result?.[0] ?? null);
+          updates[lahan.id] = formatted ?? null;
+        } catch (error) {
+          console.warn('❌ Gagal reverse geocode lahan:', lahan.id, error);
+          updates[lahan.id] = null;
+        }
+
+        if (isCancelled) {
+          break;
+        }
+      }
+
+      if (!isCancelled && Object.keys(updates).length > 0) {
+        setLahanLocationLabels((prev) => ({
+          ...prev,
+          ...updates,
+        }));
+      }
+    })();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [lahanLocationLabels, savedLahan]);
   // Enhanced map interaction for polygon drawing like in the image
   const handleMapPress = (event: MapPressEvent) => {
     if (showSearchResults) {
@@ -680,16 +797,11 @@ export default function ExploreScreen() {
     }
 
     const coordinate: LatLng = {
-      latitude: lat,
-      longitude: lon,
+      latitude: Number(lat.toFixed(7)),
+      longitude: Number(lon.toFixed(7)),
     };
 
-    const vertex: DrawVertex = {
-      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      coordinate,
-    };
-
-    setCurrentVertices((prev) => [...prev, vertex]);
+    setCurrentVertices((prev) => [...prev, coordinate]);
   };
 
   const calculateArea = (coordinates: LatLng[]) => {
@@ -888,7 +1000,7 @@ export default function ExploreScreen() {
     clearActivePath();
     Alert.alert(
       'Mode Gambar Aktif', 
-      'Tap pada peta untuk menandai titik-titik polygon. Seperti pada contoh gambar.'
+      'Tap pada peta untuk menandai titik-titik polygon.'
     );
   };
 
@@ -1078,13 +1190,17 @@ export default function ExploreScreen() {
       const override = ndviOverrides[item.id];
       const latestHealth = supabaseHealth ?? (override !== undefined ? (override ?? undefined) : undefined);
       const classification = classifyNdviStatus(latestHealth?.ndvi_score ?? null, latestHealth?.status ?? null);
+      const centroid = computePolygonCentroid(item.coordinates ?? []);
       return {
         ...item,
         latestHealth,
         classification,
+        centroid,
+        coordinateCount: Array.isArray(item.coordinates) ? item.coordinates.length : 0,
+        locationLabel: lahanLocationLabels[item.id] ?? null,
       };
     });
-  }, [latestHealthByLahan, ndviOverrides, savedLahan]);
+  }, [lahanLocationLabels, latestHealthByLahan, ndviOverrides, savedLahan]);
 
   const lahanCardsById = useMemo(() => {
     const map = new Map<string, LahanCard>();
@@ -1093,6 +1209,48 @@ export default function ExploreScreen() {
     });
     return map;
   }, [lahanCards]);
+
+  const totalLahanPages = useMemo(() => {
+    if (lahanCards.length === 0) {
+      return 0;
+    }
+    return Math.ceil(lahanCards.length / LAHAN_PAGE_SIZE);
+  }, [lahanCards.length]);
+
+  useEffect(() => {
+    if (totalLahanPages === 0) {
+      setLahanPage(0);
+      return;
+    }
+    setLahanPage((prev) => {
+      const maxPageIndex = Math.max(totalLahanPages - 1, 0);
+      return Math.min(prev, maxPageIndex);
+    });
+  }, [totalLahanPages]);
+
+  const paginatedLahanCards = useMemo(() => {
+    if (lahanCards.length === 0) {
+      return [] as LahanCard[];
+    }
+    const maxPageIndex = Math.max(totalLahanPages - 1, 0);
+    const pageIndex = Math.min(Math.max(lahanPage, 0), maxPageIndex);
+    const start = pageIndex * LAHAN_PAGE_SIZE;
+    return lahanCards.slice(start, start + LAHAN_PAGE_SIZE);
+  }, [lahanCards, lahanPage, totalLahanPages]);
+
+  const hasLahanPagination = totalLahanPages > 1;
+  const lahanPageDisplay = totalLahanPages === 0 ? 0 : Math.min(lahanPage + 1, totalLahanPages);
+  const handlePrevLahanPage = useCallback(() => {
+    setLahanPage((prev) => Math.max(prev - 1, 0));
+  }, []);
+  const handleNextLahanPage = useCallback(() => {
+    setLahanPage((prev) => {
+      const maxPageIndex = Math.max(totalLahanPages - 1, 0);
+      return Math.min(prev + 1, maxPageIndex);
+    });
+  }, [totalLahanPages]);
+  const isPrevLahanDisabled = lahanPage <= 0;
+  const isNextLahanDisabled = totalLahanPages === 0 || lahanPage >= Math.max(totalLahanPages - 1, 0);
 
   const lahanHealthSummary = useMemo(() => {
     const seed = NDVI_SEVERITY_CONFIG.reduce(
@@ -1385,7 +1543,7 @@ export default function ExploreScreen() {
               <>
                 {activePath.length >= 3 && (
                   <Polygon
-                    coordinates={previewPath}
+                    coordinates={previewPath.map((coord) => ({ ...coord }))}
                     fillColor="rgba(255, 138, 101, 0.25)"
                     strokeColor="rgba(255, 87, 34, 0.8)"
                     strokeWidth={2}
@@ -1393,7 +1551,7 @@ export default function ExploreScreen() {
                 )}
                 {activePath.length > 1 && (
                   <Polyline
-                    coordinates={previewPath}
+                    coordinates={previewPath.map((coord) => ({ ...coord }))}
                     strokeColor="#FF5722"
                     strokeWidth={6}
                     lineCap="round"
@@ -1452,10 +1610,10 @@ export default function ExploreScreen() {
             })}
 
             {drawingMode &&
-              currentVertices.map((vertex, index) => (
+              currentVertices.map((coordinate, index) => (
                 <Marker
-                  key={vertex.id}
-                  coordinate={vertex.coordinate}
+                  key={`draw-vertex-${index}-${coordinate.latitude}-${coordinate.longitude}`}
+                  coordinate={{ ...coordinate }}
                   anchor={{ x: 0.5, y: 0.5 }}
                   zIndex={10 + index}
                 >
@@ -1537,62 +1695,109 @@ export default function ExploreScreen() {
               Belum ada lahan tersimpan. Gunakan tombol “Gambar Lahan Baru” di atas.
             </Text>
           ) : (
-            lahanCards.map((card) => (
-              <TouchableOpacity
-                key={`lahan-card-${card.id}`}
-                style={[
-                  styles.lahanCard,
-                  {
-                    backgroundColor:
-                      card.classification.background ?? applyAlphaToHex(card.classification.color, 0.12),
-                  },
-                ]}
-                activeOpacity={0.9}
-                onPress={() => router.push({ pathname: '/detail-lahan-page', params: { id: card.id } })}
-              >
-                <View style={styles.lahanCardRow}>
-                  <LinearGradient
-                    colors={getThumbnailGradient(card.classification)}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.lahanCardThumbnail}
-                  />
-                  <View style={styles.lahanCardContent}>
-                    <View
-                      style={[
-                        styles.lahanCardBadge,
-                        {
-                          borderColor: card.classification.color,
-                          backgroundColor:
-                            card.classification.background ?? applyAlphaToHex(card.classification.color, 0.12),
-                        },
-                      ]}
-                    >
-                      <Text style={[styles.lahanCardBadgeText, { color: card.classification.color }]}>
-                        {card.classification.title}
+            <>
+              {paginatedLahanCards.map((card) => (
+                <TouchableOpacity
+                  key={`lahan-card-${card.id}`}
+                  style={[
+                    styles.lahanCard,
+                    {
+                      backgroundColor:
+                        card.classification.background ?? applyAlphaToHex(card.classification.color, 0.12),
+                    },
+                  ]}
+                  activeOpacity={0.9}
+                  onPress={() => router.push({ pathname: '/detail-lahan-page', params: { id: card.id } })}
+                >
+                  <View style={styles.lahanCardRow}>
+                    <LinearGradient
+                      colors={getThumbnailGradient(card.classification)}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.lahanCardThumbnail}
+                    />
+                    <View style={styles.lahanCardContent}>
+                      <View
+                        style={[
+                          styles.lahanCardBadge,
+                          {
+                            borderColor: card.classification.color,
+                            backgroundColor:
+                              card.classification.background ?? applyAlphaToHex(card.classification.color, 0.12),
+                          },
+                        ]}
+                      >
+                        <Text style={[styles.lahanCardBadgeText, { color: card.classification.color }]}>
+                          {card.classification.title}
+                        </Text>
+                      </View>
+                      <Text style={styles.lahanCardTitle}>{card.name}</Text>
+                      <Text style={styles.lahanCardSubtitle}>
+                        {formatHa(card.areaHa)}
+                        {card.createdAt ? ` · ${formatYearLabel(card.createdAt)}` : ''}
                       </Text>
-                    </View>
-                    <Text style={styles.lahanCardTitle}>{card.name}</Text>
-                    <Text style={styles.lahanCardSubtitle}>
-                      {formatHa(card.areaHa)}
-                      {card.createdAt ? ` · ${formatYearLabel(card.createdAt)}` : ''}
-                    </Text>
-                    {card.latestHealth?.ndvi_score !== undefined && card.latestHealth?.ndvi_score !== null ? (
-                      <Text style={styles.lahanCardMeta}>
-                        NDVI {formatNdviValue(card.latestHealth.ndvi_score)}
-                      </Text>
-                    ) : (
-                      <Text style={styles.lahanCardMeta}>Belum ada data NDVI terbaru</Text>
-                    )}
-                    {card.latestHealth?.captured_at && (
+                      {card.latestHealth?.ndvi_score !== undefined && card.latestHealth?.ndvi_score !== null ? (
+                        <Text style={styles.lahanCardMeta}>
+                          NDVI {formatNdviValue(card.latestHealth.ndvi_score)}
+                        </Text>
+                      ) : (
+                        <Text style={styles.lahanCardMeta}>Belum ada data NDVI terbaru</Text>
+                      )}
                       <Text style={styles.lahanCardMetaSecondary}>
-                        Data diambil {formatDisplayDate(card.latestHealth.captured_at)}
+                        Titik {card.coordinateCount}
+                        {card.locationLabel
+                          ? ` · ${card.locationLabel}`
+                          : card.centroid
+                            ? ` · ${formatCoordinateValue(card.centroid.latitude)}, ${formatCoordinateValue(card.centroid.longitude)}`
+                            : ''}
                       </Text>
-                    )}
+                      {card.latestHealth?.captured_at && (
+                        <Text style={styles.lahanCardMetaSecondary}>
+                          Data diambil {formatDisplayDate(card.latestHealth.captured_at)}
+                        </Text>
+                      )}
+                    </View>
                   </View>
+                </TouchableOpacity>
+              ))}
+              {hasLahanPagination && (
+                <View style={styles.paginationContainer}>
+                  <TouchableOpacity
+                    style={[
+                      styles.paginationButton,
+                      isPrevLahanDisabled && styles.paginationButtonDisabled,
+                    ]}
+                    onPress={handlePrevLahanPage}
+                    disabled={isPrevLahanDisabled}
+                    accessibilityLabel="Halaman sebelumnya"
+                  >
+                    <Text
+                      style={[styles.paginationButtonText, isPrevLahanDisabled && styles.paginationButtonTextDisabled]}
+                    >
+                      Sebelumnya
+                    </Text>
+                  </TouchableOpacity>
+                  <Text style={styles.paginationLabel}>
+                    Halaman {lahanPageDisplay} dari {totalLahanPages}
+                  </Text>
+                  <TouchableOpacity
+                    style={[
+                      styles.paginationButton,
+                      isNextLahanDisabled && styles.paginationButtonDisabled,
+                    ]}
+                    onPress={handleNextLahanPage}
+                    disabled={isNextLahanDisabled}
+                    accessibilityLabel="Halaman berikutnya"
+                  >
+                    <Text
+                      style={[styles.paginationButtonText, isNextLahanDisabled && styles.paginationButtonTextDisabled]}
+                    >
+                      Berikutnya
+                    </Text>
+                  </TouchableOpacity>
                 </View>
-              </TouchableOpacity>
-            ))
+              )}
+            </>
           )}
         </View>
 
@@ -2207,6 +2412,36 @@ const styles = StyleSheet.create({
   lahanCardMetaSecondary: {
     fontSize: 12,
     color: '#6D4C41',
+  },
+  paginationContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 4,
+    marginTop: 4,
+  },
+  paginationLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#4E342E',
+  },
+  paginationButton: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#4CAF50',
+  },
+  paginationButtonDisabled: {
+    backgroundColor: '#E0F2F1',
+  },
+  paginationButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  paginationButtonTextDisabled: {
+    color: '#2E7D32',
+    opacity: 0.7,
   },
   healthLegendGrid: {
     flexDirection: 'column',

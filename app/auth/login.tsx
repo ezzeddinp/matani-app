@@ -26,7 +26,7 @@ export default function LoginScreen() {
     if (canGoBack) {
       router.back();
     } else {
-      router.push('/(tabs)');
+      router.replace('/splash');
     }
   };
 
