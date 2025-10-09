@@ -1,5 +1,5 @@
-import { Ionicons } from '@expo/vector-icons';
 import { classifyNdviStatus, formatNdviValue, NDVI_UNKNOWN_CONFIG, type NdviClassification } from '@/constants/ndvi';
+import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Location from 'expo-location';
 import { useFocusEffect, useRouter } from 'expo-router';
