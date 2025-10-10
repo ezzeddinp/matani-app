@@ -4,6 +4,7 @@ import {
   NDVI_UNKNOWN_CONFIG,
   type NdviClassification,
 } from "@/constants/ndvi";
+import { deriveSummaryIconKey, getWeatherIconSource } from "@/utils/weather-icons";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Location from "expo-location";
@@ -198,63 +199,72 @@ const WeatherCard = ({
   rainfall,
   pressure,
   windSpeed,
-}: WeatherCardProps) => (
-  <View style={styles.weatherCard}>
-    <View style={styles.weatherSummaryRow}>
-      <View style={styles.weatherSummaryText}>
-        <View style={styles.locationRow}>
-          <Ionicons name="location" size={16} color="#202020" />
-          <Text style={styles.locationText}>{location || "N/A"}</Text>
-        </View>
-        <View style={styles.primaryTempRow}>
-          <Text style={styles.primaryTemperature}>
-            {temperature !== null ? `${Math.round(temperature)}°` : "--"}
-          </Text>
-          <View style={styles.tempDelimiter}>
-            <Text style={styles.tempDetail}>
-              H: {highTemp !== null ? `${Math.round(highTemp)}°` : "--"}
+}: WeatherCardProps) => {
+  const summaryIconKey = deriveSummaryIconKey({
+    rainfall,
+    humidity,
+    temperature,
+  });
+  const summaryIconSource = getWeatherIconSource(summaryIconKey);
+
+  return (
+    <View style={styles.weatherCard}>
+      <View style={styles.weatherSummaryRow}>
+        <View style={styles.weatherSummaryText}>
+          <View style={styles.locationRow}>
+            <Ionicons name="location" size={16} color="#202020" />
+            <Text style={styles.locationText}>{location || "N/A"}</Text>
+          </View>
+          <View style={styles.primaryTempRow}>
+            <Text style={styles.primaryTemperature}>
+              {temperature !== null ? `${Math.round(temperature)}°` : "--"}
             </Text>
-            <Text style={styles.tempDetail}>
-              L: {lowTemp !== null ? `${Math.round(lowTemp)}°` : "--"}
-            </Text>
+            <View style={styles.tempDelimiter}>
+              <Text style={styles.tempDetail}>
+                H: {highTemp !== null ? `${Math.round(highTemp)}°` : "--"}
+              </Text>
+              <Text style={styles.tempDetail}>
+                L: {lowTemp !== null ? `${Math.round(lowTemp)}°` : "--"}
+              </Text>
+            </View>
           </View>
         </View>
+        <View style={styles.weatherIconPill}>
+          <Image source={summaryIconSource} style={styles.weatherIconImage} />
+        </View>
       </View>
-      <View style={styles.weatherIconPill}>
-        <Ionicons name="rainy" size={32} color="#2E7D32" />
+
+      <View style={styles.weatherDivider} />
+
+      <View style={styles.weatherMetricsRow}>
+        <View style={styles.metricItem}>
+          <Text style={styles.metricLabel}>Kelembaban</Text>
+          <Text style={styles.metricValue}>
+            {humidity !== null ? `${Math.round(humidity)}%` : "--"}
+          </Text>
+        </View>
+        <View style={styles.metricItem}>
+          <Text style={styles.metricLabel}>Curah Hujan</Text>
+          <Text style={styles.metricValue}>
+            {rainfall !== null ? `${rainfall.toFixed(1)} mm` : "--"}
+          </Text>
+        </View>
+        <View style={styles.metricItem}>
+          <Text style={styles.metricLabel}>Tekanan</Text>
+          <Text style={styles.metricValue}>
+            {pressure !== null ? `${Math.round(pressure)} hPa` : "--"}
+          </Text>
+        </View>
+        <View style={styles.metricItem}>
+          <Text style={styles.metricLabel}>Kec. Angin</Text>
+          <Text style={styles.metricValue}>
+            {windSpeed !== null ? `${windSpeed.toFixed(1)} km/jam` : "--"}
+          </Text>
+        </View>
       </View>
     </View>
-
-    <View style={styles.weatherDivider} />
-
-    <View style={styles.weatherMetricsRow}>
-      <View style={styles.metricItem}>
-        <Text style={styles.metricLabel}>Kelembaban</Text>
-        <Text style={styles.metricValue}>
-          {humidity !== null ? `${Math.round(humidity)}%` : "--"}
-        </Text>
-      </View>
-      <View style={styles.metricItem}>
-        <Text style={styles.metricLabel}>Curah Hujan</Text>
-        <Text style={styles.metricValue}>
-          {rainfall !== null ? `${rainfall.toFixed(1)} mm` : "--"}
-        </Text>
-      </View>
-      <View style={styles.metricItem}>
-        <Text style={styles.metricLabel}>Tekanan</Text>
-        <Text style={styles.metricValue}>
-          {pressure !== null ? `${Math.round(pressure)} hPa` : "--"}
-        </Text>
-      </View>
-      <View style={styles.metricItem}>
-        <Text style={styles.metricLabel}>Kec. Angin</Text>
-        <Text style={styles.metricValue}>
-          {windSpeed !== null ? `${windSpeed.toFixed(1)} km/jam` : "--"}
-        </Text>
-      </View>
-    </View>
-  </View>
-);
+  );
+};
 
 const { width } = Dimensions.get("window");
 
@@ -330,7 +340,6 @@ export default function HomeScreen() {
   const [profileImageUri, setProfileImageUri] = useState<string | null>(null);
   const [weatherData, setWeatherData] = useState<WeatherData>({
     location: "Memuat lokasi...",
-
     temperature: null,
     highTemp: null,
     lowTemp: null,
@@ -1304,6 +1313,11 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(46, 125, 50, 0.12)",
     justifyContent: "center",
     alignItems: "center",
+  },
+  weatherIconImage: {
+    width: 48,
+    height: 48,
+    resizeMode: "contain",
   },
   weatherDivider: {
     height: 1,

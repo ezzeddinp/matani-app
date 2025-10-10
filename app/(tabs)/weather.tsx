@@ -1,11 +1,13 @@
 import { ThemedView } from '@/components/themed-view';
 import { BASE_URL } from '@/hooks/config';
+import { getWeatherIconSource, mapAccuWeatherCodeToIconKey, type WeatherIconKey } from '@/utils/weather-icons';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -23,13 +25,13 @@ interface CurrentWeather {
   windSpeed: number | null;
   locationName: string;
   condition: string | null;
-  icon: string | null;
+  iconKey: WeatherIconKey | null;
 }
 
 interface DailyForecast {
   isoDate: string;
   label: string;
-  icon: string;
+  iconKey: WeatherIconKey;
   highTemp: number | null;
   lowTemp: number | null;
   humidity: number | null;
@@ -86,27 +88,6 @@ function formatShortDate(isoDate: string): string {
   return `${date.getDate()} ${monthNames[date.getMonth()]}`;
 }
 
-function mapAccuWeatherIconToEmoji(code: number | null): string {
-  if (!code) {
-    return '🌦️';
-  }
-  const groups: { emoji: string; codes: number[] }[] = [
-    { emoji: '☀️', codes: [1] },
-    { emoji: '🌤️', codes: [2, 3, 4, 5] },
-    { emoji: '⛅', codes: [6, 7] },
-    { emoji: '☁️', codes: [7, 8] },
-    { emoji: '🌫️', codes: [11] },
-    { emoji: '🌧️', codes: [12, 13, 14, 18] },
-    { emoji: '⛈️', codes: [15, 16, 17] },
-    { emoji: '🌨️', codes: [19, 20, 21, 22, 23] },
-    { emoji: '🌦️', codes: [24, 25, 26, 29] },
-    { emoji: '❄️', codes: [33, 34, 35, 36] },
-    { emoji: '🌙', codes: [33] },
-  ];
-  const group = groups.find((candidate) => candidate.codes.includes(code));
-  return group ? group.emoji : '🌦️';
-}
-
 function formatGeocodedLocation(place?: Location.LocationGeocodedAddress | null): string | null {
   if (!place) {
     return null;
@@ -152,7 +133,7 @@ export default function WeatherScreen() {
     windSpeed: null,
     locationName: 'Memuat lokasi...',
     condition: null,
-    icon: null,
+    iconKey: null,
   });
   const [forecast, setForecast] = useState<DailyForecast[]>([]);
 
@@ -196,7 +177,7 @@ export default function WeatherScreen() {
             return {
               isoDate,
               label: formatDateLabel(isoDate, index),
-              icon: mapAccuWeatherIconToEmoji(iconCode),
+              iconKey: mapAccuWeatherCodeToIconKey(iconCode),
               highTemp: high,
               lowTemp: low,
               humidity,
@@ -221,7 +202,7 @@ export default function WeatherScreen() {
         windSpeed: parseNumericValue(currentJson.windSpeed),
         locationName: currentJson.location ?? labelHint ?? 'Lokasi tidak diketahui',
         condition: currentJson.condition ?? (dailyData[0]?.description ?? null),
-        icon: mapAccuWeatherIconToEmoji(
+        iconKey: mapAccuWeatherCodeToIconKey(
           currentIconCode !== null ? Math.round(currentIconCode) : null
         ),
       };
@@ -445,7 +426,10 @@ export default function WeatherScreen() {
           ) : (
             <>
               <View style={styles.weatherIcon}>
-                <Text style={styles.cloudEmoji}>{currentWeather.icon ?? forecast[0]?.icon ?? '🌥️'}</Text>
+                <Image
+                  source={getWeatherIconSource(currentWeather.iconKey ?? forecast[0]?.iconKey ?? null)}
+                  style={styles.currentWeatherIcon}
+                />
               </View>
               <View style={styles.temperatureContainer}>
                 <Text style={styles.temperature}>
@@ -519,7 +503,10 @@ export default function WeatherScreen() {
               <View key={day.isoDate} style={styles.dailyWeatherCard}>
                 <View style={styles.dailyHeaderRow}>
                   <View style={styles.dailyIconBadge}>
-                    <Text style={styles.weatherEmoji}>{day.icon}</Text>
+                    <Image
+                      source={getWeatherIconSource(day.iconKey)}
+                      style={styles.forecastIcon}
+                    />
                   </View>
                   <View style={styles.dailyTitleBlock}>
                     <Text style={styles.dayText}>{day.label}</Text>
@@ -670,8 +657,10 @@ const styles = StyleSheet.create({
   weatherIcon: {
     marginBottom: 10,
   },
-  cloudEmoji: {
-    fontSize: 60,
+  currentWeatherIcon: {
+    width: 74,
+    height: 74,
+    resizeMode: "contain",
   },
   temperatureContainer: {
     alignItems: 'center',
@@ -850,8 +839,10 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 1,
   },
-  weatherEmoji: {
-    fontSize: 26,
+  forecastIcon: {
+    width: 36,
+    height: 36,
+    resizeMode: "contain",
   },
   dailyTitleBlock: {
     flex: 1,
