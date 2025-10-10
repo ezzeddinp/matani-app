@@ -7,7 +7,7 @@ import { HapticTab } from '@/components/haptic-tab';
 
 export default function TabLayout() {
   const renderIcon = (focused: boolean, name: React.ComponentProps<typeof Feather>['name']) => (
-    <View style={[styles.iconBase, focused && styles.iconActive]}>
+    <View style={styles.iconBase}>
       <Feather name={name} size={24} color={focused ? '#2E7D32' : '#1F1F1F'} />
     </View>
   );
@@ -77,10 +77,11 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 11,
     fontWeight: '600',
-    marginTop: 12,
+    marginTop: 6,
   },
   icon: {
-    marginBottom: 4,
+    marginBottom: 2,
+    marginTop: -5,
   },
   item: {
     paddingVertical: 2,
@@ -92,8 +93,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'transparent',
-  },
-  iconActive: {
-    backgroundColor: '#E4F5E4',
   },
 });
