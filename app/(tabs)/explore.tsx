@@ -1048,7 +1048,7 @@ export default function ExploreScreen() {
     if (isSaving) {
       return;
     }
-
+    
     const polygonToPersist = [...pendingPolygon];
     const area = calculateArea(polygonToPersist);
     
