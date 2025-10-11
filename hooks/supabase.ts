@@ -173,6 +173,18 @@ export interface LahanWithInfo {
 
 export type LahanDetail = LahanWithInfo;
 
+export interface LahanThumbnail {
+  id: string;
+  lahan_id: string;
+  user_id: string | null;
+  storage_path: string;
+  public_url: string | null;
+  description: string | null;
+  captured_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 // Helper functions untuk database operations
 export const lahanService = {
   // Simpan polygon lahan baru
@@ -220,15 +232,52 @@ export const lahanService = {
 
   // Ambil semua lahan user
   async getLahanByUser(userId: string) {
+    const baseSelect =
+      "id, name, geojson, area_ha, thumbnail_url, centroid, created_at, updated_at";
+
     const { data, error } = await supabase
       .from("lahan_with_info")
-      .select(
-        "id, name, geojson, area_ha, thumbnail_url, centroid, created_at, updated_at"
-      )
+      .select(baseSelect)
       .eq("user_id", userId);
 
-    if (error) throw error;
-    return data;
+    if (!error) {
+      return data;
+    }
+
+    if (error.code === "42703") {
+      console.warn(
+        "Kolom thumbnail_url tidak ditemukan pada view lahan_with_info, menggunakan fallback tanpa kolom tersebut"
+      );
+
+      const fallbackSelect = baseSelect
+        .split(",")
+        .map((part) => part.trim())
+        .filter((part) => part !== "thumbnail_url")
+        .join(", ");
+
+      const { data: fallbackData, error: fallbackError } = await supabase
+        .from("lahan_with_info")
+        .select(fallbackSelect)
+        .eq("user_id", userId);
+
+      if (fallbackError) {
+        throw fallbackError;
+      }
+
+      if (!Array.isArray(fallbackData)) {
+        return fallbackData;
+      }
+
+      return fallbackData.map((item) => {
+        const base =
+          item && typeof item === "object"
+            ? (item as Record<string, unknown>)
+            : {};
+        return { ...base, thumbnail_url: null };
+      });
+    }
+
+    throw error;
   },
 
   async getLahanDetail(id: string) {
@@ -236,16 +285,51 @@ export const lahanService = {
       throw new Error("LAHAN_ID_REQUIRED");
     }
 
+    const baseSelect =
+      "id, name, geojson, area_ha, thumbnail_url, centroid, created_at, updated_at";
+
     const { data, error } = await supabase
       .from("lahan_with_info")
-      .select(
-        "id, name, geojson, area_ha, thumbnail_url, centroid, created_at, updated_at"
-      )
+      .select(baseSelect)
       .eq("id", id)
       .maybeSingle();
 
-    if (error) throw error;
-    return data as LahanDetail | null;
+    if (!error) {
+      return data as LahanDetail | null;
+    }
+
+    if (error.code === "42703") {
+      console.warn(
+        "Kolom thumbnail_url tidak ditemukan pada view lahan_with_info untuk detail, menggunakan fallback"
+      );
+
+      const fallbackSelect = baseSelect
+        .split(",")
+        .map((part) => part.trim())
+        .filter((part) => part !== "thumbnail_url")
+        .join(", ");
+
+      const { data: fallbackData, error: fallbackError } = await supabase
+        .from("lahan_with_info")
+        .select(fallbackSelect)
+        .eq("id", id)
+        .maybeSingle();
+
+      if (fallbackError) {
+        throw fallbackError;
+      }
+
+      if (!fallbackData || typeof fallbackData !== "object") {
+        return null;
+      }
+
+      return {
+        ...(fallbackData as Record<string, unknown>),
+        thumbnail_url: null,
+      } as LahanDetail;
+    }
+
+    throw error;
   },
 
   // Update polygon lahan
@@ -272,13 +356,13 @@ export const lahanService = {
   async uploadThumbnailFromFile(
     userId: string,
     fileUri: string | null | undefined
-  ) {
+  ): Promise<{ publicUrl: string | null; storagePath: string | null }> {
     if (!userId) {
       throw new Error("USER_ID_REQUIRED");
     }
 
     if (!fileUri) {
-      return null;
+      return { publicUrl: null, storagePath: null };
     }
 
     try {
@@ -306,10 +390,79 @@ export const lahanService = {
       const { data } = supabase.storage
         .from(LAHAN_THUMBNAIL_BUCKET)
         .getPublicUrl(filePath);
-      return data?.publicUrl ?? null;
+      return {
+        publicUrl: data?.publicUrl ?? null,
+        storagePath: filePath,
+      };
     } catch (error) {
       console.warn("Tidak dapat mengunggah thumbnail lahan:", error);
+      return { publicUrl: null, storagePath: null };
+    }
+  },
+};
+
+export const lahanThumbnailService = {
+  async createThumbnailRecord(params: {
+    lahanId: string;
+    userId: string;
+    storagePath: string | null;
+    publicUrl: string | null;
+    description?: string | null;
+    capturedAt?: Date | null;
+  }) {
+    const { lahanId, userId, storagePath, publicUrl, description, capturedAt } =
+      params;
+
+    if (!lahanId) {
+      throw new Error("LAHAN_ID_REQUIRED");
+    }
+    if (!userId) {
+      throw new Error("USER_ID_REQUIRED");
+    }
+    if (!storagePath && !publicUrl) {
       return null;
     }
+
+    const payload = {
+      lahan_id: lahanId,
+      user_id: userId,
+      storage_path: storagePath,
+      public_url: publicUrl,
+      description: description ?? null,
+      captured_at: capturedAt ? capturedAt.toISOString() : null,
+    };
+
+    const { data, error } = await supabase
+      .from("lahan_thumbnails")
+      .insert([payload])
+      .select()
+      .maybeSingle();
+
+    if (error) {
+      console.warn("Gagal membuat metadata thumbnail lahan:", error);
+      return null;
+    }
+
+    return data as LahanThumbnail | null;
+  },
+
+  async getThumbnailsByLahan(lahanId: string) {
+    if (!lahanId) {
+      throw new Error("LAHAN_ID_REQUIRED");
+    }
+
+    const { data, error } = await supabase
+      .from("lahan_thumbnails")
+      .select(
+        "id, lahan_id, user_id, storage_path, public_url, description, captured_at, created_at, updated_at"
+      )
+      .eq("lahan_id", lahanId)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      throw error;
+    }
+
+    return (data ?? []) as LahanThumbnail[];
   },
 };

@@ -28,7 +28,13 @@ import {
   View,
 } from "react-native";
 
-import { lahanService, supabase, type LahanWithInfo } from "@/hooks/supabase";
+import {
+  lahanService,
+  lahanThumbnailService,
+  supabase,
+  type LahanThumbnail,
+  type LahanWithInfo,
+} from "@/hooks/supabase";
 import { BASE_URL } from "../../hooks/config";
 
 interface WeatherCardProps {
@@ -509,6 +515,42 @@ export default function HomeScreen() {
       const lahanList = (await lahanService.getLahanByUser(
         userId
       )) as LahanWithInfo[];
+      const lahanIds = Array.isArray(lahanList)
+        ? lahanList.map((item) => item.id).filter(Boolean)
+        : [];
+      const isAuthenticatedUser = Boolean(authData?.user?.id);
+      let thumbnailMap: Record<string, string | null> = {};
+
+      if (isAuthenticatedUser && lahanIds.length > 0) {
+        try {
+          const metadata = await Promise.all(
+            lahanIds.map(async (id) => {
+              try {
+                const thumbnails =
+                  await lahanThumbnailService.getThumbnailsByLahan(id);
+                const latest = thumbnails?.[0] as LahanThumbnail | undefined;
+                return { id, url: latest?.public_url ?? null };
+              } catch (thumbError) {
+                console.warn(
+                  "Gagal memuat metadata thumbnail lahan:",
+                  thumbError
+                );
+                return { id, url: null };
+              }
+            })
+          );
+
+          thumbnailMap = metadata.reduce<Record<string, string | null>>(
+            (acc, item) => {
+              acc[item.id] = item.url;
+              return acc;
+            },
+            {}
+          );
+        } catch (error) {
+          console.warn("Gagal memuat metadata thumbnail lahan:", error);
+        }
+      }
       const normalized: SavedLahan[] = Array.isArray(lahanList)
         ? lahanList.map((item: LahanWithInfo) => {
             const rawArea = item.area_ha;
@@ -529,7 +571,7 @@ export default function HomeScreen() {
                 typeof item.thumbnail_url === "string" &&
                 item.thumbnail_url.length > 0
                   ? item.thumbnail_url
-                  : null,
+                  : thumbnailMap[item.id] ?? null,
             };
           })
         : [];
@@ -543,7 +585,18 @@ export default function HomeScreen() {
     } catch (error) {
       console.error("Gagal memuat lahan tersimpan:", error);
       setSavedLahan([]);
-      setLahanError("Gagal memuat data lahan.");
+      const message =
+        typeof (error as any)?.message === "string"
+          ? (error as any).message
+          : "";
+      if (
+        message.includes("Auth session missing") ||
+        message.toLowerCase().includes("permission denied")
+      ) {
+        setLahanError("Belum ada lahan tersimpan.");
+      } else {
+        setLahanError("Gagal memuat data lahan.");
+      }
     } finally {
       setLahanLoading(false);
     }

@@ -8,7 +8,12 @@ import {
   type NdviClassificationKey,
 } from "@/constants/ndvi";
 import { BASE_URL } from "@/hooks/config";
-import { LahanWithInfo, lahanService, supabase } from "@/hooks/supabase";
+import {
+  LahanWithInfo,
+  lahanService,
+  lahanThumbnailService,
+  supabase,
+} from "@/hooks/supabase";
 import { computeSyntheticNdviForPolygon } from "@/utils/ndvi-simulator";
 import { Ionicons } from "@expo/vector-icons";
 import * as Location from "expo-location";
@@ -1288,13 +1293,18 @@ export default function ExploreScreen() {
       });
 
       let thumbnailUrl: string | null = null;
+      let uploadedThumbnail: {
+        publicUrl: string | null;
+        storagePath: string | null;
+      } | null = null;
       try {
         const snapshotUri = await capturePolygonThumbnail(polygonToPersist);
         if (snapshotUri) {
-          thumbnailUrl = await lahanService.uploadThumbnailFromFile(
+          uploadedThumbnail = await lahanService.uploadThumbnailFromFile(
             userId,
             snapshotUri
           );
+          thumbnailUrl = uploadedThumbnail.publicUrl;
         }
       } catch (thumbnailError) {
         console.warn("❌ Thumbnail lahan gagal dibuat:", thumbnailError);
@@ -1323,6 +1333,24 @@ export default function ExploreScreen() {
         createdAt: savedEntry?.created_at ?? new Date().toISOString(),
         thumbnailUrl: savedEntry?.thumbnail_url ?? thumbnailUrl ?? null,
       };
+
+      if (savedEntry?.id && uploadedThumbnail?.publicUrl) {
+        try {
+          await lahanThumbnailService.createThumbnailRecord({
+            lahanId: savedEntry.id,
+            userId,
+            storagePath: uploadedThumbnail.storagePath,
+            publicUrl: uploadedThumbnail.publicUrl,
+            description: "Snapshot awal lahan",
+            capturedAt: new Date(),
+          });
+        } catch (thumbMetaError) {
+          console.warn(
+            "❌ Metadata thumbnail lahan gagal disimpan:",
+            thumbMetaError
+          );
+        }
+      }
 
       setSavedLahan((prev) => {
         const filtered = prev.filter((item) => item.id !== newSavedLahan.id);

@@ -13,6 +13,66 @@ CREATE TABLE IF NOT EXISTS lahan (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Backfill column for existing deployments that predate thumbnail feature
+ALTER TABLE IF EXISTS lahan
+  ADD COLUMN IF NOT EXISTS thumbnail_url TEXT;
+
+-- Table metadata thumbnail lahan
+CREATE TABLE IF NOT EXISTS public.lahan_thumbnails (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  lahan_id UUID REFERENCES public.lahan(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  storage_path TEXT NOT NULL,
+  public_url TEXT,
+  description TEXT,
+  captured_at TIMESTAMP WITH TIME ZONE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+ALTER TABLE public.lahan_thumbnails ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view thumbnails for their lahan" ON public.lahan_thumbnails
+  FOR SELECT USING (
+    auth.uid() IS NOT NULL AND EXISTS (
+      SELECT 1 FROM public.lahan l WHERE l.id = lahan_id AND l.user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "Users can insert thumbnails for their lahan" ON public.lahan_thumbnails
+  FOR INSERT WITH CHECK (
+    auth.uid() IS NOT NULL AND lahan_id IS NOT NULL AND EXISTS (
+      SELECT 1 FROM public.lahan l WHERE l.id = lahan_id AND l.user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "Users can update thumbnails for their lahan" ON public.lahan_thumbnails
+  FOR UPDATE USING (
+    auth.uid() IS NOT NULL AND EXISTS (
+      SELECT 1 FROM public.lahan l WHERE l.id = lahan_id AND l.user_id = auth.uid()
+    )
+  ) WITH CHECK (
+    auth.uid() IS NOT NULL AND EXISTS (
+      SELECT 1 FROM public.lahan l WHERE l.id = lahan_id AND l.user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "Users can delete thumbnails for their lahan" ON public.lahan_thumbnails
+  FOR DELETE USING (
+    auth.uid() IS NOT NULL AND EXISTS (
+      SELECT 1 FROM public.lahan l WHERE l.id = lahan_id AND l.user_id = auth.uid()
+    )
+  );
+
+CREATE INDEX IF NOT EXISTS idx_lahan_thumbnails_lahan_id ON public.lahan_thumbnails(lahan_id);
+CREATE INDEX IF NOT EXISTS idx_lahan_thumbnails_user_id ON public.lahan_thumbnails(user_id);
+
+CREATE TRIGGER update_lahan_thumbnails_updated_at
+  BEFORE UPDATE ON public.lahan_thumbnails
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.lahan_thumbnails TO authenticated;
+
 -- Index untuk performa query geospasial
 CREATE INDEX IF NOT EXISTS idx_lahan_geom ON lahan USING GIST (geom);
 CREATE INDEX IF NOT EXISTS idx_lahan_user_id ON lahan (user_id);
@@ -89,6 +149,61 @@ CREATE TABLE IF NOT EXISTS lahan (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+CREATE TABLE IF NOT EXISTS public.lahan_thumbnails (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  lahan_id UUID REFERENCES public.lahan(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  storage_path TEXT NOT NULL,
+  public_url TEXT,
+  description TEXT,
+  captured_at TIMESTAMP WITH TIME ZONE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+ALTER TABLE public.lahan_thumbnails ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view thumbnails for their lahan" ON public.lahan_thumbnails
+  FOR SELECT USING (
+    auth.uid() IS NOT NULL AND EXISTS (
+      SELECT 1 FROM public.lahan l WHERE l.id = lahan_id AND l.user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "Users can insert thumbnails for their lahan" ON public.lahan_thumbnails
+  FOR INSERT WITH CHECK (
+    auth.uid() IS NOT NULL AND lahan_id IS NOT NULL AND EXISTS (
+      SELECT 1 FROM public.lahan l WHERE l.id = lahan_id AND l.user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "Users can update thumbnails for their lahan" ON public.lahan_thumbnails
+  FOR UPDATE USING (
+    auth.uid() IS NOT NULL AND EXISTS (
+      SELECT 1 FROM public.lahan l WHERE l.id = lahan_id AND l.user_id = auth.uid()
+    )
+  ) WITH CHECK (
+    auth.uid() IS NOT NULL AND EXISTS (
+      SELECT 1 FROM public.lahan l WHERE l.id = lahan_id AND l.user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "Users can delete thumbnails for their lahan" ON public.lahan_thumbnails
+  FOR DELETE USING (
+    auth.uid() IS NOT NULL AND EXISTS (
+      SELECT 1 FROM public.lahan l WHERE l.id = lahan_id AND l.user_id = auth.uid()
+    )
+  );
+
+CREATE INDEX IF NOT EXISTS idx_lahan_thumbnails_lahan_id ON public.lahan_thumbnails(lahan_id);
+CREATE INDEX IF NOT EXISTS idx_lahan_thumbnails_user_id ON public.lahan_thumbnails(user_id);
+
+CREATE TRIGGER update_lahan_thumbnails_updated_at
+  BEFORE UPDATE ON public.lahan_thumbnails
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.lahan_thumbnails TO authenticated;
 -- ...existing code...
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
