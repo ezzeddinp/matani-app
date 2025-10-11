@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from "@supabase/supabase-js";
 
 export type LatLngInput = {
   latitude: number;
@@ -27,11 +27,14 @@ const supabasePublishableKey = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
 if (!supabaseUrl || !supabasePublishableKey) {
   throw new Error(
-    'Supabase belum dikonfigurasi. Pastikan EXPO_PUBLIC_SUPABASE_URL dan EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY tersedia.'
+    "Supabase belum dikonfigurasi. Pastikan EXPO_PUBLIC_SUPABASE_URL dan EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY tersedia."
   );
 }
 
 export const supabase = createClient(supabaseUrl, supabasePublishableKey);
+
+const LAHAN_THUMBNAIL_BUCKET =
+  process.env.EXPO_PUBLIC_SUPABASE_LAHAN_THUMBNAIL_BUCKET || "lahan-thumbnails";
 
 type SignUpPayload = {
   email: string;
@@ -77,8 +80,8 @@ export const authService = {
   async getCurrentUser() {
     const { data, error } = await supabase.auth.getUser();
     if (error) {
-      const message = error.message ?? '';
-      if (message.includes('Auth session missing')) {
+      const message = error.message ?? "";
+      if (message.includes("Auth session missing")) {
         return { user: null } as typeof data;
       }
       throw error;
@@ -98,29 +101,32 @@ export interface UserProfile {
 export const profileService = {
   async getProfile(userId: string) {
     if (!userId) {
-      throw new Error('USER_ID_REQUIRED');
+      throw new Error("USER_ID_REQUIRED");
     }
 
     const { data, error } = await supabase
-      .from('users')
-      .select('id, email, full_name, created_at, updated_at')
-      .eq('id', userId)
+      .from("users")
+      .select("id, email, full_name, created_at, updated_at")
+      .eq("id", userId)
       .maybeSingle();
 
     if (error) throw error;
     return data as UserProfile | null;
   },
 
-  async updateProfile(userId: string, payload: Partial<Pick<UserProfile, 'full_name'>>) {
+  async updateProfile(
+    userId: string,
+    payload: Partial<Pick<UserProfile, "full_name">>
+  ) {
     if (!userId) {
-      throw new Error('USER_ID_REQUIRED');
+      throw new Error("USER_ID_REQUIRED");
     }
 
     const { data, error } = await supabase
-      .from('users')
+      .from("users")
       .update(payload)
-      .eq('id', userId)
-      .select('id, email, full_name, created_at, updated_at')
+      .eq("id", userId)
+      .select("id, email, full_name, created_at, updated_at")
       .maybeSingle();
 
     if (error) throw error;
@@ -130,7 +136,7 @@ export const profileService = {
 const coordinatesToWkt = (coordinates: LatLngInput[]): string => {
   const ring = coordinates.map((coord) => [coord.longitude, coord.latitude]);
   if (ring.length < 3) {
-    throw new Error('POLYGON_NEEDS_AT_LEAST_THREE_POINTS');
+    throw new Error("POLYGON_NEEDS_AT_LEAST_THREE_POINTS");
   }
 
   const first = ring[0];
@@ -139,7 +145,7 @@ const coordinatesToWkt = (coordinates: LatLngInput[]): string => {
     ring.push([...first]);
   }
 
-  const wktCoordinates = ring.map(([lon, lat]) => `${lon} ${lat}`).join(', ');
+  const wktCoordinates = ring.map(([lon, lat]) => `${lon} ${lat}`).join(", ");
   return `SRID=4326;POLYGON((${wktCoordinates}))`;
 };
 
@@ -150,6 +156,7 @@ export interface Lahan {
   name: string;
   geom: any; // GeoJSON geometry
   area_ha: number;
+  thumbnail_url: string | null;
   created_at: string;
 }
 
@@ -158,6 +165,7 @@ export interface LahanWithInfo {
   name: string;
   geojson: any;
   area_ha: number | null;
+  thumbnail_url: string | null;
   centroid?: any;
   created_at?: string;
   updated_at?: string;
@@ -172,24 +180,29 @@ export const lahanService = {
     name: string,
     coordinates: LatLngInput[],
     userId: string,
-    areaHa?: number
+    areaHa?: number,
+    options?: {
+      thumbnailUrl?: string | null;
+    }
   ) {
     if (!userId) {
-      throw new Error('USER_ID_REQUIRED');
+      throw new Error("USER_ID_REQUIRED");
     }
 
     const polygonWkt = coordinatesToWkt(coordinates);
 
-    const fallbackArea = typeof areaHa === 'number' ? areaHa : calculatePolygonAreaHa(coordinates);
+    const fallbackArea =
+      typeof areaHa === "number" ? areaHa : calculatePolygonAreaHa(coordinates);
 
     const { data, error } = await supabase
-      .from('lahan')
+      .from("lahan")
       .insert([
         {
           user_id: userId,
           name: name,
           geom: polygonWkt,
-        }
+          thumbnail_url: options?.thumbnailUrl ?? null,
+        },
       ])
       .select();
 
@@ -199,6 +212,7 @@ export const lahanService = {
       return {
         ...persisted,
         area_ha: persisted.area_ha ?? fallbackArea,
+        thumbnail_url: persisted.thumbnail_url ?? options?.thumbnailUrl ?? null,
       };
     }
     return undefined;
@@ -207,9 +221,11 @@ export const lahanService = {
   // Ambil semua lahan user
   async getLahanByUser(userId: string) {
     const { data, error } = await supabase
-      .from('lahan_with_info')
-      .select('id, name, geojson, area_ha, centroid, created_at, updated_at')
-      .eq('user_id', userId);
+      .from("lahan_with_info")
+      .select(
+        "id, name, geojson, area_ha, thumbnail_url, centroid, created_at, updated_at"
+      )
+      .eq("user_id", userId);
 
     if (error) throw error;
     return data;
@@ -217,13 +233,15 @@ export const lahanService = {
 
   async getLahanDetail(id: string) {
     if (!id) {
-      throw new Error('LAHAN_ID_REQUIRED');
+      throw new Error("LAHAN_ID_REQUIRED");
     }
 
     const { data, error } = await supabase
-      .from('lahan_with_info')
-      .select('id, name, geojson, area_ha, centroid, created_at, updated_at')
-      .eq('id', id)
+      .from("lahan_with_info")
+      .select(
+        "id, name, geojson, area_ha, thumbnail_url, centroid, created_at, updated_at"
+      )
+      .eq("id", id)
       .maybeSingle();
 
     if (error) throw error;
@@ -235,9 +253,9 @@ export const lahanService = {
     const polygonWkt = coordinatesToWkt(coordinates);
 
     const { data, error } = await supabase
-      .from('lahan')
+      .from("lahan")
       .update({ geom: polygonWkt })
-      .eq('id', id)
+      .eq("id", id)
       .select();
 
     if (error) throw error;
@@ -246,11 +264,52 @@ export const lahanService = {
 
   // Hapus lahan
   async deleteLahan(id: string) {
-    const { error } = await supabase
-      .from('lahan')
-      .delete()
-      .eq('id', id);
+    const { error } = await supabase.from("lahan").delete().eq("id", id);
 
     if (error) throw error;
-  }
+  },
+
+  async uploadThumbnailFromFile(
+    userId: string,
+    fileUri: string | null | undefined
+  ) {
+    if (!userId) {
+      throw new Error("USER_ID_REQUIRED");
+    }
+
+    if (!fileUri) {
+      return null;
+    }
+
+    try {
+      const response = await fetch(fileUri);
+      if (!response.ok) {
+        throw new Error(`Failed to read thumbnail file (${response.status})`);
+      }
+      const arrayBuffer = await response.arrayBuffer();
+
+      const filePath = `thumbnails/${userId}/${Date.now()}-${Math.round(
+        Math.random() * 1_000_000
+      )}.png`;
+      const { error: uploadError } = await supabase.storage
+        .from(LAHAN_THUMBNAIL_BUCKET)
+        .upload(filePath, arrayBuffer, {
+          contentType: "image/png",
+          cacheControl: "3600",
+          upsert: true,
+        });
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      const { data } = supabase.storage
+        .from(LAHAN_THUMBNAIL_BUCKET)
+        .getPublicUrl(filePath);
+      return data?.publicUrl ?? null;
+    } catch (error) {
+      console.warn("Tidak dapat mengunggah thumbnail lahan:", error);
+      return null;
+    }
+  },
 };

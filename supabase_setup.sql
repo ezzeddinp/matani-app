@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS lahan (
   name TEXT NOT NULL,
   geom GEOMETRY(POLYGON, 4326), -- WGS84 coordinate system
   area_ha DECIMAL GENERATED ALWAYS AS (ST_Area(geom::geography) / 10000) STORED, -- Auto-calculate area in hectares
+  thumbnail_url TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -48,6 +49,7 @@ SELECT
   name,
   ST_AsGeoJSON(geom) as geojson,
   area_ha,
+  thumbnail_url,
   ST_Centroid(geom::geography)::geometry as centroid,
   created_at,
   updated_at
@@ -83,6 +85,7 @@ CREATE TABLE IF NOT EXISTS lahan (
   name TEXT NOT NULL,
   geom GEOMETRY(POLYGON, 4326),
   area_ha DECIMAL GENERATED ALWAYS AS (ST_Area(geom::geography) / 10000) STORED,
+  thumbnail_url TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -110,6 +113,7 @@ SELECT
   name,
   ST_AsGeoJSON(geom) as geojson,
   area_ha,
+  thumbnail_url,
   ST_Centroid(geom::geography)::geometry as centroid,
   created_at,
   updated_at

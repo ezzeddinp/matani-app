@@ -1,9 +1,12 @@
 import {
   classifyNdviStatus,
   NDVI_UNKNOWN_CONFIG,
-  type NdviClassification
+  type NdviClassification,
 } from "@/constants/ndvi";
-import { deriveSummaryIconKey, getWeatherIconSource } from "@/utils/weather-icons";
+import {
+  deriveSummaryIconKey,
+  getWeatherIconSource,
+} from "@/utils/weather-icons";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Location from "expo-location";
@@ -44,6 +47,7 @@ interface SavedLahanCardProps {
   areaHa: number | null;
   ndviScore?: number | null;
   capturedAt?: string | null;
+  thumbnailUrl?: string | null;
   onPress?: () => void;
 }
 
@@ -63,6 +67,7 @@ interface SavedLahan {
   id: string;
   name: string;
   areaHa: number | null;
+  thumbnailUrl: string | null;
 }
 
 interface LahanNoteRecord {
@@ -261,12 +266,12 @@ const LahanCard = ({
   areaHa,
   ndviScore,
   capturedAt,
+  thumbnailUrl,
   onPress,
 }: SavedLahanCardProps) => {
   const areaLabel =
     areaHa !== null ? `${areaHa.toFixed(2)} ha` : "Luas belum tersedia";
-  const normalizedNdviScore = parseOptionalNumber(ndviScore);
-  
+
   const capturedLabel = capturedAt ? formatDisplayDate(capturedAt) : null;
 
   return (
@@ -285,7 +290,9 @@ const LahanCard = ({
         >
           <View style={styles.fieldCardContent}>
             <ImageBackground
-              source={DEFAULT_FIELD_IMAGE}
+              source={
+                thumbnailUrl ? { uri: thumbnailUrl } : DEFAULT_FIELD_IMAGE
+              }
               style={styles.fieldImage}
               imageStyle={styles.fieldImageRadius}
               resizeMode="cover"
@@ -299,7 +306,7 @@ const LahanCard = ({
             <View style={styles.fieldInfoPanel}>
               <View style={styles.fieldInfoTextGroup}>
                 <Text style={styles.cardTitle}>{name}</Text>
-          
+
                 {capturedLabel ? (
                   <Text style={styles.cardMeta}>Data · {capturedLabel}</Text>
                 ) : null}
@@ -518,6 +525,11 @@ export default function HomeScreen() {
               id: item.id,
               name: item.name,
               areaHa: areaValue,
+              thumbnailUrl:
+                typeof item.thumbnail_url === "string" &&
+                item.thumbnail_url.length > 0
+                  ? item.thumbnail_url
+                  : null,
             };
           })
         : [];
@@ -977,6 +989,7 @@ export default function HomeScreen() {
                 areaHa={item.areaHa}
                 ndviScore={lahanHealthMap[item.id]?.ndviScore ?? null}
                 capturedAt={lahanHealthMap[item.id]?.capturedAt ?? null}
+                thumbnailUrl={item.thumbnailUrl}
                 onPress={() =>
                   router.push({
                     pathname: "/detail-lahan-page",

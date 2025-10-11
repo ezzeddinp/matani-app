@@ -2,12 +2,14 @@ import { Feather } from "@expo/vector-icons";
 import { Tabs, useRouter } from "expo-router";
 import React, { useEffect } from "react";
 import { StyleSheet, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { HapticTab } from "@/components/haptic-tab";
 import { supabase } from "@/hooks/supabase";
 
 export default function TabLayout() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     let isMounted = true;
@@ -28,11 +30,13 @@ export default function TabLayout() {
 
     verifySession();
 
-    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!session) {
-        router.replace("/auth/login");
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        if (!session) {
+          router.replace("/auth/login");
+        }
       }
-    });
+    );
 
     return () => {
       isMounted = false;
@@ -49,6 +53,19 @@ export default function TabLayout() {
     </View>
   );
 
+  const tabBarMetrics = React.useMemo(() => {
+    const paddingBottom = Math.max(18, insets.bottom + 12);
+    const paddingTop = 14;
+    const baseHeight = 64;
+    const height = baseHeight + paddingTop + paddingBottom;
+
+    return {
+      height,
+      paddingBottom,
+      paddingTop,
+    } as const;
+  }, [insets.bottom]);
+
   return (
     <Tabs
       screenOptions={{
@@ -56,7 +73,14 @@ export default function TabLayout() {
         tabBarInactiveTintColor: "#1F1F1F",
         headerShown: false,
         tabBarButton: HapticTab,
-        tabBarStyle: styles.tabBar,
+        tabBarStyle: [
+          styles.tabBar,
+          {
+            height: tabBarMetrics.height,
+            paddingBottom: tabBarMetrics.paddingBottom,
+            paddingTop: tabBarMetrics.paddingTop,
+          },
+        ],
         tabBarLabelStyle: styles.label,
         tabBarIconStyle: styles.icon,
         tabBarItemStyle: styles.item,
