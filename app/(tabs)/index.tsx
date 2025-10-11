@@ -4,10 +4,7 @@ import {
   NDVI_UNKNOWN_CONFIG,
   type NdviClassification,
 } from "@/constants/ndvi";
-import {
-  deriveSummaryIconKey,
-  getWeatherIconSource,
-} from "@/utils/weather-icons";
+import { deriveSummaryIconKey, getWeatherIconSource } from "@/utils/weather-icons";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Location from "expo-location";
@@ -257,7 +254,7 @@ const DEFAULT_FIELD_IMAGE = {
 } as const;
 
 const CARD_BACKGROUND_IMAGE = {
-  uri: "https://images.unsplash.com/photo-1465406325908-2839659d9e2a?auto=format&fit=crop&w=900&q=80",
+  uri: "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=80",
 } as const;
 
 const LahanCard = ({
@@ -270,10 +267,7 @@ const LahanCard = ({
   const areaLabel =
     areaHa !== null ? `${areaHa.toFixed(2)} ha` : "Luas belum tersedia";
   const normalizedNdviScore = parseOptionalNumber(ndviScore);
-  const ndviLabel =
-    normalizedNdviScore !== null
-      ? `NDVI ${formatNdviValue(normalizedNdviScore)}`
-      : "NDVI belum tersedia";
+  
   const capturedLabel = capturedAt ? formatDisplayDate(capturedAt) : null;
 
   return (
@@ -299,20 +293,20 @@ const LahanCard = ({
             >
               <View style={styles.fieldImageOverlay}>
                 <View style={styles.fieldImageLabel}>
-                  <Text style={styles.fieldImageTitle}>{ndviLabel}</Text>
+                  <Text style={styles.fieldImageTitle}>{areaLabel}</Text>
                 </View>
               </View>
             </ImageBackground>
-            <View style={styles.fieldCardFooter}>
-              <View>
+            <View style={styles.fieldInfoPanel}>
+              <View style={styles.fieldInfoTextGroup}>
                 <Text style={styles.cardTitle}>{name}</Text>
-                <Text style={styles.cardSubtitle}>{areaLabel}</Text>
+          
                 {capturedLabel ? (
                   <Text style={styles.cardMeta}>Data · {capturedLabel}</Text>
                 ) : null}
               </View>
               <View style={styles.fieldArrowButton}>
-                <Ionicons name="chevron-forward" size={18} color="#1C1C1E" />
+                <Ionicons name="chevron-forward" size={16} color="#1C1C1E" />
               </View>
             </View>
           </View>
@@ -1276,7 +1270,7 @@ const styles = StyleSheet.create({
   },
   primaryTempRow: {
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "baseline",
   },
   primaryTemperature: {
     fontSize: 54,
@@ -1285,8 +1279,7 @@ const styles = StyleSheet.create({
     letterSpacing: -1.2,
   },
   tempDelimiter: {
-    marginLeft: 30,
-    paddingTop: 18,
+    marginLeft: 18,
   },
   tempDetail: {
     fontSize: 14,
@@ -1295,18 +1288,22 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   weatherIconPill: {
+    width: 64,
+    height: 64,
+    borderRadius: 20,
+    backgroundColor: "rgba(46, 125, 50, 0.12)",
     justifyContent: "center",
     alignItems: "center",
   },
   weatherIconImage: {
-    width: 100,
-    height: 100,
+    width: 48,
+    height: 48,
     resizeMode: "contain",
   },
   weatherDivider: {
     height: 1,
     backgroundColor: "rgba(0, 0, 0, 0.06)",
-    marginVertical: 10,
+    marginVertical: 16,
   },
   weatherMetricsRow: {
     flexDirection: "row",
@@ -1359,6 +1356,8 @@ const styles = StyleSheet.create({
   fieldCardBackground: {
     flex: 1,
     paddingBottom: 12,
+    paddingHorizontal: 10,
+    paddingTop: 10,
   },
   fieldCardBackgroundRadius: {
     borderRadius: 16,
@@ -1394,36 +1393,36 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "700",
   },
-  fieldCardFooter: {
+  fieldInfoPanel: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 10,
     paddingHorizontal: 14,
     paddingVertical: 12,
     backgroundColor: "#FFFFFF",
-    borderBottomLeftRadius: 16,
-    borderBottomRightRadius: 16,
-    borderTopLeftRadius: 12,
-    borderTopRightRadius: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgba(0,0,0,0.06)",
+    gap: 12,
+  },
+  fieldInfoTextGroup: {
+    flex: 1,
   },
   fieldArrowButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
     borderColor: "rgba(0,0,0,0.08)",
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: "#000",
+    shadowColor: "#000000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 3,
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    elevation: 2,
   },
   cardTitle: {
     fontSize: 15,
