@@ -320,7 +320,7 @@ export default function ProfileScreen() {
         <View style={styles.guestBanner}>
           <Text style={styles.guestBannerTitle}>Mode Tamu Aktif</Text>
           <Text style={styles.guestBannerText}>
-            Data profil ini bersifat simulasi. Masuk untuk menyinkronkan profil dan aktivitas lahan Anda.
+            Login untuk menyinkronkan profil dan aktivitas lahan Anda.
           </Text>
         </View>
       )}
@@ -366,7 +366,7 @@ export default function ProfileScreen() {
         {isGuest ? (
           <TouchableOpacity
             style={[styles.actionButton, styles.loginButton]}
-            onPress={() => router.push('/auth/login')}
+            onPress={() => router.replace('/auth/login')}
           >
             <Text style={[styles.actionButtonText, styles.loginText]}>Masuk ke Akun</Text>
           </TouchableOpacity>

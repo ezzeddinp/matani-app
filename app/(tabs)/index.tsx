@@ -505,7 +505,7 @@ export default function HomeScreen() {
         const message = authError.message ?? "";
         if (message.includes("Auth session missing")) {
           setSavedLahan([]);
-          setLahanError("Masuk untuk menyimpan lahan Anda.");
+          setLahanError("Login untuk menyimpan lahan Anda.");
           return;
         }
         throw authError;
@@ -514,7 +514,7 @@ export default function HomeScreen() {
       const userId = authData?.user?.id ?? fallbackUserId;
       if (!userId) {
         setSavedLahan([]);
-        setLahanError("Masuk untuk menyimpan lahan Anda.");
+        setLahanError("Login untuk menyimpan lahan Anda.");
         return;
       }
 
@@ -653,7 +653,7 @@ export default function HomeScreen() {
         const message = authError.message ?? "";
         if (message.includes("Auth session missing")) {
           setNotes([]);
-          setNotesError("Masuk untuk melihat catatan lapangan.");
+          setNotesError("Login untuk melihat catatan lapangan.");
           return;
         }
         throw authError;
@@ -662,7 +662,7 @@ export default function HomeScreen() {
       const userId = authData?.user?.id ?? fallbackUserId;
       if (!userId) {
         setNotes([]);
-        setNotesError("Masuk untuk melihat catatan lapangan.");
+        setNotesError("Login untuk melihat catatan lapangan.");
         return;
       }
 
@@ -740,7 +740,7 @@ export default function HomeScreen() {
       if (authError) {
         const message = authError.message ?? "";
         if (message.includes("Auth session missing")) {
-          Alert.alert("Perlu masuk", "Masuk untuk menyimpan catatan baru.");
+          Alert.alert("Perlu masuk", "Login untuk menyimpan catatan baru.");
           closeNoteModal();
           return;
         }
@@ -749,7 +749,7 @@ export default function HomeScreen() {
 
       const userId = authData?.user?.id ?? fallbackUserId;
       if (!userId) {
-        Alert.alert("Perlu masuk", "Masuk untuk menyimpan catatan baru.");
+        Alert.alert("Perlu masuk", "Login untuk menyimpan catatan baru.");
         closeNoteModal();
         return;
       }

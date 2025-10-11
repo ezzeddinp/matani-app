@@ -1,9 +1,9 @@
 import { authService } from '@/hooks/supabase';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import {
-    SafeAreaView,
+    BackHandler,
     ScrollView,
     StyleSheet,
     Text,
@@ -11,9 +11,11 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function SignUpScreen() {
   const router = useRouter();
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -22,18 +24,16 @@ export default function SignUpScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const navigateToExplore = useCallback(() => {
-    router.replace('/(tabs)/explore');
+  const navigateToHome = useCallback(() => {
+    router.replace('/(tabs)');
   }, [router]);
 
-  const handleGoBack = () => {
-    const canGoBack = (router as any)?.canGoBack?.();
-    if (canGoBack) {
-      router.back();
-    } else {
-      router.replace('/splash');
-    }
-  };
+  useFocusEffect(
+    useCallback(() => {
+      const subscription = BackHandler.addEventListener('hardwareBackPress', () => true);
+      return () => subscription.remove();
+    }, [])
+  );
 
   const handleCreateAccount = async () => {
     if (isLoading) return;
@@ -73,7 +73,7 @@ export default function SignUpScreen() {
         return;
       }
 
-      navigateToExplore();
+      navigateToHome();
     } catch (err: any) {
       console.error('❌ Sign up error:', err);
       setErrorMessage(err?.message || 'Terjadi kesalahan saat membuat akun.');
@@ -83,26 +83,18 @@ export default function SignUpScreen() {
   };
 
   const handleLogIn = () => {
-    router.push('/auth/login');
+    router.replace('/auth/login');
   };
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.topBar}>
-          <TouchableOpacity style={styles.backButton} onPress={handleGoBack}>
-            <Ionicons name="chevron-back" size={22} color="#000" />
-            <Text style={styles.backText}>Kembali</Text>
-          </TouchableOpacity>
-        </View>
         <View style={styles.header}>
           <Text style={styles.title}>Sign up</Text>
         </View>
 
         <View style={styles.form}>
-          {errorMessage && (
-            <Text style={styles.errorMessage}>{errorMessage}</Text>
-          )}
+          {errorMessage && <Text style={styles.errorMessage}>{errorMessage}</Text>}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Email</Text>
             <TextInput
@@ -210,25 +202,8 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingHorizontal: 20,
   },
-  topBar: {
-    marginTop: 12,
-    marginBottom: 12,
-    alignItems: 'flex-start',
-  },
-  backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 6,
-    paddingHorizontal: 4,
-  },
-  backText: {
-    marginLeft: 6,
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#000',
-  },
   header: {
-    marginTop: 40,
+    marginTop: 60,
     marginBottom: 40,
   },
   title: {

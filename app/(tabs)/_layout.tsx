@@ -1,11 +1,45 @@
 import { Feather } from "@expo/vector-icons";
-import { Tabs } from "expo-router";
-import React from "react";
+import { Tabs, useRouter } from "expo-router";
+import React, { useEffect } from "react";
 import { StyleSheet, View } from "react-native";
 
 import { HapticTab } from "@/components/haptic-tab";
+import { supabase } from "@/hooks/supabase";
 
 export default function TabLayout() {
+  const router = useRouter();
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const verifySession = async () => {
+      try {
+        const { data } = await supabase.auth.getSession();
+        if (isMounted && !data?.session) {
+          router.replace("/auth/login");
+        }
+      } catch (error) {
+        console.warn("Gagal memverifikasi sesi:", error);
+        if (isMounted) {
+          router.replace("/auth/login");
+        }
+      }
+    };
+
+    verifySession();
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!session) {
+        router.replace("/auth/login");
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      authListener?.subscription?.unsubscribe();
+    };
+  }, [router]);
+
   const renderIcon = (
     focused: boolean,
     name: React.ComponentProps<typeof Feather>["name"]

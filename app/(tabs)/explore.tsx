@@ -3,6 +3,7 @@ import { NDVI_SEVERITY_CONFIG, NDVI_UNKNOWN_CONFIG, classifyNdviStatus, formatNd
 import { BASE_URL } from '@/hooks/config';
 import { LahanWithInfo, lahanService, supabase } from '@/hooks/supabase';
 import { computeSyntheticNdviForPolygon } from '@/utils/ndvi-simulator';
+import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
@@ -75,6 +76,7 @@ type NdviStatistic = {
 
 const { width } = Dimensions.get('window');
 const MAP_HEIGHT = Math.max(320, Math.min(width * 1.15, 520));
+const SCREEN_HEIGHT = Dimensions.get('window').height;
 const NDVI_BBOX_PADDING = 0.0004;
 const LAHAN_PAGE_SIZE = 5;
 
@@ -185,6 +187,14 @@ const getBoundingBoxFromCoordinates = (coordinates: LatLng[]): [number, number, 
     return null;
   }
 
+                <Text
+                  style={[
+                    styles.controlButtonText,
+                    activePath.length === 0 && styles.controlButtonTextDisabled,
+                  ]}
+                >
+                  Undo
+                </Text>
   const paddedMinLat = clamp(minLat - NDVI_BBOX_PADDING, -90, 90);
   const paddedMinLon = clamp(minLon - NDVI_BBOX_PADDING, -180, 180);
   const paddedMaxLat = clamp(maxLat + NDVI_BBOX_PADDING, -90, 90);
@@ -350,6 +360,7 @@ export default function ExploreScreen() {
   const [lahanName, setLahanName] = useState('');
   const [currentVertices, setCurrentVertices] = useState<LatLng[]>([]);
   const [pendingPolygon, setPendingPolygon] = useState<LatLng[]>([]);
+  const [redoVertices, setRedoVertices] = useState<LatLng[]>([]);
 
   const activePath = useMemo(
     () =>
@@ -410,7 +421,7 @@ export default function ExploreScreen() {
       [
         {
           text: 'Buka Halaman Daftar',
-          onPress: () => router.push('/auth/signup'),
+          onPress: () => router.replace('/auth/signup'),
         },
       ],
       { cancelable: true }
@@ -802,6 +813,7 @@ export default function ExploreScreen() {
     };
 
     setCurrentVertices((prev) => [...prev, coordinate]);
+    setRedoVertices([]);
   };
 
   const calculateArea = (coordinates: LatLng[]) => {
@@ -824,6 +836,7 @@ export default function ExploreScreen() {
   const clearActivePath = useCallback(() => {
     setCurrentVertices([]);
     setPendingPolygon([]);
+    setRedoVertices([]);
   }, []);
 
   const handleSearchChange = (text: string) => {
@@ -1014,6 +1027,8 @@ export default function ExploreScreen() {
     setPendingPolygon(completedPath);
     setDrawingMode(false);
     setShowSaveModal(true);
+    setCurrentVertices([]);
+    setRedoVertices([]);
   };
 
   const cancelDrawing = () => {
@@ -1025,10 +1040,26 @@ export default function ExploreScreen() {
 
   const undoLastPoint = () => {
     setCurrentVertices((prevPath) => {
-      if (prevPath.length <= 1) {
-        return [];
+      if (prevPath.length === 0) {
+        return prevPath;
       }
-      return prevPath.slice(0, -1);
+
+      const nextPath = prevPath.slice(0, -1);
+      const removedVertex = prevPath[prevPath.length - 1];
+      setRedoVertices((prevRedo) => [...prevRedo, removedVertex]);
+      return nextPath;
+    });
+  };
+
+  const redoLastPoint = () => {
+    setRedoVertices((prevRedo) => {
+      if (prevRedo.length === 0) {
+        return prevRedo;
+      }
+
+      const recoveredVertex = prevRedo[prevRedo.length - 1];
+      setCurrentVertices((prevPath) => [...prevPath, recoveredVertex]);
+      return prevRedo.slice(0, -1);
     });
   };
 
@@ -1468,7 +1499,7 @@ export default function ExploreScreen() {
           </View>
         </View>
 
-        <View style={styles.mapContainer}>
+  <View style={[styles.mapContainer, drawingMode && styles.mapContainerDrawing]}>
           <View style={styles.searchContainer} pointerEvents="box-none">
             <View style={styles.searchInputWrapper}>
               <TextInput
@@ -1628,7 +1659,7 @@ export default function ExploreScreen() {
               ))}
           </MapView>
 
-          <View style={styles.mapControls}>
+          <View style={[styles.mapControls, drawingMode && styles.mapControlsDrawing]}>
             <TouchableOpacity style={styles.zoomButton} onPress={() => handleZoom('in')} accessibilityLabel="Perbesar peta">
               <Text style={styles.zoomText}>+</Text>
             </TouchableOpacity>
@@ -1636,36 +1667,119 @@ export default function ExploreScreen() {
               <Text style={styles.zoomText}>-</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.locationButton} onPress={handleRecenter} accessibilityLabel="Kembali ke lokasiku">
-              <View style={styles.locationIcon} />
+              <Ionicons name="paper-plane-outline" size={20} color="#000000" />
             </TouchableOpacity>
           </View>
+          {drawingMode && (
+            <View style={styles.drawingControlsOverlay}>
+              <TouchableOpacity
+                style={[
+                  styles.controlButton,
+                  styles.controlButtonNeutral,
+                  activePath.length === 0 && styles.controlButtonDisabled,
+                ]}
+                onPress={undoLastPoint}
+                disabled={activePath.length === 0}
+                accessibilityLabel="Undo titik terakhir"
+              >
+                <Ionicons
+                  name="arrow-undo-outline"
+                  size={22}
+                  color={activePath.length === 0 ? '#90A4AE' : '#1C313A'}
+                />
+                <Text
+                  style={[
+                    styles.controlButtonText,
+                    activePath.length === 0 && styles.controlButtonTextDisabled,
+                  ]}
+                >
+                  Undo
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.controlButton,
+                  styles.controlButtonNeutral,
+                  redoVertices.length === 0 && styles.controlButtonDisabled,
+                ]}
+                onPress={redoLastPoint}
+                disabled={redoVertices.length === 0}
+                accessibilityLabel="Redo titik terakhir"
+              >
+                <Ionicons
+                  name="arrow-redo-outline"
+                  size={22}
+                  color={redoVertices.length === 0 ? '#90A4AE' : '#1C313A'}
+                />
+                <Text
+                  style={[
+                    styles.controlButtonText,
+                    redoVertices.length === 0 && styles.controlButtonTextDisabled,
+                  ]}
+                >
+                  Redo
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.controlButton, styles.controlButtonDanger]}
+                onPress={cancelDrawing}
+                accessibilityLabel="Batalkan gambar"
+              >
+                <Ionicons name="close-outline" size={26} color="#B71C1C" />
+                <Text style={[styles.controlButtonText, styles.controlButtonTextDanger]}>
+                  Batal
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.controlButton,
+                  styles.controlButtonPrimary,
+                  activePath.length < 3 && styles.controlButtonPrimaryDisabled,
+                  activePath.length < 3 && styles.controlButtonDisabled,
+                ]}
+                onPress={finishDrawing}
+                disabled={activePath.length < 3}
+                accessibilityLabel="Simpan polygon"
+              >
+                <Ionicons
+                  name="save-outline"
+                  size={24}
+                  color={activePath.length < 3 ? '#F1F8E9' : '#FFFFFF'}
+                />
+                <Text
+                  style={[
+                    styles.controlButtonText,
+                    styles.controlButtonTextPrimary,
+                    activePath.length < 3 && styles.controlButtonTextPrimaryDisabled,
+                  ]}
+                >
+                  Simpan
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
 
-        {drawingMode && (
-          <View style={styles.drawingControls}>
-            <TouchableOpacity style={styles.controlButton} onPress={undoLastPoint}>
-              <Text style={styles.controlButtonText}>Undo</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.controlButton} onPress={cancelDrawing}>
-              <Text style={styles.controlButtonText}>Batal</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.finishButton} onPress={finishDrawing}>
-              <Text style={styles.finishButtonText}>Selesai ({currentVertices.length} titik)</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        <View style={styles.filterContainer}>
-          {filters.map((filter) => (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.filterScroll}
+          contentContainerStyle={styles.filterContainer}
+        >
+          {filters.map((filter, index) => (
             <TouchableOpacity
               key={filter}
-              style={[styles.filterButton, selectedFilter === filter && styles.activeFilterButton]}
+              style={[
+                styles.filterButton,
+                index === filters.length - 1 && styles.filterButtonLast,
+                selectedFilter === filter && styles.activeFilterButton,
+              ]}
               onPress={() => setSelectedFilter(filter)}
             >
               <Text style={[styles.filterText, selectedFilter === filter && styles.activeFilterText]}>{filter}</Text>
             </TouchableOpacity>
           ))}
-        </View>
+        </ScrollView>
 
         {drawingMode && (
           <View style={styles.instructionBanner}>
@@ -1682,7 +1796,9 @@ export default function ExploreScreen() {
           disabled={drawingMode}
         >
           <View style={styles.cameraIcon} />
-          <Text style={styles.newFieldText}>{drawingMode ? 'Mode Gambar Aktif' : 'Gambar Lahan Baru'}</Text>
+          <Text style={[styles.newFieldText, drawingMode && styles.disabledButtonText]}>
+            {drawingMode ? 'Mode Gambar Aktif' : 'Gambar Lahan Baru'}
+          </Text>
         </TouchableOpacity>
 
         <View style={styles.sectionContainer}>
@@ -2066,6 +2182,14 @@ const styles = StyleSheet.create({
     position: 'relative',
     backgroundColor: '#D7CCC8',
   },
+  mapContainerDrawing: {
+    height: Math.max(SCREEN_HEIGHT * 0.72, MAP_HEIGHT),
+    marginHorizontal: 0,
+    marginTop: 0,
+    marginBottom: 16,
+    borderRadius: 0,
+    backgroundColor: '#D7CCC8',
+  },
   searchContainer: {
     position: 'absolute',
     top: 16,
@@ -2190,36 +2314,24 @@ const styles = StyleSheet.create({
     borderColor: '#F44336',
   },
   fieldLabel: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
-    textShadowColor: 'rgba(0, 0, 0, 0.5)',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 2,
-  },
-  drawingOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(33, 150, 243, 0.1)',
-    justifyContent: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-  },
-  drawingText: {
-    color: '#2196F3',
-    fontSize: 18,
-    fontWeight: 'bold',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 18,
+    backgroundColor: '#A5D6A7',
+    borderWidth: 1,
+    borderColor: '#2E7D32',
   },
   drawingSubtext: {
-    color: '#2196F3',
     fontSize: 14,
-    marginTop: 5,
+    color: '#37474F',
+    fontWeight: '600',
   },
   savedLahanLabel: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    color: '#1B5E20',
+    fontWeight: '700',
     borderRadius: 8,
     minWidth: 110,
   },
@@ -2235,8 +2347,14 @@ const styles = StyleSheet.create({
   },
   mapControls: {
     position: 'absolute',
-    top: 120,
+    top: 132,
     right: 20,
+    marginTop: 12,
+  },
+  mapControlsDrawing: {
+    top: 116,
+    right: 20,
+    marginTop: 8,
   },
   zoomButton: {
     width: 40,
@@ -2260,7 +2378,7 @@ const styles = StyleSheet.create({
   locationButton: {
     width: 40,
     height: 40,
-    backgroundColor: '#C8E6C9',
+    backgroundColor: '#FFFFFF',
     borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
@@ -2270,66 +2388,110 @@ const styles = StyleSheet.create({
     shadowRadius: 3.84,
     elevation: 5,
   },
-  locationIcon: {
-    width: 20,
-    height: 20,
-    backgroundColor: '#4CAF50',
-    borderRadius: 10,
-  },
-  drawingControls: {
+  drawingControlsOverlay: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    bottom: 24,
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    backgroundColor: '#fff',
-    borderTopWidth: 1,
-    borderTopColor: '#e0e0e0',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255, 255, 255, 0.96)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.16,
+    shadowRadius: 4,
+    elevation: 6,
   },
   controlButton: {
-    backgroundColor: '#FF5858',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 20,
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    marginHorizontal: 5,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  controlButtonNeutral: {
+    backgroundColor: '#ECEFF1',
+    borderColor: '#90A4AE',
+  },
+  controlButtonDanger: {
+    backgroundColor: '#FFCDD2',
+    borderColor: '#EF5350',
+  },
+  controlButtonPrimary: {
+    backgroundColor: '#1B5E20',
+    borderColor: '#1B5E20',
+  },
+  controlButtonPrimaryDisabled: {
+    backgroundColor: '#81C784',
+    borderColor: '#81C784',
+  },
+  controlButtonDisabled: {
+    opacity: 0.65,
   },
   controlButtonText: {
-    color: 'white',
-    fontWeight: 'bold',
+    marginTop: 6,
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#102027',
   },
-  finishButton: {
-    backgroundColor: '#4CAF50',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 20,
+  controlButtonTextDanger: {
+    color: '#B71C1C',
   },
-  finishButtonText: {
-    color: 'white',
-    fontWeight: 'bold',
+  controlButtonTextPrimary: {
+    color: '#FFFFFF',
+  },
+  controlButtonTextDisabled: {
+    color: '#90A4AE',
+  },
+  controlButtonTextPrimaryDisabled: {
+    color: '#E8F5E9',
+  },
+  filterScroll: {
+    paddingLeft: 20,
   },
   filterContainer: {
     flexDirection: 'row',
-    paddingHorizontal: 20,
-    paddingVertical: 15,
+    alignItems: 'center',
+    flexWrap: 'nowrap',
+    paddingRight: 20,
+    paddingVertical: 14,
   },
   filterButton: {
-    paddingHorizontal: 15,
-    paddingVertical: 8,
-    borderRadius: 20,
-    marginRight: 10,
-    backgroundColor: 'white',
+    flexGrow: 0,
+    flexShrink: 0,
+    width: 136,
+    paddingVertical: 9,
+    paddingHorizontal: 0,
+    borderRadius: 18,
+    marginRight: 12,
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: '#D0D7DE',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterButtonLast: {
+    marginRight: 0,
   },
   activeFilterButton: {
-    backgroundColor: '#C8E6C9',
-    borderColor: '#4CAF50',
+    backgroundColor: '#A5D6A7',
+    borderColor: '#2E7D32',
   },
   filterText: {
     fontSize: 14,
-    color: '#666',
+    color: '#37474F',
+    fontWeight: '600',
   },
   activeFilterText: {
-    color: '#2E7D32',
-    fontWeight: 'bold',
+    color: '#1B5E20',
+    fontWeight: '700',
   },
   newFieldButton: {
     flexDirection: 'row',
@@ -2341,7 +2503,7 @@ const styles = StyleSheet.create({
     borderRadius: 25,
   },
   disabledButton: {
-    backgroundColor: '#ccc',
+    backgroundColor: '#E0E0E0',
   },
   cameraIcon: {
     width: 24,
@@ -2354,6 +2516,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     color: '#2E7D32',
+  },
+  disabledButtonText: {
+    color: '#616161',
   },
   lahanCard: {
     backgroundColor: '#F9FBE7',
@@ -2683,25 +2848,22 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   instructionBanner: {
-    backgroundColor: '#FF5722',
-    paddingVertical: 15,
+    paddingVertical: 12,
     paddingHorizontal: 20,
     marginHorizontal: 20,
-    marginVertical: 10,
-    borderRadius: 10,
+    marginVertical: 8,
     alignItems: 'center',
   },
   instructionText: {
-    color: 'white',
+    color: '#2E7D32',
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '600',
     textAlign: 'center',
   },
   instructionSubtext: {
-    color: 'white',
+    color: '#455A64',
     fontSize: 12,
-    marginTop: 5,
+    marginTop: 4,
     textAlign: 'center',
-    opacity: 0.9,
   },
 });

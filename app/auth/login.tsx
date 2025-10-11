@@ -1,16 +1,17 @@
 import { authService } from '@/hooks/supabase';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import React, { useCallback, useState } from 'react';
 import {
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  BackHandler,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -21,14 +22,12 @@ export default function LoginScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const handleGoBack = () => {
-    const canGoBack = (router as any)?.canGoBack?.();
-    if (canGoBack) {
-      router.back();
-    } else {
-      router.replace('/splash');
-    }
-  };
+  useFocusEffect(
+    useCallback(() => {
+      const subscription = BackHandler.addEventListener('hardwareBackPress', () => true);
+      return () => subscription.remove();
+    }, [])
+  );
 
   const handleSignIn = async () => {
     if (isLoading) return;
@@ -55,7 +54,7 @@ export default function LoginScreen() {
         return;
       }
 
-      router.replace('/(tabs)/explore');
+      router.replace('/(tabs)');
     } catch (err: any) {
       console.error('❌ Sign in error:', err);
       setErrorMessage(err?.message || 'Terjadi kesalahan saat masuk.');
@@ -65,18 +64,13 @@ export default function LoginScreen() {
   };
 
   const handleSignUp = () => {
-    router.push('/auth/signup');
+    router.replace('/auth/signup');
   };
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.topBar}>
-          <TouchableOpacity style={styles.backButton} onPress={handleGoBack}>
-            <Ionicons name="chevron-back" size={22} color="#000" />
-            <Text style={styles.backText}>Kembali</Text>
-          </TouchableOpacity>
-        </View>
+        <View style={styles.topBar} />
         <View style={styles.header}>
           <Text style={styles.title}>Hi, Welcome! 👋</Text>
         </View>
@@ -189,18 +183,6 @@ const styles = StyleSheet.create({
     marginTop: 12,
     marginBottom: 12,
     alignItems: 'flex-start',
-  },
-  backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 6,
-    paddingHorizontal: 4,
-  },
-  backText: {
-    marginLeft: 6,
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#000',
   },
   header: {
     marginTop: 40,
