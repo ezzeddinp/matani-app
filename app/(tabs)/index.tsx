@@ -965,165 +965,194 @@ export default function HomeScreen() {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#8BC34A" />
 
-      {/* Header with extended gradient background */}
+      {/* Sticky header background */}
       <LinearGradient
         colors={["#8BC34A", "#7ab942ff"]}
-        style={styles.headerBackground}
+        style={styles.stickyHeader}
+      />
+
+      <ScrollView
+        style={styles.scrollContainer}
+        showsVerticalScrollIndicator={false}
       >
-        <View style={styles.header}>
-          <View style={styles.headerTop}>
-            <View>
-              <Text style={styles.greeting}>Selamat Datang,</Text>
-              <Text style={styles.userName}>{userNameDisplay}</Text>
-            </View>
-            <View style={styles.profilePicture}>
-              {profileImageUri ? (
-                <Image
-                  source={{ uri: profileImageUri }}
-                  style={styles.profileImage}
-                />
-              ) : (
-                <View style={styles.profileFallback}>
-                  <Ionicons name="person" size={24} color="#fff" />
-                </View>
-              )}
-            </View>
-          </View>
-        </View>
-      </LinearGradient>
-
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Weather Card dengan loading state */}
-        {loading ? (
-          <View style={[styles.weatherCard, styles.loadingCard]}>
-            <Text style={styles.loadingText}>Memuat data cuaca...</Text>
-          </View>
-        ) : (
-          <>
-            <WeatherCard
-              location={weatherData.location}
-              temperature={weatherData.temperature}
-              highTemp={weatherData.highTemp}
-              lowTemp={weatherData.lowTemp}
-              humidity={weatherData.humidity}
-              rainfall={weatherData.rainfall}
-              pressure={weatherData.pressure}
-              windSpeed={weatherData.windSpeed}
-            />
-            {weatherError ? (
-              <Text style={styles.errorText}>{weatherError}</Text>
-            ) : null}
-          </>
-        )}
-        <Text style={styles.sectionTitle}>
-          Ladang Saya ({savedLahan.length})
-        </Text>
-
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.fieldsContainer}
+        {/* Header with extended gradient background */}
+        <LinearGradient
+          colors={["#8BC34A", "#7ab942ff"]}
+          style={styles.headerBackground}
         >
-          {lahanLoading ? (
-            <View style={styles.emptyNdviContainer}>
-              <Text style={styles.emptyNdviText}>Memuat data lahan...</Text>
-            </View>
-          ) : savedLahan.length > 0 ? (
-            savedLahan.map((item) => (
-              <LahanCard
-                key={item.id}
-                name={item.name}
-                areaHa={item.areaHa}
-                ndviScore={lahanHealthMap[item.id]?.ndviScore ?? null}
-                capturedAt={lahanHealthMap[item.id]?.capturedAt ?? null}
-                thumbnailUrl={item.thumbnailUrl}
-                onPress={() =>
-                  router.push({
-                    pathname: "/detail-lahan-page",
-                    params: { id: item.id },
-                  })
-                }
-              />
-            ))
-          ) : (
-            <View style={styles.emptyNdviContainer}>
-              <Text style={styles.emptyNdviText}>
-                {lahanError ??
-                  "Belum ada lahan tersimpan. Simpan lahan dari tab Jelajahi."}
-              </Text>
-            </View>
-          )}
-        </ScrollView>
-
-        <View style={styles.notesSection}>
-          <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionTitle}>Catatan</Text>
-            <View style={styles.sectionActions}>
-              {notesLoading && (
-                <ActivityIndicator
-                  size="small"
-                  color="#4CAF50"
-                  style={styles.sectionActionSpinner}
-                />
-              )}
-              <TouchableOpacity
-                style={styles.addNoteButton}
-                onPress={handleOpenNoteModal}
-              >
-                <Ionicons
-                  name="add"
-                  size={16}
-                  color="#fff"
-                  style={styles.addNoteButtonIcon}
-                />
-                <Text style={styles.addNoteButtonText}>Tambah</Text>
-              </TouchableOpacity>
+          <View style={styles.header}>
+            <View style={styles.headerTop}>
+              <View>
+                <Text style={styles.greeting}>Selamat Datang,</Text>
+                <Text style={styles.userName}>{userNameDisplay}</Text>
+              </View>
+              <View style={styles.headerActions}>
+                <TouchableOpacity
+                  style={styles.notificationButton}
+                  onPress={() =>
+                    Alert.alert(
+                      "Notifikasi",
+                      "Fitur notifikasi akan segera hadir!"
+                    )
+                  }
+                  activeOpacity={0.7}
+                >
+                  <Ionicons
+                    name="notifications-outline"
+                    size={24}
+                    color="#fff"
+                  />
+                </TouchableOpacity>
+                <View style={styles.profilePicture}>
+                  {profileImageUri ? (
+                    <Image
+                      source={{ uri: profileImageUri }}
+                      style={styles.profileImage}
+                    />
+                  ) : (
+                    <View style={styles.profileFallback}>
+                      <Ionicons name="person" size={24} color="#fff" />
+                    </View>
+                  )}
+                </View>
+              </View>
             </View>
           </View>
-          {notesLoading ? (
-            <Text style={styles.sectionSupportingText}>Memuat catatan…</Text>
-          ) : notesWithMetadata.length === 0 ? (
-            <Text style={styles.sectionSupportingText}>
-              {notesError ?? "Belum ada catatan tersimpan."}
-            </Text>
-          ) : (
-            notesWithMetadata.slice(0, 3).map((note) => (
-              <View key={note.id} style={styles.noteCard}>
-                <View style={styles.noteCardHeader}>
-                  <Text style={styles.noteTitle} numberOfLines={1}>
-                    {note.title || "Catatan Tanpa Judul"}
-                  </Text>
-                  {note.lahanName ? (
-                    <View style={styles.noteBadge}>
-                      <Text style={styles.noteBadgeText}>{note.lahanName}</Text>
-                    </View>
-                  ) : null}
-                </View>
-                <Text style={styles.noteMeta}>
-                  {formatDisplayDate(note.created_at)}
-                </Text>
-                <Text style={styles.noteContent} numberOfLines={2}>
-                  {note.content || "Catatan kosong."}
-                </Text>
-              </View>
-            ))
-          )}
-        </View>
+        </LinearGradient>
 
-        <View style={styles.tipsSection}>
-          <Text style={styles.sectionTitle}>Tips Penggunaan</Text>
-          <View style={styles.tipCard}>
-            {featuredTips.map((tip, index) => (
-              <View key={`home-tip-${index}`} style={styles.tipItem}>
-                <View style={styles.tipIndexBadge}>
-                  <Text style={styles.tipIndexText}>{index + 1}</Text>
-                </View>
-                <View style={styles.tipContent}>
-                  <Text style={styles.tipHeading}>Tips {index + 1}</Text>
-                  <Text style={styles.tipDescription}>{tip}</Text>
-                </View>
+        <View style={styles.content}>
+          {/* Weather Card dengan loading state */}
+          {loading ? (
+            <View style={[styles.weatherCard, styles.loadingCard]}>
+              <Text style={styles.loadingText}>Memuat data cuaca...</Text>
+            </View>
+          ) : (
+            <>
+              <WeatherCard
+                location={weatherData.location}
+                temperature={weatherData.temperature}
+                highTemp={weatherData.highTemp}
+                lowTemp={weatherData.lowTemp}
+                humidity={weatherData.humidity}
+                rainfall={weatherData.rainfall}
+                pressure={weatherData.pressure}
+                windSpeed={weatherData.windSpeed}
+              />
+              {weatherError ? (
+                <Text style={styles.errorText}>{weatherError}</Text>
+              ) : null}
+            </>
+          )}
+          <Text style={styles.sectionTitle}>Ladang Saya</Text>
+
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.fieldsContainer}
+          >
+            {lahanLoading ? (
+              <View style={styles.emptyNdviContainer}>
+                <Text style={styles.emptyNdviText}>Memuat data lahan...</Text>
               </View>
-            ))}
+            ) : savedLahan.length > 0 ? (
+              savedLahan.map((item) => (
+                <LahanCard
+                  key={item.id}
+                  name={item.name}
+                  areaHa={item.areaHa}
+                  ndviScore={lahanHealthMap[item.id]?.ndviScore ?? null}
+                  capturedAt={lahanHealthMap[item.id]?.capturedAt ?? null}
+                  thumbnailUrl={item.thumbnailUrl}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/detail-lahan-page",
+                      params: { id: item.id },
+                    })
+                  }
+                />
+              ))
+            ) : (
+              <View style={styles.emptyNdviContainer}>
+                <Text style={styles.emptyNdviText}>
+                  {lahanError ??
+                    "Belum ada lahan tersimpan. Simpan lahan dari tab Jelajahi."}
+                </Text>
+              </View>
+            )}
+          </ScrollView>
+
+          <View style={styles.notesSection}>
+            <View style={styles.sectionHeaderRow}>
+              <Text style={styles.sectionTitle}>Catatan</Text>
+              <View style={styles.sectionActions}>
+                {notesLoading && (
+                  <ActivityIndicator
+                    size="small"
+                    color="#4CAF50"
+                    style={styles.sectionActionSpinner}
+                  />
+                )}
+                <TouchableOpacity
+                  style={styles.addNoteButton}
+                  onPress={handleOpenNoteModal}
+                >
+                  <Ionicons
+                    name="add"
+                    size={16}
+                    color="#fff"
+                    style={styles.addNoteButtonIcon}
+                  />
+                  <Text style={styles.addNoteButtonText}>Tambah</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+            {notesLoading ? (
+              <Text style={styles.sectionSupportingText}>Memuat catatan…</Text>
+            ) : notesWithMetadata.length === 0 ? (
+              <Text style={styles.sectionSupportingText}>
+                {notesError ?? "Belum ada catatan tersimpan."}
+              </Text>
+            ) : (
+              notesWithMetadata.slice(0, 3).map((note) => (
+                <View key={note.id} style={styles.noteCard}>
+                  <View style={styles.noteCardHeader}>
+                    <Text style={styles.noteTitle} numberOfLines={1}>
+                      {note.title || "Catatan Tanpa Judul"}
+                    </Text>
+                    {note.lahanName ? (
+                      <View style={styles.noteBadge}>
+                        <Text style={styles.noteBadgeText}>
+                          {note.lahanName}
+                        </Text>
+                      </View>
+                    ) : null}
+                  </View>
+                  <Text style={styles.noteMeta}>
+                    {formatDisplayDate(note.created_at)}
+                  </Text>
+                  <Text style={styles.noteContent} numberOfLines={2}>
+                    {note.content || "Catatan kosong."}
+                  </Text>
+                </View>
+              ))
+            )}
+          </View>
+
+          <View style={styles.tipsSection}>
+            <Text style={styles.sectionTitle}>Tips Penggunaan</Text>
+            <View style={styles.tipCard}>
+              {featuredTips.map((tip, index) => (
+                <View key={`home-tip-${index}`} style={styles.tipItem}>
+                  <View style={styles.tipIndexBadge}>
+                    <Text style={styles.tipIndexText}>{index + 1}</Text>
+                  </View>
+                  <View style={styles.tipContent}>
+                    <Text style={styles.tipHeading}>Tips {index + 1}</Text>
+                    <Text style={styles.tipDescription}>{tip}</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
           </View>
         </View>
       </ScrollView>
@@ -1232,6 +1261,14 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#f5f5f5",
   },
+  stickyHeader: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 65,
+    zIndex: 10,
+  },
   headerBackground: {
     paddingBottom: 120,
     borderBottomLeftRadius: 20,
@@ -1247,6 +1284,19 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 20,
+  },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  notificationButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   headerInfoRow: {
     flexDirection: "row",
@@ -1296,10 +1346,13 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  content: {
+  scrollContainer: {
     flex: 1,
+  },
+  content: {
     paddingHorizontal: 20,
     marginTop: -100,
+    paddingBottom: 40,
   },
   weatherCard: {
     backgroundColor: "#FFFFFF",

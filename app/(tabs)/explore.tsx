@@ -376,8 +376,10 @@ export default function ExploreScreen() {
   const [isLahanPickerVisible, setIsLahanPickerVisible] = useState(false);
   const [ndviOverrides, setNdviOverrides] = useState<Record<string, LahanHealthRecord | null | undefined>>({});
   const [ndviFetchingMap, setNdviFetchingMap] = useState<Record<string, boolean>>({});
+  const [scrollEnabled, setScrollEnabled] = useState(true);
   const mapRef = useRef<MapView>(null);
   const currentRegionRef = useRef<Region | null>(null);
+  const scrollViewRef = useRef<ScrollView>(null);
   const [userLocation, setUserLocation] = useState({
     latitude: -6.2088,
     longitude: 106.8456,
@@ -1552,10 +1554,12 @@ export default function ExploreScreen() {
         <StatusBar barStyle="dark-content" backgroundColor="#f5f5f5" />
 
         <ScrollView
+          ref={scrollViewRef}
           style={styles.contentScroll}
           contentContainerStyle={styles.contentScrollContent}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
+          scrollEnabled={scrollEnabled}
         >
         <View style={styles.header}>
           <View>
@@ -1628,6 +1632,9 @@ export default function ExploreScreen() {
             onRegionChangeComplete={(region) => {
               currentRegionRef.current = region;
             }}
+            onTouchStart={() => setScrollEnabled(false)}
+            onTouchEnd={() => setScrollEnabled(true)}
+            onTouchCancel={() => setScrollEnabled(true)}
             provider={PROVIDER_GOOGLE}
             mapType="satellite"
             showsUserLocation
