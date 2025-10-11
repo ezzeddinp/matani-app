@@ -1,12 +1,12 @@
 import {
-    classifyNdviStatus,
-    formatNdviValue,
-    NDVI_UNKNOWN_CONFIG,
-    type NdviClassification,
+  classifyNdviStatus,
+  formatNdviValue,
+  NDVI_UNKNOWN_CONFIG,
+  type NdviClassification,
 } from "@/constants/ndvi";
 import {
-    deriveSummaryIconKey,
-    getWeatherIconSource,
+  deriveSummaryIconKey,
+  getWeatherIconSource,
 } from "@/utils/weather-icons";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -14,27 +14,27 @@ import * as Location from "expo-location";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Dimensions,
-    Image,
-    ImageBackground,
-    Modal,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Dimensions,
+  Image,
+  ImageBackground,
+  Modal,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 import {
-    lahanService,
-    lahanThumbnailService,
-    supabase,
-    type LahanThumbnail,
-    type LahanWithInfo,
+  lahanService,
+  lahanThumbnailService,
+  supabase,
+  type LahanThumbnail,
+  type LahanWithInfo,
 } from "@/hooks/supabase";
 import { BASE_URL } from "../../hooks/config";
 
@@ -962,37 +962,30 @@ export default function HomeScreen() {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#8BC34A" />
 
-      {/* Header */}
-      <LinearGradient colors={["#8BC34A", "#7ab942ff"]} style={styles.header}>
-        <View style={styles.headerTop}>
-          <View>
-            <Text style={styles.greeting}>Selamat Datang,</Text>
-            <Text style={styles.userName}>{userNameDisplay}</Text>
+      {/* Header with extended gradient background */}
+      <LinearGradient
+        colors={["#8BC34A", "#7ab942ff"]}
+        style={styles.headerBackground}
+      >
+        <View style={styles.header}>
+          <View style={styles.headerTop}>
+            <View>
+              <Text style={styles.greeting}>Selamat Datang,</Text>
+              <Text style={styles.userName}>{userNameDisplay}</Text>
+            </View>
+            <View style={styles.profilePicture}>
+              {profileImageUri ? (
+                <Image
+                  source={{ uri: profileImageUri }}
+                  style={styles.profileImage}
+                />
+              ) : (
+                <View style={styles.profileFallback}>
+                  <Ionicons name="person" size={24} color="#fff" />
+                </View>
+              )}
+            </View>
           </View>
-          <View style={styles.profilePicture}>
-            {profileImageUri ? (
-              <Image
-                source={{ uri: profileImageUri }}
-                style={styles.profileImage}
-              />
-            ) : (
-              <View style={styles.profileFallback}>
-                <Ionicons name="person" size={24} color="#fff" />
-              </View>
-            )}
-          </View>
-        </View>
-
-        <View style={styles.headerInfoRow}>
-          <Ionicons
-            name="leaf"
-            size={16}
-            color="#FFFFFF"
-            style={styles.headerInfoIcon}
-          />
-          <Text style={styles.headerInfoText} numberOfLines={1}>
-            Pantau kondisi lahan dan catatan terbaru di satu tempat.
-          </Text>
         </View>
       </LinearGradient>
 
@@ -1236,13 +1229,15 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#f5f5f5",
   },
+  headerBackground: {
+    paddingBottom: 120,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
+  },
   header: {
     paddingTop: 76,
     paddingHorizontal: 20,
-    paddingBottom: 20,
-    minHeight: 160,
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
+    paddingBottom: 40,
   },
   headerTop: {
     flexDirection: "row",
@@ -1301,7 +1296,7 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: 20,
-    paddingTop: 20,
+    marginTop: -100,
   },
   weatherCard: {
     backgroundColor: "#FFFFFF",
