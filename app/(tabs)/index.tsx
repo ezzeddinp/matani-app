@@ -1,11 +1,12 @@
 import {
-  classifyNdviStatus,
-  NDVI_UNKNOWN_CONFIG,
-  type NdviClassification,
+    classifyNdviStatus,
+    formatNdviValue,
+    NDVI_UNKNOWN_CONFIG,
+    type NdviClassification,
 } from "@/constants/ndvi";
 import {
-  deriveSummaryIconKey,
-  getWeatherIconSource,
+    deriveSummaryIconKey,
+    getWeatherIconSource,
 } from "@/utils/weather-icons";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -13,27 +14,27 @@ import * as Location from "expo-location";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  Dimensions,
-  Image,
-  ImageBackground,
-  Modal,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    Dimensions,
+    Image,
+    ImageBackground,
+    Modal,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 
 import {
-  lahanService,
-  lahanThumbnailService,
-  supabase,
-  type LahanThumbnail,
-  type LahanWithInfo,
+    lahanService,
+    lahanThumbnailService,
+    supabase,
+    type LahanThumbnail,
+    type LahanWithInfo,
 } from "@/hooks/supabase";
 import { BASE_URL } from "../../hooks/config";
 
@@ -263,10 +264,6 @@ const DEFAULT_FIELD_IMAGE = {
   uri: "https://images.unsplash.com/photo-1582719478181-2cf4e9b123c9?auto=format&fit=crop&w=900&q=80",
 } as const;
 
-const CARD_BACKGROUND_IMAGE = {
-  uri: "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=80",
-} as const;
-
 const LahanCard = ({
   name,
   areaHa,
@@ -278,7 +275,13 @@ const LahanCard = ({
   const areaLabel =
     areaHa !== null ? `${areaHa.toFixed(2)} ha` : "Luas belum tersedia";
 
+  const ndviValue = parseOptionalNumber(ndviScore);
+  const ndviLabel =
+    ndviValue !== null
+      ? `NDVI ${formatNdviValue(ndviValue)}`
+      : "NDVI belum tersedia";
   const capturedLabel = capturedAt ? formatDisplayDate(capturedAt) : null;
+  const heroImage = thumbnailUrl ? { uri: thumbnailUrl } : DEFAULT_FIELD_IMAGE;
 
   return (
     <View style={styles.fieldCardContainer}>
@@ -288,17 +291,10 @@ const LahanCard = ({
         style={styles.fieldCard}
         activeOpacity={0.88}
       >
-        <ImageBackground
-          source={CARD_BACKGROUND_IMAGE}
-          style={styles.fieldCardBackground}
-          imageStyle={styles.fieldCardBackgroundRadius}
-          resizeMode="cover"
-        >
+        <View style={styles.fieldCardSoft}>
           <View style={styles.fieldCardContent}>
             <ImageBackground
-              source={
-                thumbnailUrl ? { uri: thumbnailUrl } : DEFAULT_FIELD_IMAGE
-              }
+              source={heroImage}
               style={styles.fieldImage}
               imageStyle={styles.fieldImageRadius}
               resizeMode="cover"
@@ -311,8 +307,10 @@ const LahanCard = ({
             </ImageBackground>
             <View style={styles.fieldInfoPanel}>
               <View style={styles.fieldInfoTextGroup}>
-                <Text style={styles.cardTitle}>{name}</Text>
-
+                <Text style={styles.cardTitle} numberOfLines={1}>
+                  {name}
+                </Text>
+                <Text style={styles.cardSubtitle}>{ndviLabel}</Text>
                 {capturedLabel ? (
                   <Text style={styles.cardMeta}>Data · {capturedLabel}</Text>
                 ) : null}
@@ -322,7 +320,7 @@ const LahanCard = ({
               </View>
             </View>
           </View>
-        </ImageBackground>
+        </View>
       </TouchableOpacity>
     </View>
   );
@@ -1120,9 +1118,15 @@ export default function HomeScreen() {
           <Text style={styles.sectionTitle}>Tips Penggunaan</Text>
           <View style={styles.tipCard}>
             {featuredTips.map((tip, index) => (
-              <Text key={`home-tip-${index}`} style={styles.tipBullet}>
-                • {tip}
-              </Text>
+              <View key={`home-tip-${index}`} style={styles.tipItem}>
+                <View style={styles.tipIndexBadge}>
+                  <Text style={styles.tipIndexText}>{index + 1}</Text>
+                </View>
+                <View style={styles.tipContent}>
+                  <Text style={styles.tipHeading}>Tips {index + 1}</Text>
+                  <Text style={styles.tipDescription}>{tip}</Text>
+                </View>
+              </View>
             ))}
           </View>
         </View>
@@ -1418,18 +1422,18 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 5,
   },
-  fieldCardBackground: {
+  fieldCardSoft: {
     flex: 1,
-    paddingBottom: 12,
+    backgroundColor: "#F7F2E7",
     paddingHorizontal: 10,
     paddingTop: 10,
-  },
-  fieldCardBackgroundRadius: {
+    paddingBottom: 14,
     borderRadius: 16,
   },
   fieldCardContent: {
     flex: 1,
     justifyContent: "space-between",
+    gap: 12,
   },
   fieldImage: {
     height: 116,
@@ -1468,7 +1472,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: "rgba(0,0,0,0.06)",
+    borderColor: "rgba(0,0,0,0.04)",
     gap: 12,
   },
   fieldInfoTextGroup: {
@@ -1605,14 +1609,50 @@ const styles = StyleSheet.create({
   tipCard: {
     backgroundColor: "#FFFFFF",
     borderRadius: 14,
-    padding: 16,
+    padding: 18,
     borderWidth: 1,
     borderColor: "rgba(76, 175, 80, 0.08)",
+    gap: 12,
   },
-  tipBullet: {
+  tipItem: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    backgroundColor: "rgba(139, 195, 74, 0.1)",
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderWidth: 1,
+    borderColor: "rgba(139, 195, 74, 0.15)",
+  },
+  tipIndexBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "#8BC34A",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+  tipIndexText: {
+    color: "#FFFFFF",
+    fontWeight: "700",
+    fontSize: 13,
+  },
+  tipContent: {
+    flex: 1,
+    gap: 4,
+  },
+  tipHeading: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#2E7D32",
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+  },
+  tipDescription: {
     fontSize: 13,
     color: "#37474F",
-    marginBottom: 6,
+    lineHeight: 18,
   },
   modalOverlay: {
     flex: 1,

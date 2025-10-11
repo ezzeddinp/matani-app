@@ -24,7 +24,14 @@ export default function RootLayout() {
             animation: 'fade',
           }}
         />
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="(tabs)"
+          options={{
+            headerShown: false,
+            gestureEnabled: false,
+            animation: 'fade',
+          }}
+        />
         <Stack.Screen name="detail-lahan-page" options={{ headerShown: false }} />
         <Stack.Screen name="detail-education-page" options={{ headerShown: false }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
