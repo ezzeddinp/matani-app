@@ -116,13 +116,17 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "600",
     marginTop: 6,
+    textAlign: "center",
   },
   icon: {
     marginBottom: 2,
     marginTop: -5,
   },
   item: {
-    paddingVertical: 2,
+    paddingVertical: 4,
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
   },
   iconBase: {
     width: 52,
@@ -131,5 +135,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: "transparent",
+    marginBottom: 2,
   },
 });

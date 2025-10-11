@@ -43,7 +43,6 @@ interface WeatherCardProps {
 interface SavedLahanCardProps {
   name: string;
   areaHa: number | null;
-  classification?: NdviClassification;
   ndviScore?: number | null;
   capturedAt?: string | null;
   onPress?: () => void;
@@ -96,24 +95,6 @@ const parseDateToTime = (value?: string | null) => {
   }
   const time = Date.parse(value);
   return Number.isNaN(time) ? 0 : time;
-};
-
-const hexToRgba = (hex: string, alpha: number) => {
-  const sanitized = hex.replace("#", "").trim();
-  const normalised =
-    sanitized.length === 3
-      ? sanitized
-          .split("")
-          .map((char) => `${char}${char}`)
-          .join("")
-      : sanitized.padStart(6, "0");
-
-  const numeric = Number.parseInt(normalised, 16);
-  const r = (numeric >> 16) & 255;
-  const g = (numeric >> 8) & 255;
-  const b = numeric & 255;
-
-  return `rgba(${r}, ${g}, ${b}, ${Math.max(0, Math.min(alpha, 1))})`;
 };
 
 const formatDisplayDate = (value?: string | null) => {
@@ -272,27 +253,25 @@ const DEFAULT_FIELD_IMAGE = {
   uri: "https://images.unsplash.com/photo-1582719478181-2cf4e9b123c9?auto=format&fit=crop&w=900&q=80",
 } as const;
 
+const CARD_BACKGROUND_IMAGE = {
+  uri: "https://images.unsplash.com/photo-1465406325908-2839659d9e2a?auto=format&fit=crop&w=900&q=80",
+} as const;
+
 const LahanCard = ({
   name,
   areaHa,
-  classification,
   ndviScore,
   capturedAt,
   onPress,
 }: SavedLahanCardProps) => {
   const areaLabel =
     areaHa !== null ? `${areaHa.toFixed(2)} ha` : "Luas belum tersedia";
-  const statusInfo = classification ?? NDVI_UNKNOWN_CONFIG;
   const normalizedNdviScore = parseOptionalNumber(ndviScore);
   const ndviLabel =
     normalizedNdviScore !== null
       ? `NDVI ${formatNdviValue(normalizedNdviScore)}`
       : "NDVI belum tersedia";
   const capturedLabel = capturedAt ? formatDisplayDate(capturedAt) : null;
-  const pillStyle = [
-    styles.fieldStatusPill,
-    { backgroundColor: hexToRgba(statusInfo.color, 0.82) },
-  ];
 
   return (
     <View style={styles.fieldCardContainer}>
@@ -303,32 +282,38 @@ const LahanCard = ({
         activeOpacity={0.88}
       >
         <ImageBackground
-          source={DEFAULT_FIELD_IMAGE}
-          style={styles.fieldImage}
-          imageStyle={styles.fieldImageRadius}
+          source={CARD_BACKGROUND_IMAGE}
+          style={styles.fieldCardBackground}
+          imageStyle={styles.fieldCardBackgroundRadius}
           resizeMode="cover"
         >
-          <View style={styles.fieldImageOverlay}>
-            <View style={pillStyle}>
-              <Text style={styles.fieldStatusPillText}>{statusInfo.title}</Text>
-            </View>
-            <View style={styles.fieldImageLabel}>
-              <Text style={styles.fieldImageTitle}>{areaLabel}</Text>
+          <View style={styles.fieldCardContent}>
+            <ImageBackground
+              source={DEFAULT_FIELD_IMAGE}
+              style={styles.fieldImage}
+              imageStyle={styles.fieldImageRadius}
+              resizeMode="cover"
+            >
+              <View style={styles.fieldImageOverlay}>
+                <View style={styles.fieldImageLabel}>
+                  <Text style={styles.fieldImageTitle}>{ndviLabel}</Text>
+                </View>
+              </View>
+            </ImageBackground>
+            <View style={styles.fieldCardFooter}>
+              <View>
+                <Text style={styles.cardTitle}>{name}</Text>
+                <Text style={styles.cardSubtitle}>{areaLabel}</Text>
+                {capturedLabel ? (
+                  <Text style={styles.cardMeta}>Data · {capturedLabel}</Text>
+                ) : null}
+              </View>
+              <View style={styles.fieldArrowButton}>
+                <Ionicons name="chevron-forward" size={18} color="#1C1C1E" />
+              </View>
             </View>
           </View>
         </ImageBackground>
-        <View style={styles.fieldCardFooter}>
-          <View>
-            <Text style={styles.cardTitle}>{name}</Text>
-            <Text style={styles.cardSubtitle}>{ndviLabel}</Text>
-            {capturedLabel ? (
-              <Text style={styles.cardMeta}>Data · {capturedLabel}</Text>
-            ) : null}
-          </View>
-          <View style={styles.fieldArrowButton}>
-            <Ionicons name="chevron-forward" size={16} color="#fff" />
-          </View>
-        </View>
       </TouchableOpacity>
     </View>
   );
@@ -994,7 +979,6 @@ export default function HomeScreen() {
                 key={item.id}
                 name={item.name}
                 areaHa={item.areaHa}
-                classification={lahanHealthMap[item.id]?.classification}
                 ndviScore={lahanHealthMap[item.id]?.ndviScore ?? null}
                 capturedAt={lahanHealthMap[item.id]?.capturedAt ?? null}
                 onPress={() =>
@@ -1365,13 +1349,23 @@ const styles = StyleSheet.create({
   fieldCard: {
     width: 190,
     borderRadius: 16,
-    backgroundColor: "#FFFFFF",
     overflow: "hidden",
     elevation: 4,
     shadowColor: "#000000",
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.08,
     shadowRadius: 5,
+  },
+  fieldCardBackground: {
+    flex: 1,
+    paddingBottom: 12,
+  },
+  fieldCardBackgroundRadius: {
+    borderRadius: 16,
+  },
+  fieldCardContent: {
+    flex: 1,
+    justifyContent: "space-between",
   },
   fieldImage: {
     height: 116,
@@ -1387,19 +1381,6 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0, 0, 0, 0.28)",
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
-  },
-  fieldStatusPill: {
-    alignSelf: "flex-start",
-    backgroundColor: "rgba(0, 0, 0, 0.55)",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 14,
-  },
-  fieldStatusPillText: {
-    color: "#FFFFFF",
-    fontSize: 11,
-    fontWeight: "700",
-    letterSpacing: 0.4,
   },
   fieldImageLabel: {
     alignSelf: "flex-start",
@@ -1419,14 +1400,30 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 14,
     paddingVertical: 12,
+    backgroundColor: "#FFFFFF",
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
   },
   fieldArrowButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "#1C1C1E",
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "rgba(0,0,0,0.08)",
     justifyContent: "center",
     alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 3,
   },
   cardTitle: {
     fontSize: 15,

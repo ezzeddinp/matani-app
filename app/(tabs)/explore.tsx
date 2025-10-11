@@ -75,7 +75,7 @@ type NdviStatistic = {
 };
 
 const { width } = Dimensions.get('window');
-const MAP_HEIGHT = Math.max(320, Math.min(width * 1.15, 520));
+const MAP_HEIGHT = Math.max(Dimensions.get('window').height * 0.7, width * 1.2);
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 const NDVI_BBOX_PADDING = 0.0004;
 const LAHAN_PAGE_SIZE = 5;
@@ -187,14 +187,6 @@ const getBoundingBoxFromCoordinates = (coordinates: LatLng[]): [number, number, 
     return null;
   }
 
-                <Text
-                  style={[
-                    styles.controlButtonText,
-                    activePath.length === 0 && styles.controlButtonTextDisabled,
-                  ]}
-                >
-                  Undo
-                </Text>
   const paddedMinLat = clamp(minLat - NDVI_BBOX_PADDING, -90, 90);
   const paddedMinLon = clamp(minLon - NDVI_BBOX_PADDING, -180, 180);
   const paddedMaxLat = clamp(maxLat + NDVI_BBOX_PADDING, -90, 90);
@@ -1218,8 +1210,12 @@ export default function ExploreScreen() {
   const lahanCards = useMemo<LahanCard[]>(() => {
     return savedLahan.map((item) => {
       const supabaseHealth = latestHealthByLahan.get(item.id);
+      const validSupabaseHealth =
+        supabaseHealth && supabaseHealth.ndvi_score !== null && supabaseHealth.ndvi_score !== undefined
+          ? supabaseHealth
+          : undefined;
       const override = ndviOverrides[item.id];
-      const latestHealth = supabaseHealth ?? (override !== undefined ? (override ?? undefined) : undefined);
+      const latestHealth = validSupabaseHealth ?? (override ?? undefined);
       const classification = classifyNdviStatus(latestHealth?.ndvi_score ?? null, latestHealth?.status ?? null);
       const centroid = computePolygonCentroid(item.coordinates ?? []);
       return {
@@ -2174,16 +2170,18 @@ const styles = StyleSheet.create({
   },
   mapContainer: {
     height: MAP_HEIGHT,
-    marginHorizontal: 20,
+    minHeight: MAP_HEIGHT,
+    marginHorizontal: 12,
     marginTop: 10,
     marginBottom: 24,
-    borderRadius: 15,
+    borderRadius: 18,
     overflow: 'hidden',
     position: 'relative',
     backgroundColor: '#D7CCC8',
   },
   mapContainerDrawing: {
-    height: Math.max(SCREEN_HEIGHT * 0.72, MAP_HEIGHT),
+    height: Math.max(SCREEN_HEIGHT * 0.8, MAP_HEIGHT),
+    minHeight: Math.max(SCREEN_HEIGHT * 0.8, MAP_HEIGHT),
     marginHorizontal: 0,
     marginTop: 0,
     marginBottom: 16,

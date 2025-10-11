@@ -16,7 +16,14 @@ export default function RootLayout() {
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <Stack initialRouteName="splash">
         <Stack.Screen name="splash" options={{ headerShown: false }} />
-        <Stack.Screen name="auth" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="auth"
+          options={{
+            headerShown: false,
+            gestureEnabled: false,
+            animation: 'fade',
+          }}
+        />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="detail-lahan-page" options={{ headerShown: false }} />
         <Stack.Screen name="detail-education-page" options={{ headerShown: false }} />
