@@ -230,28 +230,31 @@ const WeatherCard = ({
 
       <View style={styles.weatherMetricsRow}>
         <View style={styles.metricItem}>
-          <Text style={styles.metricLabel}>Kelembaban</Text>
           <Text style={styles.metricValue}>
             {humidity !== null ? `${Math.round(humidity)}%` : "--"}
           </Text>
+          <Text style={styles.metricLabel}>Kelembaban</Text>
         </View>
+        <View style={styles.metricSeparator} />
         <View style={styles.metricItem}>
-          <Text style={styles.metricLabel}>Curah Hujan</Text>
           <Text style={styles.metricValue}>
-            {rainfall !== null ? `${rainfall.toFixed(1)} mm` : "--"}
+            {rainfall !== null ? `${rainfall.toFixed(1)}` : "--"}
           </Text>
+          <Text style={styles.metricLabel}>Hujan (mm)</Text>
         </View>
+        <View style={styles.metricSeparator} />
         <View style={styles.metricItem}>
+          <Text style={styles.metricValue}>
+            {pressure !== null ? `${Math.round(pressure)}` : "--"}
+          </Text>
           <Text style={styles.metricLabel}>Tekanan</Text>
-          <Text style={styles.metricValue}>
-            {pressure !== null ? `${Math.round(pressure)} hPa` : "--"}
-          </Text>
         </View>
+        <View style={styles.metricSeparator} />
         <View style={styles.metricItem}>
-          <Text style={styles.metricLabel}>Kec. Angin</Text>
           <Text style={styles.metricValue}>
-            {windSpeed !== null ? `${windSpeed.toFixed(1)} km/jam` : "--"}
+            {windSpeed !== null ? `${windSpeed.toFixed(1)}` : "--"}
           </Text>
+          <Text style={styles.metricLabel}>Angin</Text>
         </View>
       </View>
     </View>
@@ -1300,94 +1303,113 @@ const styles = StyleSheet.create({
   },
   weatherCard: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 18,
-    paddingHorizontal: 20,
-    paddingVertical: 18,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: "rgba(46, 125, 50, 0.1)",
-    shadowColor: "#2E7D32",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
-    elevation: 5,
+    borderRadius: 20,
+    paddingHorizontal: 24,
+    paddingVertical: 24,
+    marginBottom: 24,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 4,
   },
   weatherSummaryRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    marginBottom: 16,
   },
   weatherSummaryText: {
     flex: 1,
-    marginRight: 16,
+    marginRight: 20,
   },
   locationRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 12,
+    marginBottom: 16,
   },
   locationText: {
     marginLeft: 6,
-    fontSize: 16,
-    color: "#1C1C1C",
-    fontWeight: "600",
+    fontSize: 15,
+    color: "#666",
+    fontWeight: "500",
   },
   primaryTempRow: {
     flexDirection: "row",
-    alignItems: "baseline",
+    alignItems: "center",
+    marginBottom: 0,
   },
   primaryTemperature: {
-    fontSize: 54,
+    fontSize: 56,
     fontWeight: "700",
-    color: "#111111",
-    letterSpacing: -1.2,
+    color: "#1a1a1a",
+    letterSpacing: -2,
+    lineHeight: 60,
   },
   tempDelimiter: {
-    marginLeft: 18,
+    marginLeft: 16,
+    paddingTop: 8,
   },
   tempDetail: {
-    fontSize: 14,
-    color: "#444444",
+    fontSize: 15,
+    color: "#666",
     fontWeight: "500",
-    marginBottom: 4,
+    marginBottom: 2,
   },
   weatherIconPill: {
-    width: 64,
-    height: 64,
-    borderRadius: 20,
-    backgroundColor: "rgba(46, 125, 50, 0.12)",
+    width: 96,
+    height: 96,
     justifyContent: "center",
     alignItems: "center",
+    marginTop: 16,
   },
   weatherIconImage: {
-    width: 48,
-    height: 48,
+    width: 96,
+    height: 96,
     resizeMode: "contain",
   },
   weatherDivider: {
     height: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.06)",
-    marginVertical: 16,
+    backgroundColor: "rgba(0, 0, 0, 0.08)",
+    marginBottom: 10,
   },
   weatherMetricsRow: {
     flexDirection: "row",
     justifyContent: "space-between",
+    alignItems: "center",
   },
   metricItem: {
     flex: 1,
-    paddingHorizontal: 6,
+    alignItems: "center",
+    paddingVertical: 4,
+  },
+  metricSeparator: {
+    width: 1,
+    height: 32,
+    backgroundColor: "rgba(0, 0, 0, 0.08)",
+    marginHorizontal: 8,
+  },
+  metricLabelContainer: {
+    alignItems: "center",
+    marginTop: 4,
   },
   metricLabel: {
-    fontSize: 12,
-    color: "#8E8E8E",
-    marginBottom: 6,
+    fontSize: 10,
+    color: "#999",
+    letterSpacing: 0.3,
+    fontWeight: "500",
+  },
+  metricUnit: {
+    fontSize: 9,
+    color: "#999",
     letterSpacing: 0.2,
-    textTransform: "uppercase",
+    fontWeight: "400",
   },
   metricValue: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#1F1F1F",
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#1a1a1a",
+    marginBottom: 2,
   },
   errorText: {
     color: "#F44336",
