@@ -4,7 +4,10 @@ import {
   NDVI_UNKNOWN_CONFIG,
   type NdviClassification,
 } from "@/constants/ndvi";
-import { deriveSummaryIconKey, getWeatherIconSource } from "@/utils/weather-icons";
+import {
+  deriveSummaryIconKey,
+  getWeatherIconSource,
+} from "@/utils/weather-icons";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Location from "expo-location";
@@ -1273,7 +1276,7 @@ const styles = StyleSheet.create({
   },
   primaryTempRow: {
     flexDirection: "row",
-    alignItems: "baseline",
+    alignItems: "flex-start",
   },
   primaryTemperature: {
     fontSize: 54,
@@ -1282,7 +1285,8 @@ const styles = StyleSheet.create({
     letterSpacing: -1.2,
   },
   tempDelimiter: {
-    marginLeft: 18,
+    marginLeft: 30,
+    paddingTop: 18,
   },
   tempDetail: {
     fontSize: 14,
@@ -1291,22 +1295,18 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   weatherIconPill: {
-    width: 64,
-    height: 64,
-    borderRadius: 20,
-    backgroundColor: "rgba(46, 125, 50, 0.12)",
     justifyContent: "center",
     alignItems: "center",
   },
   weatherIconImage: {
-    width: 48,
-    height: 48,
+    width: 100,
+    height: 100,
     resizeMode: "contain",
   },
   weatherDivider: {
     height: 1,
     backgroundColor: "rgba(0, 0, 0, 0.06)",
-    marginVertical: 16,
+    marginVertical: 10,
   },
   weatherMetricsRow: {
     flexDirection: "row",
