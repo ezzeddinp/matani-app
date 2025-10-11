@@ -1,8 +1,7 @@
 import {
   classifyNdviStatus,
-  formatNdviValue,
   NDVI_UNKNOWN_CONFIG,
-  type NdviClassification,
+  type NdviClassification
 } from "@/constants/ndvi";
 import { deriveSummaryIconKey, getWeatherIconSource } from "@/utils/weather-icons";
 import { Ionicons } from "@expo/vector-icons";
