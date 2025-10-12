@@ -1,6 +1,5 @@
 import {
   classifyNdviStatus,
-  formatNdviValue,
   NDVI_UNKNOWN_CONFIG,
   type NdviClassification,
 } from "@/constants/ndvi";
@@ -57,6 +56,9 @@ interface SavedLahanCardProps {
   ndviScore?: number | null;
   capturedAt?: string | null;
   thumbnailUrl?: string | null;
+  category?: string | null;
+  warningCount?: number;
+  note?: string | null;
   onPress?: () => void;
 }
 
@@ -77,6 +79,9 @@ interface SavedLahan {
   name: string;
   areaHa: number | null;
   thumbnailUrl: string | null;
+  category?: string | null;
+  warningCount?: number;
+  latestNote?: string | null;
 }
 
 interface LahanNoteRecord {
@@ -275,18 +280,22 @@ const LahanCard = ({
   ndviScore,
   capturedAt,
   thumbnailUrl,
+  category,
+  warningCount = 0,
+  note,
   onPress,
 }: SavedLahanCardProps) => {
-  const areaLabel =
-    areaHa !== null ? `${areaHa.toFixed(2)} ha` : "Luas belum tersedia";
-
   const ndviValue = parseOptionalNumber(ndviScore);
-  const ndviLabel =
-    ndviValue !== null
-      ? `NDVI ${formatNdviValue(ndviValue)}`
-      : "NDVI belum tersedia";
-  const capturedLabel = capturedAt ? formatDisplayDate(capturedAt) : null;
+  const classification = classifyNdviStatus(ndviValue, null);
+  const statusLabel = classification.title || "Status tidak diketahui";
+  const statusColor = classification.color || "#4CAF50";
   const heroImage = thumbnailUrl ? { uri: thumbnailUrl } : DEFAULT_FIELD_IMAGE;
+
+  // Truncate note with "..."
+  const displayNote =
+    note && note.length > 35
+      ? `${note.substring(0, 35)}...`
+      : note || "Jangan lupa siram ja....";
 
   return (
     <View style={styles.fieldCardContainer}>
@@ -296,36 +305,45 @@ const LahanCard = ({
         style={styles.fieldCard}
         activeOpacity={0.88}
       >
-        <View style={styles.fieldCardSoft}>
-          <View style={styles.fieldCardContent}>
-            <ImageBackground
-              source={heroImage}
-              style={styles.fieldImage}
-              imageStyle={styles.fieldImageRadius}
-              resizeMode="cover"
-            >
-              <View style={styles.fieldImageOverlay}>
-                <View style={styles.fieldImageLabel}>
-                  <Text style={styles.fieldImageTitle}>{areaLabel}</Text>
-                </View>
+        <ImageBackground
+          source={heroImage}
+          style={styles.fieldCardBackground}
+          imageStyle={styles.fieldCardBackgroundImage}
+          resizeMode="cover"
+        >
+          {/* Top Section - Category & Warning */}
+          <View style={styles.fieldCardTop}>
+            <View style={styles.fieldCategoryBadge}>
+              <Text style={styles.fieldCategoryText}>
+                {category || "Jagung"}
+              </Text>
+            </View>
+            {warningCount > 0 && (
+              <View style={styles.fieldWarningBadge}>
+                <Ionicons name="warning" size={16} color="#fff" />
+                <Text style={styles.fieldWarningCount}>{warningCount}</Text>
               </View>
-            </ImageBackground>
-            <View style={styles.fieldInfoPanel}>
-              <View style={styles.fieldInfoTextGroup}>
-                <Text style={styles.cardTitle} numberOfLines={1}>
-                  {name}
-                </Text>
-                <Text style={styles.cardSubtitle}>{ndviLabel}</Text>
-                {capturedLabel ? (
-                  <Text style={styles.cardMeta}>Data · {capturedLabel}</Text>
-                ) : null}
-              </View>
-              <View style={styles.fieldArrowButton}>
-                <Ionicons name="chevron-forward" size={16} color="#1C1C1E" />
-              </View>
+            )}
+          </View>
+
+          {/* Bottom Section - Info */}
+          <View style={styles.fieldCardBottom}>
+            <View style={styles.fieldCardInfo}>
+              <Text style={[styles.fieldStatusLabel, { color: statusColor }]}>
+                {statusLabel}
+              </Text>
+              <Text style={styles.fieldNameLabel} numberOfLines={1}>
+                {name}
+              </Text>
+              <Text style={styles.fieldNoteLabel} numberOfLines={1}>
+                {displayNote}
+              </Text>
+            </View>
+            <View style={styles.fieldCardArrow}>
+              <Ionicons name="chevron-forward" size={24} color="#333" />
             </View>
           </View>
-        </View>
+        </ImageBackground>
       </TouchableOpacity>
     </View>
   );
@@ -644,6 +662,34 @@ export default function HomeScreen() {
           console.warn("Gagal memuat metadata thumbnail lahan:", error);
         }
       }
+      // Load latest notes for each lahan
+      let notesMap: Record<string, string> = {};
+      if (isAuthenticatedUser && lahanIds.length > 0) {
+        try {
+          const { data: notesData } = await supabase
+            .from("lahan_notes")
+            .select("lahan_id, content, created_at")
+            .in("lahan_id", lahanIds)
+            .order("created_at", { ascending: false });
+
+          if (notesData && Array.isArray(notesData)) {
+            const latestNotes = new Map<string, string>();
+            notesData.forEach((note: any) => {
+              if (
+                note.lahan_id &&
+                note.content &&
+                !latestNotes.has(note.lahan_id)
+              ) {
+                latestNotes.set(note.lahan_id, note.content);
+              }
+            });
+            notesMap = Object.fromEntries(latestNotes);
+          }
+        } catch (error) {
+          console.warn("Gagal memuat notes lahan:", error);
+        }
+      }
+
       const normalized: SavedLahan[] = Array.isArray(lahanList)
         ? lahanList.map((item: LahanWithInfo) => {
             const rawArea = item.area_ha;
@@ -665,6 +711,9 @@ export default function HomeScreen() {
                 item.thumbnail_url.length > 0
                   ? item.thumbnail_url
                   : thumbnailMap[item.id] ?? null,
+              category: "Jagung", // Default category, bisa diambil dari database jika ada field category
+              warningCount: 0, // Bisa dihitung dari health status atau issues
+              latestNote: notesMap[item.id] ?? null,
             };
           })
         : [];
@@ -1155,6 +1204,9 @@ export default function HomeScreen() {
                   ndviScore={lahanHealthMap[item.id]?.ndviScore ?? null}
                   capturedAt={lahanHealthMap[item.id]?.capturedAt ?? null}
                   thumbnailUrl={item.thumbnailUrl}
+                  category={item.category}
+                  warningCount={item.warningCount}
+                  note={item.latestNote}
                   onPress={() =>
                     router.push({
                       pathname: "/detail-lahan-page",
@@ -1575,14 +1627,86 @@ const styles = StyleSheet.create({
     marginRight: 16,
   },
   fieldCard: {
-    width: 190,
+    width: 280,
+    height: 180,
     borderRadius: 16,
     overflow: "hidden",
     elevation: 4,
     shadowColor: "#000000",
     shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.08,
-    shadowRadius: 5,
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+  },
+  fieldCardBackground: {
+    width: "100%",
+    height: "100%",
+    justifyContent: "space-between",
+    padding: 16,
+  },
+  fieldCardBackgroundImage: {
+    borderRadius: 16,
+  },
+  fieldCardTop: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+  },
+  fieldCategoryBadge: {
+    backgroundColor: "rgba(192, 220, 192, 0.95)",
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  fieldCategoryText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#2E7D32",
+  },
+  fieldWarningBadge: {
+    backgroundColor: "rgba(255, 152, 0, 0.95)",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  fieldWarningCount: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#fff",
+  },
+  fieldCardBottom: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-end",
+    backgroundColor: "rgba(255, 255, 255, 0.95)",
+    borderRadius: 12,
+    padding: 12,
+  },
+  fieldCardInfo: {
+    flex: 1,
+    gap: 2,
+  },
+  fieldStatusLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#4CAF50",
+    textTransform: "uppercase",
+  },
+  fieldNameLabel: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#1C1C1E",
+  },
+  fieldNoteLabel: {
+    fontSize: 12,
+    color: "#8E8E93",
+  },
+  fieldCardArrow: {
+    justifyContent: "center",
+    alignItems: "center",
+    marginLeft: 8,
   },
   fieldCardSoft: {
     flex: 1,

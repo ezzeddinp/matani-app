@@ -46,6 +46,8 @@ export default function SignUpScreen() {
     const trimmedEmail = email.trim().toLowerCase();
     const trimmedPassword = password.trim();
     const trimmedConfirm = confirmPassword.trim();
+    const trimmedUsername = username.trim();
+    const trimmedPhone = phoneNumber.trim();
 
     if (!trimmedEmail || !trimmedPassword) {
       setErrorMessage("Email dan password wajib diisi.");
@@ -62,6 +64,30 @@ export default function SignUpScreen() {
       return;
     }
 
+    // Validate username if provided
+    if (trimmedUsername) {
+      if (trimmedUsername.length < 3 || trimmedUsername.length > 20) {
+        setErrorMessage("Username harus antara 3-20 karakter.");
+        return;
+      }
+      if (!/^[a-zA-Z0-9_]+$/.test(trimmedUsername)) {
+        setErrorMessage(
+          "Username hanya boleh berisi huruf, angka, dan underscore."
+        );
+        return;
+      }
+    }
+
+    // Validate phone number if provided
+    if (trimmedPhone) {
+      // Remove any non-digit characters
+      const digitsOnly = trimmedPhone.replace(/\D/g, "");
+      if (digitsOnly.length < 9) {
+        setErrorMessage("Nomor telepon minimal 9 digit.");
+        return;
+      }
+    }
+
     try {
       setIsLoading(true);
       setErrorMessage(null);
@@ -71,6 +97,8 @@ export default function SignUpScreen() {
         email: trimmedEmail,
         password: trimmedPassword,
         fullName: fallbackFullName,
+        username: trimmedUsername || undefined,
+        phoneNumber: trimmedPhone || undefined,
       });
 
       if (!data.session) {
@@ -83,7 +111,27 @@ export default function SignUpScreen() {
       navigateToHome();
     } catch (err: any) {
       console.error("❌ Sign up error:", err);
-      setErrorMessage(err?.message || "Terjadi kesalahan saat membuat akun.");
+
+      // Handle unique constraint violations
+      const errorMessage = err?.message || "";
+      if (
+        errorMessage.includes("duplicate key") ||
+        errorMessage.includes("unique constraint")
+      ) {
+        if (errorMessage.includes("username")) {
+          setErrorMessage(
+            "Username sudah digunakan. Silakan gunakan username lain."
+          );
+        } else if (errorMessage.includes("phone")) {
+          setErrorMessage(
+            "Nomor telepon sudah terdaftar. Silakan gunakan nomor lain."
+          );
+        } else {
+          setErrorMessage("Email sudah terdaftar. Silakan gunakan email lain.");
+        }
+      } else {
+        setErrorMessage(errorMessage || "Terjadi kesalahan saat membuat akun.");
+      }
     } finally {
       setIsLoading(false);
     }

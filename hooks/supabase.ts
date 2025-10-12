@@ -40,6 +40,8 @@ type SignUpPayload = {
   email: string;
   password: string;
   fullName?: string;
+  username?: string;
+  phoneNumber?: string;
 };
 
 type SignInPayload = {
@@ -48,12 +50,30 @@ type SignInPayload = {
 };
 
 export const authService = {
-  async signUp({ email, password, fullName }: SignUpPayload) {
+  async signUp({
+    email,
+    password,
+    fullName,
+    username,
+    phoneNumber,
+  }: SignUpPayload) {
+    const metadata: Record<string, string> = {};
+
+    if (fullName) {
+      metadata.full_name = fullName;
+    }
+    if (username) {
+      metadata.username = username;
+    }
+    if (phoneNumber) {
+      metadata.phone_number = phoneNumber;
+    }
+
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        data: fullName ? { full_name: fullName } : undefined,
+        data: Object.keys(metadata).length > 0 ? metadata : undefined,
         emailRedirectTo: process.env.EXPO_PUBLIC_SUPABASE_REDIRECT_URL,
       },
     });
@@ -90,49 +110,55 @@ export const authService = {
   },
 };
 
-export interface UserProfile {
+export type UserProfile = {
   id: string;
   email: string;
   full_name: string | null;
+  username: string | null;
+  phone_number: string | null;
   created_at: string;
   updated_at: string;
-}
+};
 
 export const profileService = {
-  async getProfile(userId: string) {
-    if (!userId) {
-      throw new Error("USER_ID_REQUIRED");
-    }
-
+  async getProfile(userId: string): Promise<UserProfile | null> {
     const { data, error } = await supabase
       .from("users")
-      .select("id, email, full_name, created_at, updated_at")
+      .select(
+        "id, email, full_name, username, phone_number, created_at, updated_at"
+      )
       .eq("id", userId)
-      .maybeSingle();
+      .single();
 
     if (error) throw error;
-    return data as UserProfile | null;
+    return data;
   },
 
   async updateProfile(
     userId: string,
-    payload: Partial<Pick<UserProfile, "full_name">>
-  ) {
-    if (!userId) {
-      throw new Error("USER_ID_REQUIRED");
+    updates: {
+      full_name?: string;
+      username?: string;
+      phone_number?: string;
     }
-
+  ): Promise<UserProfile> {
     const { data, error } = await supabase
       .from("users")
-      .update(payload)
+      .update({
+        ...updates,
+        updated_at: new Date().toISOString(),
+      })
       .eq("id", userId)
-      .select("id, email, full_name, created_at, updated_at")
-      .maybeSingle();
+      .select(
+        "id, email, full_name, username, phone_number, created_at, updated_at"
+      )
+      .single();
 
     if (error) throw error;
-    return data as UserProfile | null;
+    return data;
   },
 };
+
 const coordinatesToWkt = (coordinates: LatLngInput[]): string => {
   const ring = coordinates.map((coord) => [coord.longitude, coord.latitude]);
   if (ring.length < 3) {
