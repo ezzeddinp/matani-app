@@ -8,7 +8,7 @@ Selamat datang di panduan resmi untuk menilai proyek **Matani App**. Dokumen ini
 ---
 # A.) Melalui public QR & Link
 - Scan QR (IOS)
-<img width="248" height="246" alt="image" src="https://github.com/user-attachments/assets/d5b5ba14-d40c-4219-8185-014cda74f1f7" />
+<img width="248" height="250" alt="image" src="https://github.com/user-attachments/assets/4d668948-5c86-4ad6-8c40-0779b26168bd" />
 
 **ATAU LINK DIBAWAH**
 
