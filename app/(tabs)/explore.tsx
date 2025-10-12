@@ -1,14 +1,32 @@
-import { DrawingModeIndicator } from '@/components/drawing-mode-indicator';
-import { ThemedView } from '@/components/themed-view';
-import { NDVI_SEVERITY_CONFIG, NDVI_UNKNOWN_CONFIG, classifyNdviStatus, formatNdviValue, type NdviClassification, type NdviClassificationKey } from '@/constants/ndvi';
-import { API_BASE_CANDIDATES, BASE_URL } from '@/hooks/config';
-import { LahanWithInfo, lahanService, lahanThumbnailService, supabase } from '@/hooks/supabase';
-import { computeSyntheticNdviForPolygon } from '@/utils/ndvi-simulator';
-import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import * as Location from 'expo-location';
-import { useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { DrawingModeIndicator } from "@/components/drawing-mode-indicator";
+import { ThemedView } from "@/components/themed-view";
+import {
+  NDVI_SEVERITY_CONFIG,
+  NDVI_UNKNOWN_CONFIG,
+  classifyNdviStatus,
+  formatNdviValue,
+  type NdviClassification,
+  type NdviClassificationKey,
+} from "@/constants/ndvi";
+import { API_BASE_CANDIDATES, BASE_URL } from "@/hooks/config";
+import {
+  LahanWithInfo,
+  lahanService,
+  lahanThumbnailService,
+  supabase,
+} from "@/hooks/supabase";
+import { computeSyntheticNdviForPolygon } from "@/utils/ndvi-simulator";
+import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
+import * as Location from "expo-location";
+import { useRouter } from "expo-router";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -25,7 +43,7 @@ import {
   TouchableOpacity,
   TouchableWithoutFeedback,
   View,
-} from 'react-native';
+} from "react-native";
 import MapView, {
   EdgePadding,
   LatLng,
@@ -35,7 +53,7 @@ import MapView, {
   Polygon,
   Polyline,
   Region,
-} from 'react-native-maps';
+} from "react-native-maps";
 
 type LahanHealthRecord = {
   id: string;
@@ -108,11 +126,11 @@ let ndviFallbackWarningLogged = false;
 const CROP_FILTERS = ["Jagung", "Kedelai", "Kopi", "Padi", "Teh"] as const;
 
 const CROP_IMAGE_MAP: Record<string, ImageSourcePropType> = {
-  jagung: require('../../assets/foto-ladang/jagung.png'),
-  kedelai: require('../../assets/foto-ladang/kedelai.jpg'),
-  kopi: require('../../assets/foto-ladang/kopi.jpg'),
-  padi: require('../../assets/foto-ladang/padi.jpg'),
-  teh: require('../../assets/foto-ladang/teh.jpg'),
+  jagung: require("../../assets/foto-ladang/jagung.png"),
+  kedelai: require("../../assets/foto-ladang/kedelai.jpg"),
+  kopi: require("../../assets/foto-ladang/kopi.jpg"),
+  padi: require("../../assets/foto-ladang/padi.jpg"),
+  teh: require("../../assets/foto-ladang/teh.jpg"),
 };
 
 const FILTER_FIT_PADDING: EdgePadding = {
@@ -549,10 +567,12 @@ export default function ExploreScreen() {
     latitudeDelta: 0.01,
     longitudeDelta: 0.01,
   });
-  const [locationLabel, setLocationLabel] = useState('Menentukan lokasi...');
-  const [lahanSummaryText, setLahanSummaryText] = useState<string>('');
+  const [locationLabel, setLocationLabel] = useState("Menentukan lokasi...");
+  const [lahanSummaryText, setLahanSummaryText] = useState<string>("");
   const [isLahanSummaryLoading, setIsLahanSummaryLoading] = useState(false);
-  const [lahanSummaryError, setLahanSummaryError] = useState<string | null>(null);
+  const [lahanSummaryError, setLahanSummaryError] = useState<string | null>(
+    null
+  );
   const [isLahanSummaryCollapsed, setIsLahanSummaryCollapsed] = useState(false);
   const [showLahanActions, setShowLahanActions] = useState(false);
   const [editingLahanId, setEditingLahanId] = useState<string | null>(null);
@@ -563,7 +583,11 @@ export default function ExploreScreen() {
   const lahanSummarySignatureRef = useRef<string | null>(null);
   const lahanSummaryPriorities = useMemo(() => {
     if (!lahanSummaryText) {
-      return [] as { id: string; priorityNumber: number; description: string }[];
+      return [] as {
+        id: string;
+        priorityNumber: number;
+        description: string;
+      }[];
     }
 
     const lines = lahanSummaryText
@@ -574,9 +598,16 @@ export default function ExploreScreen() {
     return lines
       .map((line, index) => {
         const match = /^Prioritas\s*(\d+)\s*:\s*(.*)$/i.exec(line);
-        const priorityNumber = match ? Number.parseInt(match[1], 10) : index + 1;
-        const rawDescription = match ? match[2]?.trim() ?? '' : line.replace(/^Prioritas\s*\d+\s*:\s*/i, '').trim();
-        const description = rawDescription.length > 0 ? rawDescription : line.replace(/^Prioritas\s*\d+\s*:\s*/i, '').trim() || line;
+        const priorityNumber = match
+          ? Number.parseInt(match[1], 10)
+          : index + 1;
+        const rawDescription = match
+          ? match[2]?.trim() ?? ""
+          : line.replace(/^Prioritas\s*\d+\s*:\s*/i, "").trim();
+        const description =
+          rawDescription.length > 0
+            ? rawDescription
+            : line.replace(/^Prioritas\s*\d+\s*:\s*/i, "").trim() || line;
         return {
           id: `${priorityNumber}-${index}`,
           priorityNumber,
@@ -1042,7 +1073,12 @@ export default function ExploreScreen() {
     return () => {
       isCancelled = true;
     };
-  }, [isGeocodeRateLimited, lahanLocationLabels, markGeocodeRateLimited, savedLahan]);
+  }, [
+    isGeocodeRateLimited,
+    lahanLocationLabels,
+    markGeocodeRateLimited,
+    savedLahan,
+  ]);
   // Enhanced map interaction for polygon drawing like in the image
   const handleMapPress = (event: MapPressEvent) => {
     if (showSearchResults) {
@@ -1731,13 +1767,15 @@ export default function ExploreScreen() {
 
       if (matches.length === 0) {
         Alert.alert(
-          'Lahan belum tersedia',
+          "Lahan belum tersedia",
           `Belum ada lahan dengan nama "${categoryLabel}".`
         );
         return;
       }
 
-      const coordinatesToFit = matches.flatMap((card) => card.coordinates ?? []);
+      const coordinatesToFit = matches.flatMap(
+        (card) => card.coordinates ?? []
+      );
       const mapInstance = mapRef.current;
 
       if (!mapInstance) {
@@ -1753,8 +1791,7 @@ export default function ExploreScreen() {
       }
 
       const target = matches[0];
-      const fallbackPoint =
-        target.centroid ?? coordinatesToFit[0] ?? null;
+      const fallbackPoint = target.centroid ?? coordinatesToFit[0] ?? null;
 
       if (fallbackPoint) {
         mapInstance.animateToRegion(
@@ -1770,8 +1807,8 @@ export default function ExploreScreen() {
       }
 
       Alert.alert(
-        'Lahan tidak dapat ditampilkan',
-        'Koordinat lahan belum lengkap. Silakan perbarui polygon lahan.'
+        "Lahan tidak dapat ditampilkan",
+        "Koordinat lahan belum lengkap. Silakan perbarui polygon lahan."
       );
     },
     [lahanCards, userLocation.latitudeDelta, userLocation.longitudeDelta]
@@ -1797,12 +1834,13 @@ export default function ExploreScreen() {
     const classificationBreakdown: Record<string, number> = {};
 
     const cardsPayload = lahanCards.map((card) => {
-      if (typeof card.areaHa === 'number' && Number.isFinite(card.areaHa)) {
+      if (typeof card.areaHa === "number" && Number.isFinite(card.areaHa)) {
         totalArea += card.areaHa;
       }
 
       const ndviScore =
-        typeof card.latestHealth?.ndvi_score === 'number' && Number.isFinite(card.latestHealth.ndvi_score)
+        typeof card.latestHealth?.ndvi_score === "number" &&
+        Number.isFinite(card.latestHealth.ndvi_score)
           ? Number(card.latestHealth.ndvi_score.toFixed(2))
           : null;
 
@@ -1811,19 +1849,22 @@ export default function ExploreScreen() {
         ndviCount += 1;
       }
 
-      const timestamp = parseDateToTime(card.latestHealth?.captured_at ?? card.createdAt);
+      const timestamp = parseDateToTime(
+        card.latestHealth?.captured_at ?? card.createdAt
+      );
       if (timestamp > latestTimestamp) {
         latestTimestamp = timestamp;
       }
 
       const statusTitle = card.classification.title;
-      classificationBreakdown[statusTitle] = (classificationBreakdown[statusTitle] ?? 0) + 1;
+      classificationBreakdown[statusTitle] =
+        (classificationBreakdown[statusTitle] ?? 0) + 1;
 
       return {
         id: card.id,
         name: card.name,
         areaHa:
-          typeof card.areaHa === 'number' && Number.isFinite(card.areaHa)
+          typeof card.areaHa === "number" && Number.isFinite(card.areaHa)
             ? Number(card.areaHa.toFixed(2))
             : null,
         ndviScore,
@@ -1840,9 +1881,12 @@ export default function ExploreScreen() {
       totals: {
         lahanCount: cardsPayload.length,
         totalAreaHa: Number(totalArea.toFixed(2)),
-        averageNdvi: ndviCount > 0 ? Number((ndviSum / ndviCount).toFixed(2)) : null,
+        averageNdvi:
+          ndviCount > 0 ? Number((ndviSum / ndviCount).toFixed(2)) : null,
         classificationBreakdown,
-        latestDataTimestamp: latestTimestamp ? new Date(latestTimestamp).toISOString() : null,
+        latestDataTimestamp: latestTimestamp
+          ? new Date(latestTimestamp).toISOString()
+          : null,
       },
     };
   }, [lahanCards]);
@@ -1909,7 +1953,7 @@ export default function ExploreScreen() {
   const fetchLahanSummary = useCallback(
     async (forceRefresh = false) => {
       if (!lahanSummaryPayload || lahanSummaryPayload.lahanCards.length === 0) {
-        setLahanSummaryText('');
+        setLahanSummaryText("");
         setLahanSummaryError(null);
         lahanSummarySignatureRef.current = null;
         return;
@@ -1922,12 +1966,12 @@ export default function ExploreScreen() {
 
       setIsLahanSummaryLoading(true);
       setLahanSummaryError(null);
-      setLahanSummaryText('');
+      setLahanSummaryText("");
 
       const requestOptions: RequestInit = {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: signature,
       };
@@ -1935,7 +1979,7 @@ export default function ExploreScreen() {
       const candidateUrls: string[] = [];
 
       API_BASE_CANDIDATES.forEach((baseUrl) => {
-        const normalised = baseUrl.replace(/\/$/, '');
+        const normalised = baseUrl.replace(/\/$/, "");
         const directUrl = `${normalised}/ai/summary`;
         if (!candidateUrls.includes(directUrl)) {
           candidateUrls.push(directUrl);
@@ -1951,13 +1995,16 @@ export default function ExploreScreen() {
 
       try {
         let response: Response | null = null;
-        let lastErrorMessage = '';
+        let lastErrorMessage = "";
 
         for (const url of candidateUrls) {
           try {
             response = await fetch(url, requestOptions);
           } catch (networkError) {
-            lastErrorMessage = networkError instanceof Error ? networkError.message : String(networkError);
+            lastErrorMessage =
+              networkError instanceof Error
+                ? networkError.message
+                : String(networkError);
             continue;
           }
 
@@ -1966,22 +2013,26 @@ export default function ExploreScreen() {
           }
 
           const message = await response.text();
-          lastErrorMessage = message || `Request failed with status ${response.status}`;
+          lastErrorMessage =
+            message || `Request failed with status ${response.status}`;
           response = null;
         }
 
         if (!response) {
-          throw new Error(lastErrorMessage || 'Ringkasan lahan tidak dapat dimuat.');
+          throw new Error(
+            lastErrorMessage || "Ringkasan lahan tidak dapat dimuat."
+          );
         }
 
         const data = await response.json();
-        const summary = typeof data?.summary === 'string' ? data.summary.trim() : '';
+        const summary =
+          typeof data?.summary === "string" ? data.summary.trim() : "";
         lahanSummarySignatureRef.current = signature;
         setLahanSummaryText(summary);
       } catch (error) {
-        console.error('❌ Gagal memuat ringkasan lahan:', error);
+        console.error("❌ Gagal memuat ringkasan lahan:", error);
         setLahanSummaryError(
-          'Ringkasan belum bisa dibuat. Pastikan server Matani berjalan lalu coba lagi.'
+          "Ringkasan belum bisa dibuat. Pastikan server Matani berjalan lalu coba lagi."
         );
         lahanSummarySignatureRef.current = null;
       } finally {
@@ -1997,16 +2048,19 @@ export default function ExploreScreen() {
 
   useEffect(() => {
     if (!lahanSummaryPayload || lahanSummaryPayload.lahanCards.length === 0) {
-      setLahanSummaryText('');
+      setLahanSummaryText("");
       setLahanSummaryError(null);
       lahanSummarySignatureRef.current = null;
       return;
     }
 
     const signature = JSON.stringify(lahanSummaryPayload);
-    if (lahanSummarySignatureRef.current && lahanSummarySignatureRef.current !== signature) {
+    if (
+      lahanSummarySignatureRef.current &&
+      lahanSummarySignatureRef.current !== signature
+    ) {
       lahanSummarySignatureRef.current = null;
-      setLahanSummaryText('');
+      setLahanSummaryText("");
       setLahanSummaryError(null);
     }
   }, [lahanSummaryPayload]);
@@ -2225,7 +2279,7 @@ export default function ExploreScreen() {
         });
         Alert.alert("Berhasil", "Catatan berhasil disimpan");
       }
-      
+
       resetNoteForm();
       closeNoteModal();
       setEditingNoteId(null);
@@ -2240,7 +2294,9 @@ export default function ExploreScreen() {
     }
   };
 
-  const handleEditNote = (note: LahanNoteRecord & { lahanName: string | null }) => {
+  const handleEditNote = (
+    note: LahanNoteRecord & { lahanName: string | null }
+  ) => {
     setEditingNoteId(note.id);
     setNoteTitle(note.title);
     setNoteContent(note.content);
@@ -2375,10 +2431,16 @@ export default function ExploreScreen() {
                 throw error;
               }
 
-              setSavedLahan((prev) => prev.filter((item) => item.id !== lahanId));
-              setLahanHealth((prev) => prev.filter((item) => item.lahan_id !== lahanId));
-              setNotes((prev) => prev.filter((note) => note.lahan_id !== lahanId));
-              
+              setSavedLahan((prev) =>
+                prev.filter((item) => item.id !== lahanId)
+              );
+              setLahanHealth((prev) =>
+                prev.filter((item) => item.lahan_id !== lahanId)
+              );
+              setNotes((prev) =>
+                prev.filter((note) => note.lahan_id !== lahanId)
+              );
+
               Alert.alert("Berhasil", "Lahan berhasil dihapus");
             } catch (error: any) {
               console.error("❌ Gagal menghapus lahan:", error);
@@ -2822,7 +2884,9 @@ export default function ExploreScreen() {
                 color="#1E88E5"
                 style={styles.drawingInfoButtonIcon}
               />
-              <Text style={styles.drawingInfoText}>Cara penggambaran lahan</Text>
+              <Text style={styles.drawingInfoText}>
+                Cara penggambaran lahan
+              </Text>
             </TouchableOpacity>
           </View>
 
@@ -2845,254 +2909,387 @@ export default function ExploreScreen() {
             </Text>
           </TouchableOpacity>
 
-        <View style={styles.sectionContainer}>
-          <View style={styles.sectionHeaderRow}>
-            <View style={styles.lahanHeaderLeft}>
-              <Text style={styles.sectionTitle}>Lahan Saya</Text>
-              {savedLahan.length > 0 && <Text style={styles.sectionSubtitle}>{savedLahan.length} lahan</Text>}
-            </View>
-            {savedLahan.length > 0 && (
-              <TouchableOpacity
-                style={styles.editToggleButton}
-                onPress={() => setShowLahanActions(!showLahanActions)}
-              >
-                <Ionicons
-                  name={showLahanActions ? "close" : "create-outline"}
-                  size={20}
-                  color="#1E88E5"
-                />
-                <Text style={styles.editToggleButtonText}>
-                  {showLahanActions ? "Selesai" : "Edit"}
-                </Text>
-              </TouchableOpacity>
-            )}
-          </View>
-           {hasLahanPagination && (
-                <View style={styles.paginationContainer}>
-                  <TouchableOpacity
-                    style={[
-                      styles.paginationButton,
-                      isPrevLahanDisabled && styles.paginationButtonDisabled,
-                    ]}
-                    onPress={handlePrevLahanPage}
-                    disabled={isPrevLahanDisabled}
-                    accessibilityLabel="Halaman sebelumnya"
-                  >
-                    <Text
-                      style={[styles.paginationButtonText, isPrevLahanDisabled && styles.paginationButtonTextDisabled]}
-                    >
-                      Sebelumnya
-                    </Text>
-                  </TouchableOpacity>
-                  <Text style={styles.paginationLabel}>
-                    Halaman {lahanPageDisplay} dari {totalLahanPages}
+          <View style={styles.sectionContainer}>
+            <View style={styles.sectionHeaderRow}>
+              <View style={styles.lahanHeaderLeft}>
+                <Text style={styles.sectionTitle}>Lahan Saya</Text>
+                {savedLahan.length > 0 && (
+                  <Text style={styles.sectionSubtitle}>
+                    {savedLahan.length} lahan
                   </Text>
-                  <TouchableOpacity
-                    style={[
-                      styles.paginationButton,
-                      isNextLahanDisabled && styles.paginationButtonDisabled,
-                    ]}
-                    onPress={handleNextLahanPage}
-                    disabled={isNextLahanDisabled}
-                    accessibilityLabel="Halaman berikutnya"
-                  >
-                    <Text
-                      style={[styles.paginationButtonText, isNextLahanDisabled && styles.paginationButtonTextDisabled]}
-                    >
-                      Berikutnya
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              )}
-          {savedLahan.length === 0 ? (
-            <Text style={styles.sectionEmptyText}>
-              Belum ada lahan tersimpan. Gunakan tombol “Gambar Lahan Baru” di atas.
-            </Text>
-          ) : (
-            <>
-              {paginatedLahanCards.map((card) => (
-                <TouchableOpacity
-                  key={`lahan-card-${card.id}`}
-                  style={styles.lahanCard}
-                  activeOpacity={0.9}
-                  onPress={() =>
-                    router.push({
-                      pathname: '/detail-lahan-page',
-                      params: {
-                        id: card.id,
-                        ndviKey: card.classification.key,
-                        ndviScore:
-                          card.latestHealth?.ndvi_score !== undefined &&
-                          card.latestHealth?.ndvi_score !== null
-                            ? String(card.latestHealth.ndvi_score)
-                            : undefined,
-                      },
-                    })
-                  }
-                >
-                  <View style={styles.lahanCardRow}>
-                    <ImageBackground
-                      source={resolveLahanThumbnailSource(card)}
-                      style={styles.lahanCardThumbnail}
-                      imageStyle={styles.lahanCardThumbnailImage}
-                      resizeMode="cover"
-                    >
-                      <View style={styles.lahanCardThumbnailOverlay}>
-                        {!card.thumbnailUrl && (
-                          <View style={styles.lahanCardThumbnailFallback}>
-                            <Ionicons name="leaf-outline" size={28} color="#FFFFFF" />
-                            <Text style={styles.lahanCardThumbnailFallbackText}>Foto Lahan</Text>
-                          </View>
-                        )}
-                        <View
-                          style={[
-                            styles.lahanCardBadgeOverlay,
-                            { backgroundColor: card.classification.color },
-                          ]}
-                        >
-                          <Text style={styles.lahanCardBadgeOverlayText}>
-                            {card.classification.title}
-                          </Text>
-                        </View>
-                      </View>
-                    </ImageBackground>
-                    <View style={styles.lahanCardContent}>
-                      <View style={styles.lahanCardHeader}>
-                        <Text style={styles.lahanCardTitle} numberOfLines={1}>
-                          {card.name}
-                        </Text>
-                        <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
-                      </View>
-                      
-                      <View style={styles.lahanCardInfoRow}>
-                        <View style={styles.lahanCardInfoItem}>
-                          <Ionicons name="resize-outline" size={14} color="#6B7280" />
-                          <Text style={styles.lahanCardInfoText}>{formatHa(card.areaHa)}</Text>
-                        </View>
-                        {card.createdAt && (
-                          <View style={styles.lahanCardInfoItem}>
-                            <Ionicons name="calendar-outline" size={14} color="#6B7280" />
-                            <Text style={styles.lahanCardInfoText}>{formatYearLabel(card.createdAt)}</Text>
-                          </View>
-                        )}
-                        <View style={styles.lahanCardInfoItem}>
-                          <Ionicons name="navigate-outline" size={14} color="#6B7280" />
-                          <Text style={styles.lahanCardInfoText}>{card.coordinateCount} titik</Text>
-                        </View>
-                      </View>
-
-                      {card.latestHealth?.ndvi_score !== undefined && card.latestHealth?.ndvi_score !== null ? (
-                        <View style={[
-                          styles.lahanCardNdviContainer,
-                          { 
-                            backgroundColor: card.classification.background || 'rgba(16, 185, 129, 0.1)',
-                            borderColor: card.classification.color,
-                          }
-                        ]}>
-                          <View style={styles.lahanCardNdviHeader}>
-                            <Ionicons name="leaf" size={14} color={card.classification.color} />
-                            <Text style={[styles.lahanCardNdviLabel, { color: card.classification.color }]}>
-                              Indeks NDVI
-                            </Text>
-                          </View>
-                          <Text style={[styles.lahanCardNdviValue, { color: card.classification.color }]}>
-                            {formatNdviValue(card.latestHealth.ndvi_score)}
-                          </Text>
-                          {card.latestHealth?.captured_at && (
-                            <Text style={[styles.lahanCardNdviDate, { color: card.classification.color }]}>
-                              {formatDisplayDate(card.latestHealth.captured_at)}
-                            </Text>
-                          )}
-                        </View>
-                      ) : (
-                        <View style={styles.lahanCardNdviEmptyContainer}>
-                          <Ionicons name="information-circle-outline" size={16} color="#9CA3AF" />
-                          <Text style={styles.lahanCardNdviEmptyText}>Data NDVI belum tersedia</Text>
-                        </View>
-                      )}
-
-                      {card.locationLabel && (
-                        <View style={styles.lahanCardLocationRow}>
-                          <Ionicons name="location-outline" size={13} color="#9CA3AF" />
-                          <Text style={styles.lahanCardLocationText} numberOfLines={1}>
-                            {card.locationLabel}
-                          </Text>
-                        </View>
-                      )}
-                    </View>
-                  </View>
-                  {showLahanActions && (
-                    <View style={styles.lahanCardActions}>
-                      <TouchableOpacity
-                        style={styles.lahanActionButton}
-                        onPress={(e) => {
-                          e.stopPropagation();
-                          handleEditLahan(card);
-                        }}
-                      >
-                        <Ionicons name="create-outline" size={20} color="#1E88E5" />
-                        <Text style={styles.lahanActionButtonText}>Edit</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={[styles.lahanActionButton, styles.lahanActionButtonDelete]}
-                        onPress={(e) => {
-                          e.stopPropagation();
-                          handleDeleteLahan(card.id);
-                        }}
-                      >
-                        <Ionicons name="trash-outline" size={20} color="#EF5350" />
-                        <Text style={[styles.lahanActionButtonText, styles.lahanActionButtonDeleteText]}>Hapus</Text>
-                      </TouchableOpacity>
-                    </View>
-                  )}
-                </TouchableOpacity>
-              ))}
-             
-            </>
-          )}
-        </View>
-
-        <View style={styles.sectionContainer}>
-          <View style={[styles.sectionHeaderRow, styles.lahanSummaryHeaderRow]}>
-            <View style={styles.lahanSummaryCardHeader}>
-              <LinearGradient
-                colors={['#0022ffa6', '#0834afff', '#80f19cb6']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.lahanSummarySparkleIcon}
-              >
-                <Ionicons name="sparkles" size={20} color="#FFFFFF" />
-              </LinearGradient>
-              <View style={styles.lahanSummaryHeaderCopy}>
-                <Text style={styles.lahanSummaryChipText}>Matani AI</Text>
-                <Text style={styles.lahanSummaryHeadline}>Prioritas terbaik untuk lahanmu</Text>
+                )}
               </View>
+              {savedLahan.length > 0 && (
+                <TouchableOpacity
+                  style={styles.editToggleButton}
+                  onPress={() => setShowLahanActions(!showLahanActions)}
+                >
+                  <Ionicons
+                    name={showLahanActions ? "close" : "create-outline"}
+                    size={20}
+                    color="#1E88E5"
+                  />
+                  <Text style={styles.editToggleButtonText}>
+                    {showLahanActions ? "Selesai" : "Edit"}
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
-            <View style={styles.lahanSummaryActions}>
-              {lahanSummaryText ? (
-                <>
+            {hasLahanPagination && (
+              <View style={styles.paginationContainer}>
+                <TouchableOpacity
+                  style={[
+                    styles.paginationButton,
+                    isPrevLahanDisabled && styles.paginationButtonDisabled,
+                  ]}
+                  onPress={handlePrevLahanPage}
+                  disabled={isPrevLahanDisabled}
+                  accessibilityLabel="Halaman sebelumnya"
+                >
+                  <Text
+                    style={[
+                      styles.paginationButtonText,
+                      isPrevLahanDisabled &&
+                        styles.paginationButtonTextDisabled,
+                    ]}
+                  >
+                    Sebelumnya
+                  </Text>
+                </TouchableOpacity>
+                <Text style={styles.paginationLabel}>
+                  Halaman {lahanPageDisplay} dari {totalLahanPages}
+                </Text>
+                <TouchableOpacity
+                  style={[
+                    styles.paginationButton,
+                    isNextLahanDisabled && styles.paginationButtonDisabled,
+                  ]}
+                  onPress={handleNextLahanPage}
+                  disabled={isNextLahanDisabled}
+                  accessibilityLabel="Halaman berikutnya"
+                >
+                  <Text
+                    style={[
+                      styles.paginationButtonText,
+                      isNextLahanDisabled &&
+                        styles.paginationButtonTextDisabled,
+                    ]}
+                  >
+                    Berikutnya
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
+            {savedLahan.length === 0 ? (
+              <Text style={styles.sectionEmptyText}>
+                Belum ada lahan tersimpan. Gunakan tombol “Gambar Lahan Baru” di
+                atas.
+              </Text>
+            ) : (
+              <>
+                {paginatedLahanCards.map((card) => (
                   <TouchableOpacity
-                    style={styles.lahanSummaryToggleButton}
-                    onPress={() => setIsLahanSummaryCollapsed((prev) => !prev)}
-                    accessibilityLabel={
-                      isLahanSummaryCollapsed
-                        ? "Tampilkan ringkasan Matani AI"
-                        : "Sembunyikan ringkasan Matani AI"
+                    key={`lahan-card-${card.id}`}
+                    style={styles.lahanCard}
+                    activeOpacity={0.9}
+                    onPress={() =>
+                      router.push({
+                        pathname: "/detail-lahan-page",
+                        params: {
+                          id: card.id,
+                          ndviKey: card.classification.key,
+                          ndviScore:
+                            card.latestHealth?.ndvi_score !== undefined &&
+                            card.latestHealth?.ndvi_score !== null
+                              ? String(card.latestHealth.ndvi_score)
+                              : undefined,
+                        },
+                      })
                     }
                   >
-                    <Ionicons
-                      name={
-                        isLahanSummaryCollapsed ? "chevron-down" : "chevron-up"
-                      }
-                      size={18}
-                      color="#1B5E20"
-                    />
+                    <View style={styles.lahanCardRow}>
+                      <ImageBackground
+                        source={resolveLahanThumbnailSource(card)}
+                        style={styles.lahanCardThumbnail}
+                        imageStyle={styles.lahanCardThumbnailImage}
+                        resizeMode="cover"
+                      >
+                        <View style={styles.lahanCardThumbnailOverlay}>
+                          {!card.thumbnailUrl && (
+                            <View style={styles.lahanCardThumbnailFallback}>
+                              <Ionicons
+                                name="leaf-outline"
+                                size={28}
+                                color="#FFFFFF"
+                              />
+                              <Text
+                                style={styles.lahanCardThumbnailFallbackText}
+                              >
+                                Foto Lahan
+                              </Text>
+                            </View>
+                          )}
+                          <View
+                            style={[
+                              styles.lahanCardBadgeOverlay,
+                              { backgroundColor: card.classification.color },
+                            ]}
+                          >
+                            <Text style={styles.lahanCardBadgeOverlayText}>
+                              {card.classification.title}
+                            </Text>
+                          </View>
+                        </View>
+                      </ImageBackground>
+                      <View style={styles.lahanCardContent}>
+                        <View style={styles.lahanCardHeader}>
+                          <Text style={styles.lahanCardTitle} numberOfLines={1}>
+                            {card.name}
+                          </Text>
+                          <Ionicons
+                            name="chevron-forward"
+                            size={18}
+                            color="#9CA3AF"
+                          />
+                        </View>
+
+                        <View style={styles.lahanCardInfoRow}>
+                          <View style={styles.lahanCardInfoItem}>
+                            <Ionicons
+                              name="resize-outline"
+                              size={14}
+                              color="#6B7280"
+                            />
+                            <Text style={styles.lahanCardInfoText}>
+                              {formatHa(card.areaHa)}
+                            </Text>
+                          </View>
+                          {card.createdAt && (
+                            <View style={styles.lahanCardInfoItem}>
+                              <Ionicons
+                                name="calendar-outline"
+                                size={14}
+                                color="#6B7280"
+                              />
+                              <Text style={styles.lahanCardInfoText}>
+                                {formatYearLabel(card.createdAt)}
+                              </Text>
+                            </View>
+                          )}
+                          <View style={styles.lahanCardInfoItem}>
+                            <Ionicons
+                              name="navigate-outline"
+                              size={14}
+                              color="#6B7280"
+                            />
+                            <Text style={styles.lahanCardInfoText}>
+                              {card.coordinateCount} titik
+                            </Text>
+                          </View>
+                        </View>
+
+                        {card.latestHealth?.ndvi_score !== undefined &&
+                        card.latestHealth?.ndvi_score !== null ? (
+                          <View
+                            style={[
+                              styles.lahanCardNdviContainer,
+                              {
+                                backgroundColor:
+                                  card.classification.background ||
+                                  "rgba(16, 185, 129, 0.1)",
+                                borderColor: card.classification.color,
+                              },
+                            ]}
+                          >
+                            <View style={styles.lahanCardNdviHeader}>
+                              <Ionicons
+                                name="leaf"
+                                size={14}
+                                color={card.classification.color}
+                              />
+                              <Text
+                                style={[
+                                  styles.lahanCardNdviLabel,
+                                  { color: card.classification.color },
+                                ]}
+                              >
+                                Indeks NDVI
+                              </Text>
+                            </View>
+                            <Text
+                              style={[
+                                styles.lahanCardNdviValue,
+                                { color: card.classification.color },
+                              ]}
+                            >
+                              {formatNdviValue(card.latestHealth.ndvi_score)}
+                            </Text>
+                            {card.latestHealth?.captured_at && (
+                              <Text
+                                style={[
+                                  styles.lahanCardNdviDate,
+                                  { color: card.classification.color },
+                                ]}
+                              >
+                                {formatDisplayDate(
+                                  card.latestHealth.captured_at
+                                )}
+                              </Text>
+                            )}
+                          </View>
+                        ) : (
+                          <View style={styles.lahanCardNdviEmptyContainer}>
+                            <Ionicons
+                              name="information-circle-outline"
+                              size={16}
+                              color="#9CA3AF"
+                            />
+                            <Text style={styles.lahanCardNdviEmptyText}>
+                              Data NDVI belum tersedia
+                            </Text>
+                          </View>
+                        )}
+
+                        {card.locationLabel && (
+                          <View style={styles.lahanCardLocationRow}>
+                            <Ionicons
+                              name="location-outline"
+                              size={13}
+                              color="#9CA3AF"
+                            />
+                            <Text
+                              style={styles.lahanCardLocationText}
+                              numberOfLines={1}
+                            >
+                              {card.locationLabel}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                    </View>
+                    {showLahanActions && (
+                      <View style={styles.lahanCardActions}>
+                        <TouchableOpacity
+                          style={styles.lahanActionButton}
+                          onPress={(e) => {
+                            e.stopPropagation();
+                            handleEditLahan(card);
+                          }}
+                        >
+                          <Ionicons
+                            name="create-outline"
+                            size={20}
+                            color="#1E88E5"
+                          />
+                          <Text style={styles.lahanActionButtonText}>Edit</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={[
+                            styles.lahanActionButton,
+                            styles.lahanActionButtonDelete,
+                          ]}
+                          onPress={(e) => {
+                            e.stopPropagation();
+                            handleDeleteLahan(card.id);
+                          }}
+                        >
+                          <Ionicons
+                            name="trash-outline"
+                            size={20}
+                            color="#EF5350"
+                          />
+                          <Text
+                            style={[
+                              styles.lahanActionButtonText,
+                              styles.lahanActionButtonDeleteText,
+                            ]}
+                          >
+                            Hapus
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
                   </TouchableOpacity>
+                ))}
+              </>
+            )}
+          </View>
+
+          <View style={styles.sectionContainer}>
+            <View
+              style={[styles.sectionHeaderRow, styles.lahanSummaryHeaderRow]}
+            >
+              <View style={styles.lahanSummaryCardHeader}>
+                <LinearGradient
+                  colors={["#0022ffa6", "#0834afff", "#80f19cb6"]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.lahanSummarySparkleIcon}
+                >
+                  <Ionicons name="sparkles" size={20} color="#FFFFFF" />
+                </LinearGradient>
+                <View style={styles.lahanSummaryHeaderCopy}>
+                  <Text style={styles.lahanSummaryChipText}>Matani AI</Text>
+                  <Text style={styles.lahanSummaryHeadline}>
+                    Prioritas terbaik untuk lahanmu
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.lahanSummaryActions}>
+                {lahanSummaryText ? (
+                  <>
+                    <TouchableOpacity
+                      style={styles.lahanSummaryToggleButton}
+                      onPress={() =>
+                        setIsLahanSummaryCollapsed((prev) => !prev)
+                      }
+                      accessibilityLabel={
+                        isLahanSummaryCollapsed
+                          ? "Tampilkan ringkasan Matani AI"
+                          : "Sembunyikan ringkasan Matani AI"
+                      }
+                    >
+                      <Ionicons
+                        name={
+                          isLahanSummaryCollapsed
+                            ? "chevron-down"
+                            : "chevron-up"
+                        }
+                        size={18}
+                        color="#1B5E20"
+                      />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        styles.lahanSummaryRefreshButton,
+                        styles.lahanSummaryRefreshButtonCompact,
+                        (isLahanSummaryLoading || savedLahan.length === 0) &&
+                          styles.lahanSummaryRefreshButtonDisabled,
+                      ]}
+                      disabled={
+                        isLahanSummaryLoading || savedLahan.length === 0
+                      }
+                      onPress={handleRefreshSummary}
+                      accessibilityLabel="Ringkaskan kondisi lahan"
+                    >
+                      {isLahanSummaryLoading ? (
+                        <ActivityIndicator size="small" color="#1B5E20" />
+                      ) : (
+                        <View style={styles.lahanSummaryRefreshContent}>
+                          <Ionicons name="refresh" size={18} color="#1B5E20" />
+                          <Text style={styles.lahanSummaryRefreshText}>
+                            Ringkaskan
+                          </Text>
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                  </>
+                ) : (
                   <TouchableOpacity
                     style={[
                       styles.lahanSummaryRefreshButton,
-                      styles.lahanSummaryRefreshButtonCompact,
-                      (isLahanSummaryLoading || savedLahan.length === 0) && styles.lahanSummaryRefreshButtonDisabled,
+                      (isLahanSummaryLoading || savedLahan.length === 0) &&
+                        styles.lahanSummaryRefreshButtonDisabled,
                     ]}
                     disabled={isLahanSummaryLoading || savedLahan.length === 0}
                     onPress={handleRefreshSummary}
@@ -3103,139 +3300,172 @@ export default function ExploreScreen() {
                     ) : (
                       <View style={styles.lahanSummaryRefreshContent}>
                         <Ionicons name="refresh" size={18} color="#1B5E20" />
-                        <Text style={styles.lahanSummaryRefreshText}>Ringkaskan</Text>
+                        <Text style={styles.lahanSummaryRefreshText}>
+                          Ringkaskan
+                        </Text>
                       </View>
                     )}
                   </TouchableOpacity>
-                </>
-              ) : (
-                <TouchableOpacity
-                  style={[
-                    styles.lahanSummaryRefreshButton,
-                    (isLahanSummaryLoading || savedLahan.length === 0) && styles.lahanSummaryRefreshButtonDisabled,
-                  ]}
-                  disabled={isLahanSummaryLoading || savedLahan.length === 0}
-                  onPress={handleRefreshSummary}
-                  accessibilityLabel="Ringkaskan kondisi lahan"
-                >
-                  {isLahanSummaryLoading ? (
-                    <ActivityIndicator size="small" color="#1B5E20" />
-                  ) : (
-                    <View style={styles.lahanSummaryRefreshContent}>
-                      <Ionicons name="refresh" size={18} color="#1B5E20" />
-                      <Text style={styles.lahanSummaryRefreshText}>Ringkaskan</Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
-              )}
-            </View>
-          </View>
-
-          {savedLahan.length === 0 ? (
-            <Text style={styles.sectionEmptyText}>
-              Tambahkan lahan terlebih dahulu untuk mendapatkan ringkasan cerdas dari Matani AI.
-            </Text>
-          ) : isLahanSummaryLoading ? (
-            <View style={styles.lahanSummaryLoadingRow}>
-              <ActivityIndicator size="small" color="#1B5E20" />
-              <Text style={styles.lahanSummaryLoadingText}>Matani AI sedang menganalisis lahan kamu...</Text>
-            </View>
-          ) : lahanSummaryError ? (
-            <View style={styles.lahanSummaryErrorBox}>
-              <Text style={styles.lahanSummaryErrorText}>{lahanSummaryError}</Text>
-              <TouchableOpacity
-                style={styles.lahanSummaryRetryButton}
-                onPress={handleRefreshSummary}
-                accessibilityLabel="Coba muat ringkasan lahan lagi"
-              >
-                <Text style={styles.lahanSummaryRetryButtonText}>Coba lagi</Text>
-              </TouchableOpacity>
-            </View>
-          ) : lahanSummaryText ? (
-            isLahanSummaryCollapsed ? (
-              <Text style={styles.lahanSummaryCollapsedText}>
-                Ringkasan disembunyikan. Ketuk ikon panah di header untuk melihat kembali.
-              </Text>
-            ) : (
-              <View style={styles.lahanSummaryBubble}>
-                <LinearGradient
-                  colors={['#9592c404', 'rgba(195, 180, 255, 0.05)', 'rgba(159, 231, 217, 0.05)']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.lahanSummaryGalaxyOverlay}
-                  pointerEvents="none"
-                />
-                <View style={styles.lahanSummaryContent}>
-                
-                  {lahanSummaryPriorities.length > 0 ? (
-                    <View style={styles.lahanSummaryPriorities}>
-                      {lahanSummaryPriorities.map((item, index) => {
-                        const priorityConfig =
-                          item.priorityNumber === 1
-                            ? {
-                                card: styles.lahanSummaryPriorityCardHigh,
-                                badge: styles.lahanSummaryPriorityBadgeHigh,
-                                badgeText: styles.lahanSummaryPriorityBadgeTextHigh,
-                                text: styles.lahanSummaryPriorityTextHigh,
-                                icon: 'flame' as const,
-                                iconColor: '#D32F2F',
-                                accentColor: '#FFEBEE',
-                              }
-                            : item.priorityNumber === 2
-                            ? {
-                                card: styles.lahanSummaryPriorityCardMedium,
-                                badge: styles.lahanSummaryPriorityBadgeMedium,
-                                badgeText: styles.lahanSummaryPriorityBadgeTextMedium,
-                                text: styles.lahanSummaryPriorityTextMedium,
-                                icon: 'alert-circle' as const,
-                                iconColor: '#F57C00',
-                                accentColor: '#FFF3E0',
-                              }
-                            : {
-                                card: styles.lahanSummaryPriorityCardLow,
-                                badge: styles.lahanSummaryPriorityBadgeLow,
-                                badgeText: styles.lahanSummaryPriorityBadgeTextLow,
-                                text: styles.lahanSummaryPriorityTextLow,
-                                icon: 'checkmark-circle' as const,
-                                iconColor: '#388E3C',
-                                accentColor: '#E8F5E9',
-                              };
-
-                        return (
-                          <View key={item.id} style={[styles.lahanSummaryPriorityCard, priorityConfig.card]}>
-                            <View style={styles.lahanSummaryPriorityHeader}>
-                              <View style={[styles.lahanSummaryPriorityIconWrapper, { backgroundColor: priorityConfig.accentColor }]}>
-                                <Ionicons name={priorityConfig.icon} size={22} color={priorityConfig.iconColor} />
-                              </View>
-                              <View style={[styles.lahanSummaryPriorityBadge, priorityConfig.badge]}>
-                                <Text style={[styles.lahanSummaryPriorityBadgeText, priorityConfig.badgeText]}>
-                                  Prioritas {item.priorityNumber}
-                                </Text>
-                              </View>
-                            </View>
-                            <Text style={[styles.lahanSummaryPriorityText, priorityConfig.text]}>
-                              {item.description}
-                            </Text>
-                            {index < lahanSummaryPriorities.length - 1 && (
-                              <View style={styles.lahanSummaryPriorityDivider} />
-                            )}
-                          </View>
-                        );
-                      })}
-                    </View>
-                  ) : (
-                    <Text style={styles.lahanSummaryFallbackText}>{lahanSummaryText}</Text>
-                  )}
-                </View>
+                )}
               </View>
-            )
-          ) : (
-            <Text style={styles.sectionEmptyText}>
-              Ringkasan belum tersedia. Ketuk Ringkaskan untuk memulai analisis atau periksa data lahan kamu.
-            </Text>
-          )}
-        </View>
-  
+            </View>
+
+            {savedLahan.length === 0 ? (
+              <Text style={styles.sectionEmptyText}>
+                Tambahkan lahan terlebih dahulu untuk mendapatkan ringkasan
+                cerdas dari Matani AI.
+              </Text>
+            ) : isLahanSummaryLoading ? (
+              <View style={styles.lahanSummaryLoadingRow}>
+                <ActivityIndicator size="small" color="#1B5E20" />
+                <Text style={styles.lahanSummaryLoadingText}>
+                  Matani AI sedang menganalisis lahan kamu...
+                </Text>
+              </View>
+            ) : lahanSummaryError ? (
+              <View style={styles.lahanSummaryErrorBox}>
+                <Text style={styles.lahanSummaryErrorText}>
+                  {lahanSummaryError}
+                </Text>
+                <TouchableOpacity
+                  style={styles.lahanSummaryRetryButton}
+                  onPress={handleRefreshSummary}
+                  accessibilityLabel="Coba muat ringkasan lahan lagi"
+                >
+                  <Text style={styles.lahanSummaryRetryButtonText}>
+                    Coba lagi
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            ) : lahanSummaryText ? (
+              isLahanSummaryCollapsed ? (
+                <Text style={styles.lahanSummaryCollapsedText}>
+                  Ringkasan disembunyikan. Ketuk ikon panah di header untuk
+                  melihat kembali.
+                </Text>
+              ) : (
+                <View style={styles.lahanSummaryBubble}>
+                  <LinearGradient
+                    colors={[
+                      "#9592c404",
+                      "rgba(195, 180, 255, 0.05)",
+                      "rgba(159, 231, 217, 0.05)",
+                    ]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.lahanSummaryGalaxyOverlay}
+                    pointerEvents="none"
+                  />
+                  <View style={styles.lahanSummaryContent}>
+                    {lahanSummaryPriorities.length > 0 ? (
+                      <View style={styles.lahanSummaryPriorities}>
+                        {lahanSummaryPriorities.map((item, index) => {
+                          const priorityConfig =
+                            item.priorityNumber === 1
+                              ? {
+                                  card: styles.lahanSummaryPriorityCardHigh,
+                                  badge: styles.lahanSummaryPriorityBadgeHigh,
+                                  badgeText:
+                                    styles.lahanSummaryPriorityBadgeTextHigh,
+                                  text: styles.lahanSummaryPriorityTextHigh,
+                                  icon: "flame" as const,
+                                  iconColor: "#D32F2F",
+                                  accentColor: "#FFEBEE",
+                                }
+                              : item.priorityNumber === 2
+                              ? {
+                                  card: styles.lahanSummaryPriorityCardMedium,
+                                  badge: styles.lahanSummaryPriorityBadgeMedium,
+                                  badgeText:
+                                    styles.lahanSummaryPriorityBadgeTextMedium,
+                                  text: styles.lahanSummaryPriorityTextMedium,
+                                  icon: "alert-circle" as const,
+                                  iconColor: "#F57C00",
+                                  accentColor: "#FFF3E0",
+                                }
+                              : {
+                                  card: styles.lahanSummaryPriorityCardLow,
+                                  badge: styles.lahanSummaryPriorityBadgeLow,
+                                  badgeText:
+                                    styles.lahanSummaryPriorityBadgeTextLow,
+                                  text: styles.lahanSummaryPriorityTextLow,
+                                  icon: "checkmark-circle" as const,
+                                  iconColor: "#388E3C",
+                                  accentColor: "#E8F5E9",
+                                };
+
+                          return (
+                            <View
+                              key={item.id}
+                              style={[
+                                styles.lahanSummaryPriorityCard,
+                                priorityConfig.card,
+                              ]}
+                            >
+                              <View style={styles.lahanSummaryPriorityHeader}>
+                                <View
+                                  style={[
+                                    styles.lahanSummaryPriorityIconWrapper,
+                                    {
+                                      backgroundColor:
+                                        priorityConfig.accentColor,
+                                    },
+                                  ]}
+                                >
+                                  <Ionicons
+                                    name={priorityConfig.icon}
+                                    size={22}
+                                    color={priorityConfig.iconColor}
+                                  />
+                                </View>
+                                <View
+                                  style={[
+                                    styles.lahanSummaryPriorityBadge,
+                                    priorityConfig.badge,
+                                  ]}
+                                >
+                                  <Text
+                                    style={[
+                                      styles.lahanSummaryPriorityBadgeText,
+                                      priorityConfig.badgeText,
+                                    ]}
+                                  >
+                                    Prioritas {item.priorityNumber}
+                                  </Text>
+                                </View>
+                              </View>
+                              <Text
+                                style={[
+                                  styles.lahanSummaryPriorityText,
+                                  priorityConfig.text,
+                                ]}
+                              >
+                                {item.description}
+                              </Text>
+                              {index < lahanSummaryPriorities.length - 1 && (
+                                <View
+                                  style={styles.lahanSummaryPriorityDivider}
+                                />
+                              )}
+                            </View>
+                          );
+                        })}
+                      </View>
+                    ) : (
+                      <Text style={styles.lahanSummaryFallbackText}>
+                        {lahanSummaryText}
+                      </Text>
+                    )}
+                  </View>
+                </View>
+              )
+            ) : (
+              <Text style={styles.sectionEmptyText}>
+                Ringkasan belum tersedia. Ketuk Ringkaskan untuk memulai
+                analisis atau periksa data lahan kamu.
+              </Text>
+            )}
+          </View>
 
           <View style={styles.sectionContainer}>
             <Text style={[styles.sectionTitle, styles.sectionTitleSpaced]}>
@@ -3319,59 +3549,6 @@ export default function ExploreScreen() {
             </View>
           </View>
 
-          <View style={[styles.sectionContainer, styles.tipsSection]}>
-            <View style={styles.tipsSectionHeader}>
-              <View style={styles.tipsIconContainer}>
-                <View style={styles.tipsIconGradient}>
-                  <Ionicons name="bulb" size={26} color="#5C6BC0" />
-                </View>
-              </View>
-              <View style={styles.tipsSectionHeaderText}>
-                <Text style={[styles.sectionTitle, styles.tipsSectionTitle]}>
-                  Tips Penggunaan
-                </Text>
-                <Text style={styles.tipsSectionSubtitle}>
-                  Maksimalkan pengalaman Anda
-                </Text>
-              </View>
-            </View>
-            <View style={styles.tipsCardsContainer}>
-              <View style={styles.tipCard}>
-                <View style={styles.tipCardIconWrapper}>
-                  <Ionicons name="hand-left" size={20} color="#5C6BC0" />
-                </View>
-                <View style={styles.tipCardContent}>
-                  <Text style={styles.tipCardTitle}>Interaksi Peta</Text>
-                  <Text style={styles.tipCardText}>
-                    Tap lahan di peta untuk melihat detail lengkap
-                  </Text>
-                </View>
-              </View>
-              <View style={styles.tipCard}>
-                <View style={styles.tipCardIconWrapper}>
-                  <Ionicons name="expand" size={20} color="#5C6BC0" />
-                </View>
-                <View style={styles.tipCardContent}>
-                  <Text style={styles.tipCardTitle}>Gambar Presisi</Text>
-                  <Text style={styles.tipCardText}>
-                    Gunakan zoom untuk menggambar lahan lebih akurat
-                  </Text>
-                </View>
-              </View>
-              <View style={styles.tipCard}>
-                <View style={styles.tipCardIconWrapper}>
-                  <Ionicons name="create" size={20} color="#5C6BC0" />
-                </View>
-                <View style={styles.tipCardContent}>
-                  <Text style={styles.tipCardTitle}>Catat Perubahan</Text>
-                  <Text style={styles.tipCardText}>
-                    Simpan catatan untuk melacak progress lapangan
-                  </Text>
-                </View>
-              </View>
-            </View>
-          </View>
-
           <View style={styles.sectionContainer}>
             <View style={styles.sectionHeaderRow}>
               <View style={styles.notesHeaderContent}>
@@ -3403,7 +3580,8 @@ export default function ExploreScreen() {
                 </View>
                 <Text style={styles.notesEmptyTitle}>Belum Ada Catatan</Text>
                 <Text style={styles.notesEmptyText}>
-                  Simpan setiap temuan penting dari lapangan agar progress selalu tercatat dengan baik.
+                  Simpan setiap temuan penting dari lapangan agar progress
+                  selalu tercatat dengan baik.
                 </Text>
               </View>
             ) : (
@@ -3417,14 +3595,24 @@ export default function ExploreScreen() {
                         </View>
                         <View style={styles.noteCardHeaderInfo}>
                           <Text style={styles.noteTimestamp}>
-                            <Ionicons name="time-outline" size={12} color="#F9A825" />
-                            {'  '}
+                            <Ionicons
+                              name="time-outline"
+                              size={12}
+                              color="#F9A825"
+                            />
+                            {"  "}
                             {formatDisplayDate(note.created_at)}
                           </Text>
                           {note.lahanName && (
                             <View style={styles.noteLahanBadge}>
-                              <Ionicons name="location" size={11} color="#F57F17" />
-                              <Text style={styles.noteLahan}>{note.lahanName}</Text>
+                              <Ionicons
+                                name="location"
+                                size={11}
+                                color="#F57F17"
+                              />
+                              <Text style={styles.noteLahan}>
+                                {note.lahanName}
+                              </Text>
                             </View>
                           )}
                         </View>
@@ -3443,15 +3631,27 @@ export default function ExploreScreen() {
                         style={styles.noteActionButton}
                         onPress={() => handleEditNote(note)}
                       >
-                        <Ionicons name="create-outline" size={18} color="#F57F17" />
+                        <Ionicons
+                          name="create-outline"
+                          size={18}
+                          color="#F57F17"
+                        />
                         <Text style={styles.noteActionText}>Edit</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
                         style={styles.noteActionButton}
                         onPress={() => handleDeleteNote(note.id)}
                       >
-                        <Ionicons name="trash-outline" size={18} color="#EF5350" />
-                        <Text style={[styles.noteActionText, { color: '#EF5350' }]}>Hapus</Text>
+                        <Ionicons
+                          name="trash-outline"
+                          size={18}
+                          color="#EF5350"
+                        />
+                        <Text
+                          style={[styles.noteActionText, { color: "#EF5350" }]}
+                        >
+                          Hapus
+                        </Text>
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -3538,10 +3738,10 @@ export default function ExploreScreen() {
                   <Text style={styles.notePickerLabel}>
                     {selectedNoteLahanName ?? "Pilih lahan"}
                   </Text>
-                  <Ionicons 
-                    name={isLahanPickerVisible ? "chevron-up" : "chevron-down"} 
-                    size={20} 
-                    color="#F57F17" 
+                  <Ionicons
+                    name={isLahanPickerVisible ? "chevron-up" : "chevron-down"}
+                    size={20}
+                    color="#F57F17"
                   />
                 </TouchableOpacity>
 
@@ -3698,10 +3898,10 @@ export default function ExploreScreen() {
                   <Text style={styles.notePickerLabel}>
                     {selectedNoteLahanName ?? "Pilih lahan"}
                   </Text>
-                  <Ionicons 
-                    name={isLahanPickerVisible ? "chevron-up" : "chevron-down"} 
-                    size={20} 
-                    color="#F57F17" 
+                  <Ionicons
+                    name={isLahanPickerVisible ? "chevron-up" : "chevron-down"}
+                    size={20}
+                    color="#F57F17"
                   />
                 </TouchableOpacity>
 
@@ -3844,8 +4044,8 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   lahanHeaderLeft: {
-    flexDirection: 'column',
-    alignItems: 'flex-start',
+    flexDirection: "column",
+    alignItems: "flex-start",
   },
   sectionTitle: {
     fontSize: 18,
@@ -4220,18 +4420,18 @@ const styles = StyleSheet.create({
     color: "#616161",
   },
   lahanCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderRadius: 16,
     padding: 0,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    shadowColor: '#0F172A',
+    borderColor: "#E5E7EB",
+    shadowColor: "#0F172A",
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.08,
     shadowRadius: 12,
     elevation: 3,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   lahanCardRow: {
     flexDirection: "row",
@@ -4239,11 +4439,11 @@ const styles = StyleSheet.create({
   },
   lahanCardThumbnail: {
     width: 130,
-    alignSelf: 'stretch',
+    alignSelf: "stretch",
     minHeight: 180,
-    justifyContent: 'space-between',
-    alignItems: 'stretch',
-    backgroundColor: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    justifyContent: "space-between",
+    alignItems: "stretch",
+    backgroundColor: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
   },
   lahanCardThumbnailImage: {
     borderRadius: 0,
@@ -4254,7 +4454,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 12,
     paddingVertical: 16,
-    backgroundColor: 'rgba(15, 23, 42, 0.4)',
+    backgroundColor: "rgba(15, 23, 42, 0.4)",
   },
   lahanCardThumbnailFallback: {
     alignItems: "center",
@@ -4274,14 +4474,14 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 6,
-    alignItems: 'center',
+    alignItems: "center",
   },
   lahanCardBadgeOverlayText: {
     fontSize: 11,
     fontWeight: "800",
     letterSpacing: 0.5,
-    color: '#FFFFFF',
-    textTransform: 'uppercase',
+    color: "#FFFFFF",
+    textTransform: "uppercase",
   },
   lahanCardBadge: {
     alignSelf: "flex-start",
@@ -4290,7 +4490,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     marginBottom: 12,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
   },
   lahanCardBadgeText: {
     fontSize: 12,
@@ -4300,40 +4500,40 @@ const styles = StyleSheet.create({
   lahanCardContent: {
     flex: 1,
     padding: 16,
-    justifyContent: 'space-between',
+    justifyContent: "space-between",
   },
   lahanCardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     marginBottom: 12,
   },
   lahanCardTitle: {
     flex: 1,
     fontSize: 17,
-    fontWeight: '700',
-    color: '#111827',
+    fontWeight: "700",
+    color: "#111827",
     letterSpacing: -0.3,
   },
   lahanCardInfoRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
     marginBottom: 12,
     gap: 12,
   },
   lahanCardInfoItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F3F4F6',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F3F4F6",
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 8,
   },
   lahanCardInfoText: {
     fontSize: 12,
-    fontWeight: '600',
-    color: '#374151',
+    fontWeight: "600",
+    color: "#374151",
     marginLeft: 5,
   },
   lahanCardNdviContainer: {
@@ -4343,57 +4543,57 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   lahanCardNdviHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 6,
   },
   lahanCardNdviLabel: {
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: "700",
     marginLeft: 6,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
     letterSpacing: 0.5,
   },
   lahanCardNdviValue: {
     fontSize: 20,
-    fontWeight: '800',
+    fontWeight: "800",
     marginBottom: 4,
   },
   lahanCardNdviDate: {
     fontSize: 10,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   lahanCardNdviEmptyContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F9FAFB',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F9FAFB",
     borderRadius: 8,
     padding: 10,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: "#E5E7EB",
   },
   lahanCardNdviEmptyText: {
     fontSize: 12,
-    color: '#6B7280',
+    color: "#6B7280",
     marginLeft: 8,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   lahanCardLocationRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 'auto',
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: "auto",
   },
   lahanCardLocationText: {
     fontSize: 11,
-    color: '#6B7280',
+    color: "#6B7280",
     marginLeft: 5,
     flex: 1,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   lahanCardSubtitle: {
     fontSize: 13,
-    color: '#000000ff',
+    color: "#000000ff",
   },
   lahanCardMeta: {
     fontSize: 13,
@@ -4409,17 +4609,17 @@ const styles = StyleSheet.create({
   },
   lahanSummaryDescription: {
     fontSize: 13,
-    color: '#546E7A',
+    color: "#546E7A",
     marginTop: 4,
   },
   lahanSummaryRefreshButton: {
     borderRadius: 20,
     paddingHorizontal: 14,
     paddingVertical: 8,
-    backgroundColor: '#C8E6C9',
+    backgroundColor: "#C8E6C9",
     borderWidth: 1,
-    borderColor: '#81C784',
-    alignSelf: 'flex-start',
+    borderColor: "#81C784",
+    alignSelf: "flex-start",
     marginTop: 4,
   },
   lahanSummaryRefreshButtonCompact: {
@@ -4429,49 +4629,49 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   lahanSummaryActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   lahanSummaryToggleButton: {
     width: 34,
     height: 34,
     borderRadius: 17,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     borderWidth: 1,
-    borderColor: '#A5D6A7',
-    backgroundColor: '#E8F5E9',
+    borderColor: "#A5D6A7",
+    backgroundColor: "#E8F5E9",
     marginRight: 8,
   },
   lahanSummaryRefreshContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   lahanSummaryRefreshText: {
     marginLeft: 6,
     fontSize: 13,
-    fontWeight: '600',
-    color: '#1B5E20',
+    fontWeight: "600",
+    color: "#1B5E20",
   },
   lahanSummaryHeaderRow: {
-    alignItems: 'flex-start',
-    flexWrap: 'wrap',
+    alignItems: "flex-start",
+    flexWrap: "wrap",
   },
   lahanSummaryBubble: {
     borderRadius: 24,
     padding: 24,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: '#E8EAF6',
-    overflow: 'hidden',
-    shadowColor: '#1E293B',
+    borderColor: "#E8EAF6",
+    overflow: "hidden",
+    shadowColor: "#1E293B",
     shadowOffset: { width: 0, height: 12 },
     shadowOpacity: 0.12,
     shadowRadius: 24,
     elevation: 8,
   },
   lahanSummaryGalaxyOverlay: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
     left: 0,
     right: 0,
@@ -4479,22 +4679,22 @@ const styles = StyleSheet.create({
     borderRadius: 24,
   },
   lahanSummaryContent: {
-    position: 'relative',
+    position: "relative",
   },
   lahanSummaryCardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     flex: 1,
     paddingRight: 12,
     flexShrink: 1,
-    flexWrap: 'wrap',
+    flexWrap: "wrap",
   },
   lahanSummarySparkleIcon: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     marginRight: 12,
   },
   lahanSummaryHeaderCopy: {
@@ -4502,15 +4702,15 @@ const styles = StyleSheet.create({
   },
   lahanSummaryChipText: {
     fontSize: 16,
-    fontWeight: '700',
-    color: '#274FA5',
+    fontWeight: "700",
+    color: "#274FA5",
     letterSpacing: 0.4,
   },
   lahanSummaryHeadline: {
     marginTop: 2,
     fontSize: 13,
-    fontWeight: '500',
-    color: '#1F2A4B',
+    fontWeight: "500",
+    color: "#1F2A4B",
   },
   lahanSummaryPriorities: {
     marginTop: 8,
@@ -4521,15 +4721,15 @@ const styles = StyleSheet.create({
     padding: 18,
     borderWidth: 1.5,
     marginTop: 14,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
     shadowRadius: 12,
     elevation: 4,
   },
   lahanSummaryPriorityHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 14,
     gap: 12,
   },
@@ -4537,25 +4737,25 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 21,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
     shadowRadius: 6,
     elevation: 2,
   },
   lahanSummaryPriorityCardHigh: {
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    borderColor: 'rgba(211, 47, 47, 0.35)',
+    backgroundColor: "rgba(255, 255, 255, 0.95)",
+    borderColor: "rgba(211, 47, 47, 0.35)",
   },
   lahanSummaryPriorityCardMedium: {
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    borderColor: 'rgba(245, 124, 0, 0.35)',
+    backgroundColor: "rgba(255, 255, 255, 0.95)",
+    borderColor: "rgba(245, 124, 0, 0.35)",
   },
   lahanSummaryPriorityCardLow: {
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    borderColor: 'rgba(56, 142, 60, 0.35)',
+    backgroundColor: "rgba(255, 255, 255, 0.95)",
+    borderColor: "rgba(56, 142, 60, 0.35)",
   },
   lahanSummaryPriorityBadge: {
     flex: 1,
@@ -4565,105 +4765,105 @@ const styles = StyleSheet.create({
   },
   lahanSummaryPriorityBadgeText: {
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: "700",
     letterSpacing: 0.8,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
   },
   lahanSummaryPriorityBadgeHigh: {
-    backgroundColor: 'rgba(211, 47, 47, 0.15)',
+    backgroundColor: "rgba(211, 47, 47, 0.15)",
     borderWidth: 1,
-    borderColor: 'rgba(211, 47, 47, 0.3)',
+    borderColor: "rgba(211, 47, 47, 0.3)",
   },
   lahanSummaryPriorityBadgeTextHigh: {
-    color: '#B71C1C',
+    color: "#B71C1C",
   },
   lahanSummaryPriorityBadgeMedium: {
-    backgroundColor: 'rgba(245, 124, 0, 0.15)',
+    backgroundColor: "rgba(245, 124, 0, 0.15)",
     borderWidth: 1,
-    borderColor: 'rgba(245, 124, 0, 0.3)',
+    borderColor: "rgba(245, 124, 0, 0.3)",
   },
   lahanSummaryPriorityBadgeTextMedium: {
-    color: '#E65100',
+    color: "#E65100",
   },
   lahanSummaryPriorityBadgeLow: {
-    backgroundColor: 'rgba(56, 142, 60, 0.15)',
+    backgroundColor: "rgba(56, 142, 60, 0.15)",
     borderWidth: 1,
-    borderColor: 'rgba(56, 142, 60, 0.3)',
+    borderColor: "rgba(56, 142, 60, 0.3)",
   },
   lahanSummaryPriorityBadgeTextLow: {
-    color: '#1B5E20',
+    color: "#1B5E20",
   },
   lahanSummaryPriorityText: {
     fontSize: 14.5,
     lineHeight: 22,
-    fontWeight: '500',
-    color: '#263238',
+    fontWeight: "500",
+    color: "#263238",
     letterSpacing: 0.1,
   },
   lahanSummaryPriorityTextHigh: {
-    color: '#37474F',
+    color: "#37474F",
   },
   lahanSummaryPriorityTextMedium: {
-    color: '#37474F',
+    color: "#37474F",
   },
   lahanSummaryPriorityTextLow: {
-    color: '#37474F',
+    color: "#37474F",
   },
   lahanSummaryPriorityDivider: {
     height: 1,
-    backgroundColor: 'transparent',
+    backgroundColor: "transparent",
     marginTop: 4,
   },
   lahanSummaryFallbackText: {
     fontSize: 14.5,
     lineHeight: 23,
-    color: '#37474F',
+    color: "#37474F",
     letterSpacing: 0.1,
   },
   lahanSummaryCollapsedText: {
     marginTop: 10,
     fontSize: 13.5,
-    color: '#607D8B',
-    fontStyle: 'italic',
-    textAlign: 'center',
+    color: "#607D8B",
+    fontStyle: "italic",
+    textAlign: "center",
     paddingVertical: 16,
     paddingHorizontal: 24,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: "#F5F5F5",
     borderRadius: 12,
   },
   lahanSummaryLoadingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   lahanSummaryLoadingText: {
     marginLeft: 10,
     fontSize: 13,
-    color: '#607D8B',
+    color: "#607D8B",
   },
   lahanSummaryErrorBox: {
-    backgroundColor: '#FFEBEE',
+    backgroundColor: "#FFEBEE",
     borderRadius: 14,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#EF9A9A',
+    borderColor: "#EF9A9A",
   },
   lahanSummaryErrorText: {
     fontSize: 14,
     lineHeight: 20,
-    color: '#C62828',
+    color: "#C62828",
   },
   lahanSummaryRetryButton: {
     marginTop: 12,
-    alignSelf: 'flex-start',
+    alignSelf: "flex-start",
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 18,
-    backgroundColor: '#C62828',
+    backgroundColor: "#C62828",
   },
   lahanSummaryRetryButtonText: {
     fontSize: 13,
-    fontWeight: '600',
-    color: '#FFFFFF',
+    fontWeight: "600",
+    color: "#FFFFFF",
   },
   paginationContainer: {
     flexDirection: "row",
@@ -4732,12 +4932,12 @@ const styles = StyleSheet.create({
     color: "#37474F",
   },
   tipsSection: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     marginBottom: 8,
   },
   tipsSectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 20,
   },
   tipsIconContainer: {
@@ -4747,39 +4947,39 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#E8EAF6',
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#E8EAF6",
     borderWidth: 2,
-    borderColor: '#C5CAE9',
+    borderColor: "#C5CAE9",
   },
   tipsSectionHeaderText: {
     flex: 1,
   },
   tipsSectionTitle: {
     fontSize: 20,
-    fontWeight: '800',
-    color: '#1A202C',
+    fontWeight: "800",
+    color: "#1A202C",
     marginBottom: 4,
   },
   tipsSectionSubtitle: {
     fontSize: 13,
-    color: '#718096',
-    fontWeight: '500',
+    color: "#718096",
+    fontWeight: "500",
   },
   tipsCardsContainer: {
     gap: 12,
   },
   tipCard: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: '#FFFFFF',
+    flexDirection: "row",
+    alignItems: "flex-start",
+    backgroundColor: "#FFFFFF",
     borderRadius: 16,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: '#667EEA',
+    borderColor: "#E2E8F0",
+    shadowColor: "#667EEA",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 12,
@@ -4789,9 +4989,9 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: '#EEF2FF',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "#EEF2FF",
+    alignItems: "center",
+    justifyContent: "center",
     marginRight: 14,
   },
   tipCardContent: {
@@ -4799,14 +4999,14 @@ const styles = StyleSheet.create({
   },
   tipCardTitle: {
     fontSize: 15,
-    fontWeight: '700',
-    color: '#1A202C',
+    fontWeight: "700",
+    color: "#1A202C",
     marginBottom: 4,
     letterSpacing: -0.2,
   },
   tipCardText: {
     fontSize: 13,
-    color: '#4A5568',
+    color: "#4A5568",
     lineHeight: 19,
   },
   tipBullet: {
@@ -4815,134 +5015,134 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   notesHeaderContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     flex: 1,
   },
   notesIconWrapper: {
     width: 44,
     height: 44,
     borderRadius: 12,
-    backgroundColor: '#FFF9C4',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "#FFF9C4",
+    alignItems: "center",
+    justifyContent: "center",
     marginRight: 12,
     borderWidth: 1,
-    borderColor: '#FFE082',
+    borderColor: "#FFE082",
   },
   notesSubheader: {
     fontSize: 12,
-    color: '#F57F17',
+    color: "#F57F17",
     marginTop: 2,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   notesLoadingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     paddingVertical: 32,
   },
   notesLoadingText: {
     marginLeft: 12,
     fontSize: 13,
-    color: '#F57F17',
+    color: "#F57F17",
   },
   notesEmptyState: {
-    alignItems: 'center',
+    alignItems: "center",
     paddingVertical: 40,
     paddingHorizontal: 24,
-    backgroundColor: '#FFFDE7',
+    backgroundColor: "#FFFDE7",
     borderRadius: 16,
   },
   notesEmptyIconWrapper: {
     width: 80,
     height: 80,
     borderRadius: 16,
-    backgroundColor: '#FFF9C4',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "#FFF9C4",
+    alignItems: "center",
+    justifyContent: "center",
     marginBottom: 16,
   },
   notesEmptyTitle: {
     fontSize: 18,
-    fontWeight: '700',
-    color: '#F57F17',
+    fontWeight: "700",
+    color: "#F57F17",
     marginBottom: 8,
   },
   notesEmptyText: {
     fontSize: 14,
-    color: '#d38e20ff',
-    textAlign: 'center',
+    color: "#d38e20ff",
+    textAlign: "center",
     lineHeight: 21,
   },
   notesGrid: {
     marginTop: 4,
   },
   noteCard: {
-    backgroundColor: '#fffef180',
+    backgroundColor: "#fffef180",
     borderRadius: 12,
     padding: 16,
     marginBottom: 14,
     borderWidth: 0,
     borderLeftWidth: 4,
-    borderLeftColor: '#FFD600',
-    shadowColor: '#F9A825',
+    borderLeftColor: "#FFD600",
+    shadowColor: "#F9A825",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.12,
     shadowRadius: 8,
     elevation: 3,
   },
   noteCardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
     marginBottom: 12,
   },
   noteCardHeaderLeft: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
+    flexDirection: "row",
+    alignItems: "flex-start",
     flex: 1,
   },
   noteNumberBadge: {
     width: 28,
     height: 28,
     borderRadius: 8,
-    backgroundColor: '#FFF9C4',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "#FFF9C4",
+    alignItems: "center",
+    justifyContent: "center",
     marginRight: 10,
     borderWidth: 1,
-    borderColor: '#FFE082',
+    borderColor: "#FFE082",
   },
   noteNumberText: {
     fontSize: 13,
-    fontWeight: '800',
-    color: '#F57F17',
+    fontWeight: "800",
+    color: "#F57F17",
   },
   noteCardHeaderInfo: {
     flex: 1,
   },
   noteTimestamp: {
     fontSize: 11,
-    color: '#F9A825',
-    fontWeight: '600',
+    color: "#F9A825",
+    fontWeight: "600",
     marginBottom: 4,
   },
   noteLahanBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    backgroundColor: '#FFF9C4',
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    backgroundColor: "#FFF9C4",
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: '#FFE082',
+    borderColor: "#FFE082",
   },
   noteLahan: {
     fontSize: 11,
-    color: '#F57F17',
-    fontWeight: '700',
+    color: "#F57F17",
+    fontWeight: "700",
     marginLeft: 4,
   },
   noteCardBody: {
@@ -4950,35 +5150,35 @@ const styles = StyleSheet.create({
   },
   noteTitle: {
     fontSize: 16,
-    fontWeight: '700',
-    color: '#793f0cff',
+    fontWeight: "700",
+    color: "#793f0cff",
     marginBottom: 8,
     lineHeight: 22,
     letterSpacing: -0.3,
   },
   noteContent: {
     fontSize: 14,
-    color: '#ce8a1eff',
+    color: "#ce8a1eff",
     lineHeight: 21,
   },
   noteCardFooter: {
     borderTopWidth: 1,
-    borderTopColor: '#FFF59D',
+    borderTopColor: "#FFF59D",
     paddingTop: 10,
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
+    flexDirection: "row",
+    justifyContent: "flex-end",
   },
   newNoteButton: {
     marginTop: 16,
     borderRadius: 12,
-    backgroundColor: '#FFF9C4',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "#FFF9C4",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     paddingVertical: 14,
     borderWidth: 2,
-    borderColor: '#FFE082',
-    shadowColor: '#F9A825',
+    borderColor: "#FFE082",
+    shadowColor: "#F9A825",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15,
     shadowRadius: 6,
@@ -4989,8 +5189,8 @@ const styles = StyleSheet.create({
   },
   newNoteButtonText: {
     fontSize: 15,
-    color: '#F57F17',
-    fontWeight: '800',
+    color: "#F57F17",
+    fontWeight: "800",
     letterSpacing: -0.2,
   },
   // Modal styles
@@ -5059,24 +5259,24 @@ const styles = StyleSheet.create({
     maxHeight: height * 0.85,
   },
   noteModalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     marginBottom: 24,
     paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#FFE082',
+    borderBottomColor: "#FFE082",
   },
   noteModalHeaderIconWrapper: {
     width: 48,
     height: 48,
     borderRadius: 12,
-    backgroundColor: '#FFF9C4',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "#FFF9C4",
+    alignItems: "center",
+    justifyContent: "center",
     marginRight: 12,
     borderWidth: 1,
-    borderColor: '#FFE082',
+    borderColor: "#FFE082",
   },
   noteModalHeaderText: {
     flex: 1,
@@ -5085,40 +5285,40 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   formFieldHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 8,
   },
   formFieldLabel: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#F57F17',
+    fontWeight: "600",
+    color: "#F57F17",
     marginLeft: 6,
   },
   notePickerButton: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     borderWidth: 1,
-    borderColor: '#FFE082',
+    borderColor: "#FFE082",
     borderRadius: 12,
     paddingVertical: 12,
     paddingHorizontal: 16,
-    backgroundColor: '#FFFDE7',
+    backgroundColor: "#FFFDE7",
   },
   notePickerLabel: {
     fontSize: 14,
-    color: '#F57F17',
+    color: "#F57F17",
     flex: 1,
   },
   notePickerDropdown: {
     borderWidth: 1,
-    borderColor: '#FFE082',
+    borderColor: "#FFE082",
     borderRadius: 12,
     maxHeight: 180,
     marginTop: 8,
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#F9A825',
+    backgroundColor: "#FFFFFF",
+    shadowColor: "#F9A825",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -5202,22 +5402,22 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   drawingInfoButton: {
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
     paddingVertical: 6,
     paddingHorizontal: 10,
     borderRadius: 16,
-    backgroundColor: '#E3F2FD',
+    backgroundColor: "#E3F2FD",
   },
   drawingInfoButtonIcon: {
     marginRight: 6,
   },
   drawingInfoText: {
     fontSize: 12,
-    fontWeight: '600',
-    color: '#1565C0',
-    textTransform: 'uppercase',
+    fontWeight: "600",
+    color: "#1565C0",
+    textTransform: "uppercase",
     letterSpacing: 0.4,
   },
   // Empty State Styles
@@ -5341,63 +5541,63 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   editToggleButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
-    backgroundColor: '#E3F2FD',
+    backgroundColor: "#E3F2FD",
   },
   editToggleButtonText: {
     fontSize: 13,
-    color: '#1E88E5',
+    color: "#1E88E5",
     marginLeft: 4,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   lahanCardActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
+    flexDirection: "row",
+    justifyContent: "flex-end",
     marginTop: 12,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#ECEFF1',
+    borderTopColor: "#ECEFF1",
   },
   lahanActionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 12,
     paddingVertical: 8,
     marginLeft: 8,
     borderRadius: 8,
-    backgroundColor: '#E3F2FD',
+    backgroundColor: "#E3F2FD",
   },
   lahanActionButtonDelete: {
-    backgroundColor: '#FFEBEE',
+    backgroundColor: "#FFEBEE",
   },
   lahanActionButtonText: {
     fontSize: 13,
-    color: '#1E88E5',
+    color: "#1E88E5",
     marginLeft: 4,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   lahanActionButtonDeleteText: {
-    color: '#EF5350',
+    color: "#EF5350",
   },
   noteActionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 10,
     paddingVertical: 6,
     marginLeft: 8,
     borderRadius: 8,
-    backgroundColor: '#FFF9C4',
+    backgroundColor: "#FFF9C4",
     borderWidth: 1,
-    borderColor: '#FFE082',
+    borderColor: "#FFE082",
   },
   noteActionText: {
     fontSize: 13,
-    color: '#F57F17',
+    color: "#F57F17",
     marginLeft: 4,
-    fontWeight: '700',
+    fontWeight: "700",
   },
 });

@@ -1,6 +1,5 @@
 import {
   classifyNdviStatus,
-  formatNdviValue,
   NDVI_UNKNOWN_CONFIG,
   type NdviClassification,
 } from "@/constants/ndvi";
@@ -18,7 +17,6 @@ import {
   Alert,
   Dimensions,
   Image,
-  ImageBackground,
   Modal,
   ScrollView,
   StatusBar,
@@ -57,6 +55,9 @@ interface SavedLahanCardProps {
   ndviScore?: number | null;
   capturedAt?: string | null;
   thumbnailUrl?: string | null;
+  category?: string | null;
+  warningCount?: number;
+  note?: string | null;
   onPress?: () => void;
 }
 
@@ -77,6 +78,9 @@ interface SavedLahan {
   name: string;
   areaHa: number | null;
   thumbnailUrl: string | null;
+  category?: string | null;
+  warningCount?: number;
+  latestNote?: string | null;
 }
 
 interface LahanNoteRecord {
@@ -129,12 +133,6 @@ const formatDisplayDate = (value?: string | null) => {
     return "--";
   }
 };
-
-const HOME_USAGE_TIPS = [
-  "Tap lahan di peta untuk melihat detail dan status kesehatan.",
-  "Gunakan zoom agar penggambaran batas lahan lebih presisi.",
-  "Simpan catatan lapangan secara rutin untuk memantau perubahan.",
-];
 
 const formatGeocodedLocation = (
   place?: Location.LocationGeocodedAddress | null
@@ -275,54 +273,60 @@ const LahanCard = ({
   ndviScore,
   capturedAt,
   thumbnailUrl,
+  category,
+  warningCount = 0,
+  note,
   onPress,
 }: SavedLahanCardProps) => {
-  const areaLabel =
-    areaHa !== null ? `${areaHa.toFixed(2)} ha` : "Luas belum tersedia";
-
   const ndviValue = parseOptionalNumber(ndviScore);
-  const ndviLabel =
-    ndviValue !== null
-      ? `NDVI ${formatNdviValue(ndviValue)}`
-      : "NDVI belum tersedia";
-  const capturedLabel = capturedAt ? formatDisplayDate(capturedAt) : null;
-  const heroImage = thumbnailUrl ? { uri: thumbnailUrl } : DEFAULT_FIELD_IMAGE;
+  const classification = classifyNdviStatus(ndviValue, null);
+  const statusLabel = classification.title || "Status tidak diketahui";
+  const statusColor = classification.color || "#4CAF50";
+
+  // Truncate note with "..."
+  const displayNote =
+    note && note.length > 25
+      ? `${note.substring(0, 25)}...`
+      : note || "Jangan lupa siram ja....";
 
   return (
     <View style={styles.fieldCardContainer}>
       <TouchableOpacity
         onPress={onPress}
         disabled={!onPress}
-        style={styles.fieldCard}
         activeOpacity={0.88}
       >
-        <View style={styles.fieldCardSoft}>
-          <View style={styles.fieldCardContent}>
-            <ImageBackground
-              source={heroImage}
-              style={styles.fieldImage}
-              imageStyle={styles.fieldImageRadius}
-              resizeMode="cover"
-            >
-              <View style={styles.fieldImageOverlay}>
-                <View style={styles.fieldImageLabel}>
-                  <Text style={styles.fieldImageTitle}>{areaLabel}</Text>
-                </View>
-              </View>
-            </ImageBackground>
-            <View style={styles.fieldInfoPanel}>
-              <View style={styles.fieldInfoTextGroup}>
-                <Text style={styles.cardTitle} numberOfLines={1}>
-                  {name}
-                </Text>
-                <Text style={styles.cardSubtitle}>{ndviLabel}</Text>
-                {capturedLabel ? (
-                  <Text style={styles.cardMeta}>Data · {capturedLabel}</Text>
-                ) : null}
-              </View>
-              <View style={styles.fieldArrowButton}>
-                <Ionicons name="chevron-forward" size={16} color="#1C1C1E" />
-              </View>
+        <View style={styles.fieldCard}>
+          {/* Top Section with Gradient */}
+          <LinearGradient
+            colors={["#8fb987", "#7ba474"]}
+            style={styles.fieldCardTop}
+          >
+            <View style={styles.fieldCategoryBadge}>
+              <Text style={styles.fieldCategoryText}>
+                {category || "Jagung"}
+              </Text>
+            </View>
+
+            <View style={styles.fieldWarningBadge}>
+              <Ionicons name="warning" size={10} color="#ffffff" />
+              <Text style={styles.fieldWarningCount}>{warningCount}</Text>
+            </View>
+          </LinearGradient>
+
+          {/* Bottom Section - Info */}
+          <View style={styles.fieldCardBottom}>
+            <Text style={[styles.fieldStatusLabel, { color: statusColor }]}>
+              {statusLabel}
+            </Text>
+            <Text style={styles.fieldNameLabel} numberOfLines={1}>
+              {name}
+            </Text>
+            <View style={styles.fieldCardFooter}>
+              <Text style={styles.fieldNoteLabel} numberOfLines={1}>
+                {displayNote}
+              </Text>
+              <Ionicons name="chevron-forward" size={12} color="#8f8f8f" />
             </View>
           </View>
         </View>
@@ -399,13 +403,6 @@ export default function HomeScreen() {
     return noteTitle.trim().length > 0 && noteContent.trim().length > 0;
   }, [noteContent, noteTitle]);
 
-  const featuredTips = useMemo(() => {
-    const daySeed = new Date().getDate();
-    const rotated = [...HOME_USAGE_TIPS];
-    const shift = daySeed % HOME_USAGE_TIPS.length;
-    return rotated.slice(shift).concat(rotated.slice(0, shift));
-  }, []);
-
   useEffect(() => {
     let isMounted = true;
     const loadUserProfile = async () => {
@@ -474,7 +471,9 @@ export default function HomeScreen() {
             const response = await fetch(url);
             if (!response.ok) {
               lastErrorMessage = await response.text();
-              console.warn(`⚠️ Weather endpoint responded with ${response.status} from ${url}`);
+              console.warn(
+                `⚠️ Weather endpoint responded with ${response.status} from ${url}`
+              );
               continue;
             }
 
@@ -482,8 +481,14 @@ export default function HomeScreen() {
             console.log("Weather data fetched from", url);
             break outer;
           } catch (networkError) {
-            lastErrorMessage = networkError instanceof Error ? networkError.message : String(networkError);
-            console.warn(`⚠️ Weather request network error for ${url}:`, lastErrorMessage);
+            lastErrorMessage =
+              networkError instanceof Error
+                ? networkError.message
+                : String(networkError);
+            console.warn(
+              `⚠️ Weather request network error for ${url}:`,
+              lastErrorMessage
+            );
           }
         }
       }
@@ -518,7 +523,9 @@ export default function HomeScreen() {
             : [];
 
           data = {
-            location: `Koordinat ${latitude.toFixed(2)}, ${longitude.toFixed(2)}`,
+            location: `Koordinat ${latitude.toFixed(2)}, ${longitude.toFixed(
+              2
+            )}`,
             temperature: current?.temperature_2m ?? null,
             highTemp: payload?.daily?.temperature_2m_max?.[0] ?? null,
             lowTemp: payload?.daily?.temperature_2m_min?.[0] ?? null,
@@ -530,7 +537,8 @@ export default function HomeScreen() {
               isoDate: time,
               highTemp: payload?.daily?.temperature_2m_max?.[index] ?? null,
               lowTemp: payload?.daily?.temperature_2m_min?.[index] ?? null,
-              precipitationMm: payload?.daily?.precipitation_sum?.[index] ?? null,
+              precipitationMm:
+                payload?.daily?.precipitation_sum?.[index] ?? null,
             })),
           };
 
@@ -644,6 +652,34 @@ export default function HomeScreen() {
           console.warn("Gagal memuat metadata thumbnail lahan:", error);
         }
       }
+      // Load latest notes for each lahan
+      let notesMap: Record<string, string> = {};
+      if (isAuthenticatedUser && lahanIds.length > 0) {
+        try {
+          const { data: notesData } = await supabase
+            .from("lahan_notes")
+            .select("lahan_id, content, created_at")
+            .in("lahan_id", lahanIds)
+            .order("created_at", { ascending: false });
+
+          if (notesData && Array.isArray(notesData)) {
+            const latestNotes = new Map<string, string>();
+            notesData.forEach((note: any) => {
+              if (
+                note.lahan_id &&
+                note.content &&
+                !latestNotes.has(note.lahan_id)
+              ) {
+                latestNotes.set(note.lahan_id, note.content);
+              }
+            });
+            notesMap = Object.fromEntries(latestNotes);
+          }
+        } catch (error) {
+          console.warn("Gagal memuat notes lahan:", error);
+        }
+      }
+
       const normalized: SavedLahan[] = Array.isArray(lahanList)
         ? lahanList.map((item: LahanWithInfo) => {
             const rawArea = item.area_ha;
@@ -665,6 +701,9 @@ export default function HomeScreen() {
                 item.thumbnail_url.length > 0
                   ? item.thumbnail_url
                   : thumbnailMap[item.id] ?? null,
+              category: "Jagung", // Default category, bisa diambil dari database jika ada field category
+              warningCount: 0, // Bisa dihitung dari health status atau issues
+              latestNote: notesMap[item.id] ?? null,
             };
           })
         : [];
@@ -1059,7 +1098,7 @@ export default function HomeScreen() {
 
       {/* Sticky header background */}
       <LinearGradient
-        colors={["#8BC34A", "#7ab942ff"]}
+        colors={["#4CAF50", "#4CAF50"]}
         style={styles.stickyHeader}
       />
 
@@ -1069,45 +1108,47 @@ export default function HomeScreen() {
       >
         {/* Header with extended gradient background */}
         <LinearGradient
-          colors={["#8BC34A", "#7ab942ff"]}
+          colors={["#4CAF50", "#4CAF50"]}
           style={styles.headerBackground}
         >
           <View style={styles.header}>
             <View style={styles.headerTop}>
-              <View>
-                <Text style={styles.greeting}>Selamat Datang,</Text>
-                <Text style={styles.userName}>{userNameDisplay}</Text>
+              <View style={styles.profilePicture}>
+                <Ionicons name="person" size={24} color="#4CAF50" />
               </View>
-              <View style={styles.headerActions}>
-                <TouchableOpacity
-                  style={styles.notificationButton}
-                  onPress={() =>
-                    Alert.alert(
-                      "Notifikasi",
-                      "Fitur notifikasi akan segera hadir!"
-                    )
-                  }
-                  activeOpacity={0.7}
-                >
-                  <Ionicons
-                    name="notifications-outline"
-                    size={24}
-                    color="#fff"
-                  />
-                </TouchableOpacity>
-                <View style={styles.profilePicture}>
-                  {profileImageUri ? (
-                    <Image
-                      source={{ uri: profileImageUri }}
-                      style={styles.profileImage}
-                    />
-                  ) : (
-                    <View style={styles.profileFallback}>
-                      <Ionicons name="person" size={24} color="#fff" />
-                    </View>
-                  )}
-                </View>
-              </View>
+              <TouchableOpacity
+                style={styles.lahanSelector}
+                onPress={() =>
+                  Alert.alert(
+                    "Pilih Ladang",
+                    "Fitur pemilihan ladang akan segera hadir!"
+                  )
+                }
+                activeOpacity={0.7}
+              >
+                <Ionicons
+                  name="location"
+                  size={18}
+                  color="#fff"
+                  style={styles.lahanSelectorIcon}
+                />
+                <Text style={styles.lahanSelectorText} numberOfLines={1}>
+                  Semua Ladang
+                </Text>
+                <Ionicons name="chevron-down" size={18} color="#fff" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.notificationButton}
+                onPress={() =>
+                  Alert.alert(
+                    "Notifikasi",
+                    "Fitur notifikasi akan segera hadir!"
+                  )
+                }
+                activeOpacity={0.7}
+              >
+                <Ionicons name="notifications" size={24} color="#4CAF50" />
+              </TouchableOpacity>
             </View>
           </View>
         </LinearGradient>
@@ -1135,12 +1176,25 @@ export default function HomeScreen() {
               ) : null}
             </>
           )}
-          <Text style={styles.sectionTitle}>Ladang Saya</Text>
+
+          <View style={styles.sectionHeaderRow}>
+            <Text style={[styles.sectionTitle, { marginBottom: 0 }]}>
+              Ladang Saya
+            </Text>
+            <TouchableOpacity
+              style={styles.addNoteButton}
+              onPress={() => router.push("/explore")}
+            >
+              <Ionicons name="add" size={14} color="#fff" />
+            </TouchableOpacity>
+          </View>
+          <View style={{ marginBottom: 12 }} />
 
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
             style={styles.fieldsContainer}
+            contentContainerStyle={styles.fieldsContentContainer}
           >
             {lahanLoading ? (
               <View style={styles.emptyNdviContainer}>
@@ -1155,6 +1209,9 @@ export default function HomeScreen() {
                   ndviScore={lahanHealthMap[item.id]?.ndviScore ?? null}
                   capturedAt={lahanHealthMap[item.id]?.capturedAt ?? null}
                   thumbnailUrl={item.thumbnailUrl}
+                  category={item.category}
+                  warningCount={item.warningCount}
+                  note={item.latestNote}
                   onPress={() =>
                     router.push({
                       pathname: "/detail-lahan-page",
@@ -1175,7 +1232,9 @@ export default function HomeScreen() {
 
           <View style={styles.notesSection}>
             <View style={styles.sectionHeaderRow}>
-              <Text style={styles.sectionTitle}>Catatan</Text>
+              <Text style={[styles.sectionTitle, { marginBottom: 0 }]}>
+                Catatan
+              </Text>
               <View style={styles.sectionActions}>
                 {notesLoading && (
                   <ActivityIndicator
@@ -1188,16 +1247,11 @@ export default function HomeScreen() {
                   style={styles.addNoteButton}
                   onPress={handleOpenNoteModal}
                 >
-                  <Ionicons
-                    name="add"
-                    size={16}
-                    color="#fff"
-                    style={styles.addNoteButtonIcon}
-                  />
-                  <Text style={styles.addNoteButtonText}>Tambah</Text>
+                  <Ionicons name="add" size={14} color="#fff" />
                 </TouchableOpacity>
               </View>
             </View>
+            <View style={{ marginBottom: 12 }} />
             {notesLoading ? (
               <Text style={styles.sectionSupportingText}>Memuat catatan…</Text>
             ) : notesWithMetadata.length === 0 ? (
@@ -1228,23 +1282,6 @@ export default function HomeScreen() {
                 </View>
               ))
             )}
-          </View>
-
-          <View style={styles.tipsSection}>
-            <Text style={styles.sectionTitle}>Tips Penggunaan</Text>
-            <View style={styles.tipCard}>
-              {featuredTips.map((tip, index) => (
-                <View key={`home-tip-${index}`} style={styles.tipItem}>
-                  <View style={styles.tipIndexBadge}>
-                    <Text style={styles.tipIndexText}>{index + 1}</Text>
-                  </View>
-                  <View style={styles.tipContent}>
-                    <Text style={styles.tipHeading}>Tips {index + 1}</Text>
-                    <Text style={styles.tipDescription}>{tip}</Text>
-                  </View>
-                </View>
-              ))}
-            </View>
           </View>
         </View>
       </ScrollView>
@@ -1377,16 +1414,32 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 20,
   },
-  headerActions: {
+  lahanSelector: {
+    flex: 1,
+    height: 40,
+    backgroundColor: "rgba(255, 255, 255, 0.3)",
+    marginHorizontal: 30,
+    borderRadius: 20,
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    justifyContent: "center",
+    paddingHorizontal: 12,
+  },
+  lahanSelectorIcon: {
+    marginRight: 6,
+  },
+  lahanSelectorText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#fff",
+    textAlign: "center",
   },
   notificationButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    backgroundColor: "#FFFFFF",
     justifyContent: "center",
     alignItems: "center",
   },
@@ -1420,21 +1473,10 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
   profilePicture: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    overflow: "hidden",
-    borderWidth: 2,
-    borderColor: "#fff",
-  },
-  profileImage: {
-    width: "100%",
-    height: "100%",
-  },
-  profileFallback: {
-    width: "100%",
-    height: "100%",
-    backgroundColor: "rgba(255,255,255,0.25)",
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#FFFFFF",
     justifyContent: "center",
     alignItems: "center",
   },
@@ -1566,23 +1608,106 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "bold",
     color: "#333",
-    marginBottom: 15,
+    marginBottom: 14,
   },
   fieldsContainer: {
     marginBottom: 20,
+    marginLeft: -20,
+  },
+  fieldsContentContainer: {
+    paddingVertical: 0,
+    paddingLeft: 18,
+    paddingRight: 4,
   },
   fieldCardContainer: {
-    marginRight: 16,
+    marginRight: 14,
+    paddingHorizontal: 4,
   },
   fieldCard: {
-    width: 190,
-    borderRadius: 16,
-    overflow: "hidden",
-    elevation: 4,
-    shadowColor: "#000000",
-    shadowOffset: { width: 0, height: 3 },
+    width: 189,
+    backgroundColor: "#e5e5e5",
+    borderRadius: 13,
+    padding: 7,
+  },
+  fieldCardTop: {
+    borderTopLeftRadius: 11,
+    borderTopRightRadius: 11,
+    height: 173,
+    position: "relative",
+    justifyContent: "space-between",
+    flexDirection: "row",
+    padding: 11,
+  },
+  fieldCategoryBadge: {
+    backgroundColor: "rgba(255, 255, 255, 0.6)",
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
-    shadowRadius: 5,
+    shadowRadius: 4,
+    elevation: 2,
+    alignSelf: "flex-start",
+  },
+  fieldCategoryText: {
+    fontWeight: "bold",
+    color: "#3c532c",
+    fontSize: 10,
+  },
+  fieldWarningBadge: {
+    backgroundColor: "rgba(255, 255, 255, 0.3)",
+    borderRadius: 8,
+    paddingHorizontal: 7,
+    paddingVertical: 4,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
+    alignSelf: "flex-start",
+  },
+  fieldWarningCount: {
+    fontWeight: "bold",
+    color: "#ffffff",
+    fontSize: 10,
+  },
+  fieldCardBottom: {
+    backgroundColor: "#f5f5f5",
+    borderBottomLeftRadius: 11,
+    borderBottomRightRadius: 11,
+    paddingHorizontal: 11,
+    paddingVertical: 13,
+  },
+  fieldStatusLabel: {
+    fontWeight: "bold",
+    fontSize: 9,
+    marginBottom: 4,
+    textTransform: "uppercase",
+  },
+  fieldNameLabel: {
+    fontWeight: "bold",
+    color: "#000000",
+    fontSize: 16,
+    marginBottom: 5,
+  },
+  fieldCardFooter: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  fieldNoteLabel: {
+    color: "#8f8f8f",
+    fontSize: 10,
+    flex: 1,
+  },
+  fieldCardArrow: {
+    justifyContent: "center",
+    alignItems: "center",
+    marginLeft: 8,
   },
   fieldCardSoft: {
     flex: 1,
@@ -1684,7 +1809,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 12,
+    marginBottom: 0,
   },
   sectionActions: {
     flexDirection: "row",
@@ -1694,26 +1819,17 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   addNoteButton: {
-    flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
     backgroundColor: "#4CAF50",
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 16,
+    width: 30,
+    height: 30,
+    borderRadius: 8,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 3,
     elevation: 2,
-  },
-  addNoteButtonIcon: {
-    marginRight: 6,
-  },
-  addNoteButtonText: {
-    color: "#FFFFFF",
-    fontSize: 13,
-    fontWeight: "600",
-    letterSpacing: 0.3,
   },
   sectionSupportingText: {
     fontSize: 13,
@@ -1763,57 +1879,6 @@ const styles = StyleSheet.create({
   noteContent: {
     fontSize: 13,
     color: "#4E4E4E",
-    lineHeight: 18,
-  },
-  tipsSection: {
-    marginBottom: 36,
-  },
-  tipCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 14,
-    padding: 18,
-    borderWidth: 1,
-    borderColor: "rgba(76, 175, 80, 0.08)",
-    gap: 12,
-  },
-  tipItem: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    backgroundColor: "rgba(139, 195, 74, 0.1)",
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderWidth: 1,
-    borderColor: "rgba(139, 195, 74, 0.15)",
-  },
-  tipIndexBadge: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: "#8BC34A",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 12,
-  },
-  tipIndexText: {
-    color: "#FFFFFF",
-    fontWeight: "700",
-    fontSize: 13,
-  },
-  tipContent: {
-    flex: 1,
-    gap: 4,
-  },
-  tipHeading: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#2E7D32",
-    textTransform: "uppercase",
-    letterSpacing: 0.4,
-  },
-  tipDescription: {
-    fontSize: 13,
-    color: "#37474F",
     lineHeight: 18,
   },
   modalOverlay: {

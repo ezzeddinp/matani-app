@@ -1,50 +1,56 @@
-# Welcome to your Expo app 👋
+# Matani App – Panduan Implementasi Juri
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Selamat datang di panduan resmi untuk menilai proyek **Matani App**. Dokumen ini menuntun juri menyiapkan backend, layanan Supabase, dan aplikasi mobile Expo hingga bisa diuji langsung di perangkat masing-masing.
 
-## Get started
+## 1. Ringkasan Proyek
+- **Tujuan**: membantu petani memantau lahan, NDVI, cuaca mikro, dan mencatat temuan lapangan.
+- **Komponen utama**:
+  - Frontend Expo/React Native (`/app`)
+  - Backend Express (`/backend`) yang menjembatani NDVI Sentinel Hub, AccuWeather/Open-Meteo, dan Gemini AI
+  - Supabase sebagai autentikasi, penyimpanan lahan, catatan, dan bucket thumbnail
 
-1. Install dependencies
+## 2. Prasyarat Perangkat & Akun
+- Laptop/desktop dengan **Node.js 18 LTS** atau lebih baru (`node -v` untuk verifikasi)
+- **npm** v9+ (otomatis terpasang bersama Node)
+- **Expo Go** pada perangkat Android/iOS juri
 
-   ```bash
-   npm install
-   ```
+## 3. Kloning & Instalasi Dependensi (terminal tab ke-1)
+```powershell
+# 1) Kloning repository
+1. a) cd D:\
+1. b) git clone https://github.com/ezzeddinp/matani-app.git
+1. c) cd matani-app
+1. d) npm install
 
-2. Start the app
+# 2) Run frontend Expo (terminal tab ke-2)
+2. a) npx expo start
+2. b) copy address localhost ke url browser.
 
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
+# 3) Instal dependensi backend Express (terminal tab ke-3)
+3. a) cd backend
+3. b) npm install
+3. c) node index.js
+- Console akan menampilkan endpoint aktif (`/weather`, `/ndvi`, `/ai`).
+- Biarkan terminal ini tetap terbuka selama demo aplikasi.
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+```
+- Pastikan perangkat mobile dan laptop berada pada **jaringan Wi-Fi yang sama**.
 
-## Learn more
+- Pilih opsi **QR Code** untuk membuka di Expo Go.
+```
 
-To learn more about developing your project with Expo, look at the following resources:
+```
+# Tips terminal (CMD/ Powershell)
+- CTRL + C untuk memberhentikan aplikasi.
+- Ketik "C" untuk menampilkan ulang QR Code
+- Ketik "R" untuk restart aplikasi
+```
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+## 4. Alur Uji Singkat yang Disarankan
+1. **Dashboard Explore** – pahami filter komoditas, peta polygon, dan status NDVI warna.
+2. **Detail Lahan** – buka salah satu lahan untuk melihat riwayat NDVI dan tips tindakan.
+3. **Cuaca** – validasi kartu cuaca mengambil data dari backend (`/weather`). Jika API key tidak tersedia, perhatikan label "Open-Meteo fallback".
+4. **Catatan** – tambahkan catatan lapangan, lalu pastikan tersimpan di Supabase dan muncul dalam daftar.
+5. **AI Summary** – tekan ringkasan lahan. Jika Gemini key aktif, Anda akan menerima 3 poin prioritas dalam bahasa Indonesia.
 
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.

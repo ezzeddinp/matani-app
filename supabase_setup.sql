@@ -124,10 +124,21 @@ CREATE EXTENSION IF NOT EXISTS postgis;
 CREATE TABLE IF NOT EXISTS public.users (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   email TEXT UNIQUE NOT NULL,
+  username TEXT UNIQUE,
+  phone_number TEXT UNIQUE,
   full_name TEXT DEFAULT '',
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Add columns if table already exists (for migration)
+ALTER TABLE public.users 
+  ADD COLUMN IF NOT EXISTS username TEXT UNIQUE,
+  ADD COLUMN IF NOT EXISTS phone_number TEXT UNIQUE;
+
+-- Create indexes for performance
+CREATE INDEX IF NOT EXISTS idx_users_username ON public.users(username) WHERE username IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_users_phone_number ON public.users(phone_number) WHERE phone_number IS NOT NULL;
 
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 
@@ -137,7 +148,15 @@ CREATE POLICY "Users can view their own profile" ON public.users
 CREATE POLICY "Users can update their own profile" ON public.users
   FOR UPDATE USING (auth.uid() = id) WITH CHECK (auth.uid() = id);
 
-GRANT SELECT, UPDATE ON public.users TO authenticated;
+-- Policy untuk insert (saat signup)
+CREATE POLICY "Users can insert their own profile" ON public.users
+  FOR INSERT WITH CHECK (auth.uid() = id);
+
+-- Policy untuk public profile view (optional - uncomment jika diperlukan)
+-- CREATE POLICY "Public profiles are viewable by everyone" ON public.users
+--   FOR SELECT USING (true);
+
+GRANT SELECT, INSERT, UPDATE ON public.users TO authenticated;
 -- ...existing code...
 CREATE TABLE IF NOT EXISTS lahan (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -245,13 +264,18 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-  INSERT INTO public.users (id, email, full_name)
+  INSERT INTO public.users (id, email, username, phone_number, full_name)
   VALUES (
     NEW.id,
     NEW.email,
+    COALESCE(NEW.raw_user_meta_data ->> 'username', NULL),
+    COALESCE(NEW.raw_user_meta_data ->> 'phone_number', NULL),
     COALESCE(NEW.raw_user_meta_data ->> 'full_name', '')
   )
-  ON CONFLICT (id) DO NOTHING;
+  ON CONFLICT (id) DO UPDATE SET
+    username = COALESCE(EXCLUDED.username, public.users.username),
+    phone_number = COALESCE(EXCLUDED.phone_number, public.users.phone_number),
+    full_name = COALESCE(EXCLUDED.full_name, public.users.full_name);
   
   RETURN NEW;
 END;
