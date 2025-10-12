@@ -61,8 +61,7 @@ EXPO_PUBLIC_API_URL=https://matani-backend-ne4yn7s1s-ezzeddinps-projects.vercel.
 
 # 3) Instal dependensi backend Express (terminal tab ke-3)
 3. a) cd backend
-3. b) npm install
-3. c) node index.js
+3. b) node index.js
 ```powershell
 - buat folder & file untuk BE -> matani-app/backend/.env:
 # Sentinel Hub API credentials
