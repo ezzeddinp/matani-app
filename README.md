@@ -52,7 +52,6 @@ https://expo.dev/preview/update?message=android+production%3A+moment+of+truth%2C
 2. b) scan QR Code menggunakan kamera bawaan device
 
 - file .env untuk FE -> matani-app/.env:
-```powershell
 EXPO_PUBLIC_SUPABASE_URL=https://eyhdrqablhkqmwzfevpk.supabase.co
 EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_D48epnwIsMB1Iib_ALOF6w_ZAlrx0vt
 
@@ -63,9 +62,8 @@ EXPO_PUBLIC_API_URL=https://matani-backend-ne4yn7s1s-ezzeddinps-projects.vercel.
 3. a) cd backend
 3. b) npm install
 3. c) node index.js
-
+```powershell
 - buat folder & file untuk BE -> matani-app/backend/.env:
-  ```powershell
 # Sentinel Hub API credentials
 SENTINEL_CLIENT_ID=2bbb5581-b56b-46a2-a22a-ac2395dcbcb8
 SENTINEL_CLIENT_SECRET=whoga2y0eA05JzWvbTrTKO8RM4Qw8l6z
