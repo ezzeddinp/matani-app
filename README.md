@@ -9,12 +9,16 @@ Selamat datang di panduan resmi untuk menilai proyek **Matani App**. Dokumen ini
 # A.) Melalui public QR & Link
 - Scan QR (IOS)
 <img width="385" height="294" alt="image" src="https://github.com/user-attachments/assets/f1e91162-cfd0-4ace-bccd-3d4e91e2a69e" />
+
 **ATAU LINK DIBAWAH**
+
 https://expo.dev/preview/update?message=ios+production%3A+moment+of+truth%2C+will+matani+win%3F%21%3F%21+yapastilah+egiluy+kali+%28habis+update+domain+backend%29&updateRuntimeVersion=1.0.0&createdAt=2025-10-12T10%3A46%3A08.007Z&slug=exp&projectId=8412a993-1dcd-42cd-a433-ece093519147&group=58e2b7ad-022f-4cfe-a7f8-cffcbcb9b2d8
 
 - Scan QR (ANDROID)
 <img width="386" height="294" alt="image" src="https://github.com/user-attachments/assets/20c5477e-185b-4797-a8cc-18009b571ed6" />
+
 **ATAU LINK DIBAWAH**
+
 https://expo.dev/preview/update?message=android+production%3A+moment+of+truth%2C+will+matani+win%3F%21%3F%21+yapastilah+egiluy+kali+%28habis+update+domain+backend%29&updateRuntimeVersion=1.0.0&createdAt=2025-10-12T10%3A46%3A34.180Z&slug=exp&projectId=8412a993-1dcd-42cd-a433-ece093519147&group=83c83d43-1e90-4fe1-bda1-3c0d02d71813
 
 # B.) Setup manual in local computer
