@@ -487,12 +487,6 @@ export default function WeatherScreen() {
               color="#2E7D32"
             />
           </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.notificationButton}
-            accessibilityLabel="Notifikasi cuaca"
-          >
-            <Ionicons name="notifications-outline" size={22} color="#2E7D32" />
-          </TouchableOpacity>
         </View>
       </View>
 

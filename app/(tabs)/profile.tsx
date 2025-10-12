@@ -6,6 +6,7 @@ import {
   profileService,
   UserProfile,
 } from "@/hooks/supabase";
+import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -197,6 +198,15 @@ export default function ProfileScreen() {
     []
   );
 
+  const username = useMemo(() => {
+    return (
+      sanitizeString(userMetadata?.username) ||
+      sanitizeString(profile?.username) ||
+      sanitizeString(userMetadata?.user_name) ||
+      null
+    );
+  }, [profile, userMetadata]);
+
   const displayName = useMemo(() => {
     const fromProfile = sanitizeString(profile?.full_name || "");
     const fromMetadataName =
@@ -382,20 +392,18 @@ export default function ProfileScreen() {
       )}
       <View style={styles.profileCard}>
         <View style={styles.avatarContainer}>
-          <View style={styles.avatar} />
-          <View style={styles.editButton}>
-            <Text style={styles.editIcon}>✏️</Text>
+          <View style={styles.avatar}>
+            <Ionicons name="person" size={48} color="#4CAF50" />
           </View>
         </View>
-        <Text style={styles.profileName}>{displayName}</Text>
-        <Text style={styles.profileLocation}>{locationLabel}</Text>
+        <Text style={styles.profileName}>{username || displayName}</Text>
       </View>
 
       <View style={styles.infoSection}>
         <Text style={styles.sectionTitle}>Informasi Pribadi</Text>
         <View style={styles.infoItem}>
-          <Text style={styles.infoLabel}>Nama Lengkap</Text>
-          <Text style={styles.infoValue}>{displayName}</Text>
+          <Text style={styles.infoLabel}>Username</Text>
+          <Text style={styles.infoValue}>{username || displayName}</Text>
         </View>
         <View style={styles.infoItem}>
           <Text style={styles.infoLabel}>Email</Text>
@@ -404,10 +412,6 @@ export default function ProfileScreen() {
         <View style={styles.infoItem}>
           <Text style={styles.infoLabel}>Nomor Telepon</Text>
           <Text style={styles.infoValue}>{phoneNumber}</Text>
-        </View>
-        <View style={styles.infoItem}>
-          <Text style={styles.infoLabel}>Lokasi</Text>
-          <Text style={styles.infoValue}>{locationLabel}</Text>
         </View>
       </View>
 
@@ -904,8 +908,10 @@ const styles = StyleSheet.create({
   avatar: {
     width: 80,
     height: 80,
-    backgroundColor: "#ddd",
+    backgroundColor: "#FFFFFF",
     borderRadius: 40,
+    justifyContent: "center",
+    alignItems: "center",
   },
   guestBanner: {
     backgroundColor: "#E8F5E9",

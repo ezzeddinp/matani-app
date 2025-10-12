@@ -1113,9 +1113,13 @@ export default function HomeScreen() {
         >
           <View style={styles.header}>
             <View style={styles.headerTop}>
-              <View style={styles.profilePicture}>
+              <TouchableOpacity
+                style={styles.profilePicture}
+                onPress={() => router.push("/profile")}
+                activeOpacity={0.7}
+              >
                 <Ionicons name="person" size={24} color="#4CAF50" />
-              </View>
+              </TouchableOpacity>
               <TouchableOpacity
                 style={styles.lahanSelector}
                 onPress={() =>
@@ -1139,12 +1143,7 @@ export default function HomeScreen() {
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.notificationButton}
-                onPress={() =>
-                  Alert.alert(
-                    "Notifikasi",
-                    "Fitur notifikasi akan segera hadir!"
-                  )
-                }
+                onPress={() => router.push("/notifications")}
                 activeOpacity={0.7}
               >
                 <Ionicons name="notifications" size={24} color="#4CAF50" />
@@ -1154,6 +1153,20 @@ export default function HomeScreen() {
         </LinearGradient>
 
         <View style={styles.content}>
+          {/* NDVI Status Card Mini */}
+          <View style={styles.ndviStatusCard}>
+            <View style={styles.ndviStatusLeft}>
+              <Ionicons name="leaf" size={24} color="#4CAF50" />
+              <View style={styles.ndviStatusTextContainer}>
+                <Text style={styles.ndviStatusLabel}>Status Ladang</Text>
+                <Text style={styles.ndviStatusValue}>Sehat</Text>
+              </View>
+            </View>
+            <View style={styles.ndviStatusBadge}>
+              <Text style={styles.ndviStatusBadgeText}>NDVI: 0.65</Text>
+            </View>
+          </View>
+
           {/* Weather Card dengan loading state */}
           {loading ? (
             <View style={[styles.weatherCard, styles.loadingCard]}>
@@ -1179,7 +1192,7 @@ export default function HomeScreen() {
 
           <View style={styles.sectionHeaderRow}>
             <Text style={[styles.sectionTitle, { marginBottom: 0 }]}>
-              Ladang Saya
+              Lahan Saya
             </Text>
             <TouchableOpacity
               style={styles.addNoteButton}
@@ -1190,18 +1203,18 @@ export default function HomeScreen() {
           </View>
           <View style={{ marginBottom: 12 }} />
 
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.fieldsContainer}
-            contentContainerStyle={styles.fieldsContentContainer}
-          >
-            {lahanLoading ? (
-              <View style={styles.emptyNdviContainer}>
-                <Text style={styles.emptyNdviText}>Memuat data lahan...</Text>
-              </View>
-            ) : savedLahan.length > 0 ? (
-              savedLahan.map((item) => (
+          {lahanLoading ? (
+            <View style={styles.emptyNdviContainer}>
+              <Text style={styles.emptyNdviText}>Memuat data lahan...</Text>
+            </View>
+          ) : savedLahan.length > 0 ? (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.fieldsContainer}
+              contentContainerStyle={styles.fieldsContentContainer}
+            >
+              {savedLahan.map((item) => (
                 <LahanCard
                   key={item.id}
                   name={item.name}
@@ -1219,16 +1232,21 @@ export default function HomeScreen() {
                     })
                   }
                 />
-              ))
-            ) : (
-              <View style={styles.emptyNdviContainer}>
-                <Text style={styles.emptyNdviText}>
-                  {lahanError ??
-                    "Belum ada lahan tersimpan. Simpan lahan dari tab Jelajahi."}
+              ))}
+            </ScrollView>
+          ) : (
+            <View style={styles.emptyLahanCard}>
+              <Ionicons name="map-outline" size={24} color="#999" />
+              <View style={styles.emptyLahanTextContainer}>
+                <Text style={styles.emptyLahanTitle}>
+                  Belum ada lahan tersimpan
+                </Text>
+                <Text style={styles.emptyLahanSubtitle}>
+                  Gambar lahan dengan menekan tombol "+"
                 </Text>
               </View>
-            )}
-          </ScrollView>
+            </View>
+          )}
 
           <View style={styles.notesSection}>
             <View style={styles.sectionHeaderRow}>
@@ -1255,9 +1273,17 @@ export default function HomeScreen() {
             {notesLoading ? (
               <Text style={styles.sectionSupportingText}>Memuat catatan…</Text>
             ) : notesWithMetadata.length === 0 ? (
-              <Text style={styles.sectionSupportingText}>
-                {notesError ?? "Belum ada catatan tersimpan."}
-              </Text>
+              <View style={styles.emptyNotesCard}>
+                <Ionicons name="document-text-outline" size={24} color="#999" />
+                <View style={styles.emptyNotesTextContainer}>
+                  <Text style={styles.emptyNotesTitle}>
+                    Belum ada catatan tersimpan
+                  </Text>
+                  <Text style={styles.emptyNotesSubtitle}>
+                    Simpan catatan dengan menekan tombol "+"
+                  </Text>
+                </View>
+              </View>
             ) : (
               notesWithMetadata.slice(0, 3).map((note) => (
                 <View key={note.id} style={styles.noteCard}>
@@ -1485,8 +1511,52 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: 20,
-    marginTop: -100,
+    marginTop: -152,
     paddingBottom: 40,
+  },
+  ndviStatusCard: {
+    height: 60,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    marginBottom: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  ndviStatusLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  ndviStatusTextContainer: {
+    flexDirection: "column",
+  },
+  ndviStatusLabel: {
+    fontSize: 11,
+    color: "#666",
+    fontWeight: "500",
+  },
+  ndviStatusValue: {
+    fontSize: 16,
+    color: "#1A1A1A",
+    fontWeight: "700",
+  },
+  ndviStatusBadge: {
+    backgroundColor: "#E8F5E9",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  ndviStatusBadgeText: {
+    fontSize: 12,
+    color: "#4CAF50",
+    fontWeight: "600",
   },
   weatherCard: {
     backgroundColor: "#FFFFFF",
@@ -1989,5 +2059,55 @@ const styles = StyleSheet.create({
   emptyNdviText: {
     color: "#666",
     fontSize: 14,
+  },
+  emptyLahanCard: {
+    backgroundColor: "#F5F5F5",
+    borderRadius: 14,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#E0E0E0",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginBottom: 14,
+  },
+  emptyLahanTextContainer: {
+    flex: 1,
+  },
+  emptyLahanTitle: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#757575",
+    marginBottom: 4,
+  },
+  emptyLahanSubtitle: {
+    fontSize: 13,
+    color: "#9E9E9E",
+    lineHeight: 18,
+  },
+  emptyNotesCard: {
+    backgroundColor: "#F5F5F5",
+    borderRadius: 14,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#E0E0E0",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginBottom: 12,
+  },
+  emptyNotesTextContainer: {
+    flex: 1,
+  },
+  emptyNotesTitle: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#757575",
+    marginBottom: 4,
+  },
+  emptyNotesSubtitle: {
+    fontSize: 13,
+    color: "#9E9E9E",
+    lineHeight: 18,
   },
 });

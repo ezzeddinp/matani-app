@@ -519,6 +519,22 @@ export default function ExploreScreen() {
   const geocodeCacheRef = useRef<Map<string, string | null>>(new Map());
   const geocodeRateLimitedUntilRef = useRef<number | null>(null);
   const geocodeRateLimitLogRef = useRef<number | null>(null);
+
+  // Failsafe: Re-enable scroll after 500ms of inactivity
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = Date.now();
+      if (
+        !mapTouchActiveRef.current &&
+        now - mapTouchLastActiveRef.current > 500
+      ) {
+        setScrollEnabled(true);
+      }
+    }, 300);
+
+    return () => clearInterval(interval);
+  }, []);
+
   const releaseScrollLock = useCallback(() => {
     setScrollEnabled((prev) => {
       if (prev) {
@@ -1356,7 +1372,7 @@ export default function ExploreScreen() {
     scrollTimeoutRef.current = setTimeout(() => {
       releaseScrollLock();
       scrollTimeoutRef.current = null;
-    }, 80);
+    }, 50);
   }, [releaseScrollLock]);
 
   const handleMapPanDrag = useCallback(() => {
@@ -2474,6 +2490,11 @@ export default function ExploreScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           scrollEnabled={scrollEnabled}
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={10}
+          updateCellsBatchingPeriod={50}
+          windowSize={21}
+          scrollEventThrottle={16}
         >
           <View style={styles.header}>
             <View>
@@ -2575,6 +2596,10 @@ export default function ExploreScreen() {
               showsMyLocationButton={false}
               showsCompass={false}
               showsScale={false}
+              scrollEnabled={drawingMode ? true : false}
+              zoomEnabled={true}
+              rotateEnabled={false}
+              pitchEnabled={false}
             >
               {drawingMode && previewPath.length > 0 && (
                 <>
