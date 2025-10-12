@@ -13,6 +13,9 @@
       "supportsTablet": true,
       "config": {
         "googleMapsApiKey": "AIzaSyCeAgDrSVC1DvGLjCuLRr-jQRKRC4C-K2U"
+      },
+      "runtimeVersion": {
+        "policy": "appVersion"
       }
     },
     "android": {
@@ -60,6 +63,9 @@
         "projectId": "8412a993-1dcd-42cd-a433-ece093519147"
       }
     },
-    "owner": "zeddin"
+    "owner": "zeddin",
+    "updates": {
+      "url": "https://u.expo.dev/8412a993-1dcd-42cd-a433-ece093519147"
+    }
   }
 }
