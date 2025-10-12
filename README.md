@@ -68,9 +68,6 @@ EXPO_PUBLIC_API_URL=https://matani-backend-ne4yn7s1s-ezzeddinps-projects.vercel.
 SENTINEL_CLIENT_ID=2bbb5581-b56b-46a2-a22a-ac2395dcbcb8
 SENTINEL_CLIENT_SECRET=whoga2y0eA05JzWvbTrTKO8RM4Qw8l6z
 
-# OpenCage API for reverse geocoding (fetching location names from coordinates)
-OPENCAGE_API_KEY=65008e2ae2eb4bebbf3a0e7939f699a8
-
 EXPO_PUBLIC_SUPABASE_URL=https://eyhdrqablhkqmwzfevpk.supabase.co
 EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_D48epnwIsMB1Iib_ALOF6w_ZAlrx0vt
 
