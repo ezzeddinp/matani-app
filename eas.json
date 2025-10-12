@@ -1,24 +1,19 @@
 {
   "cli": {
-    "version": ">= 5.9.0"
+    "version": ">= 10.0.0"
   },
   "build": {
     "development": {
       "developmentClient": true,
       "distribution": "internal",
-      "android": {
-        "gradleCommand": ":app:assembleDebug"
-      }
-    },
-    "preview": {
-      "distribution": "internal",
-      "android": {
-        "buildType": "apk"
+      "env": {
+        "API_ENV": "development"
       }
     },
     "production": {
-      "android": {
-        "buildType": "app-bundle"
+      "distribution": "store",
+      "env": {
+        "API_ENV": "production"
       }
     }
   },
