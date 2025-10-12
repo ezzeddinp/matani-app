@@ -8,14 +8,15 @@ Selamat datang di panduan resmi untuk menilai proyek **Matani App**. Dokumen ini
 ---
 # A.) Melalui public QR & Link
 - Scan QR (IOS)
-<img width="248" height="250" alt="image" src="https://github.com/user-attachments/assets/4d668948-5c86-4ad6-8c40-0779b26168bd" />
+<img width="248" height="255" alt="image" src="https://github.com/user-attachments/assets/eaeff41f-da69-4a1a-aa93-98857f9dac26" />
 
 **ATAU LINK DIBAWAH**
 
-https://expo.dev/preview/update?message=ios+production%3A+moment+of+truth%2C+will+matani+win%3F%21%3F%21+yapastilah+egiluy+kali+%28habis+update+domain+backend%29&updateRuntimeVersion=1.0.0&createdAt=2025-10-12T14%3A18%3A48.797Z&slug=exp&projectId=8412a993-1dcd-42cd-a433-ece093519147&group=65192f20-171e-4e9f-8fd2-01ce664b815e
+https://expo.dev/preview/update?message=ios+production%3A+moment+of+truth&updateRuntimeVersion=1.0.0&createdAt=2025-10-12T16%3A30%3A50.303Z&slug=exp&projectId=8412a993-1dcd-42cd-a433-ece093519147&group=b81bf928-6b26-4646-9bbf-dbe08bdf8c0b
 
 - Scan QR (ANDROID)
-<img width="386" height="294" alt="image" src="https://github.com/user-attachments/assets/20c5477e-185b-4797-a8cc-18009b571ed6" />
+![WhatsApp Image 2025-10-12 at 23 17 37_8ad92bbf](https://github.com/user-attachments/assets/26cbe7f9-1e74-4f9a-977e-341c818980a7)
+
 
 **ATAU LINK DIBAWAH**
 
@@ -60,8 +61,7 @@ EXPO_PUBLIC_API_URL=https://matani-backend-ne4yn7s1s-ezzeddinps-projects.vercel.
 
 # 3) Instal dependensi backend Express (terminal tab ke-3)
 3. a) cd backend
-3. b) npm install
-3. c) node index.js
+3. b) node index.js
 ```powershell
 - buat folder & file untuk BE -> matani-app/backend/.env:
 # Sentinel Hub API credentials
