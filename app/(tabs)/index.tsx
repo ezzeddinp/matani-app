@@ -29,6 +29,7 @@ import {
   View,
 } from "react-native";
 
+import { API_BASE_CANDIDATES } from "@/hooks/config";
 import {
   lahanService,
   lahanThumbnailService,
@@ -36,7 +37,8 @@ import {
   type LahanThumbnail,
   type LahanWithInfo,
 } from "@/hooks/supabase";
-import { BASE_URL } from "../../hooks/config";
+
+const OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast";
 
 interface WeatherCardProps {
   location: string;
@@ -453,16 +455,98 @@ export default function HomeScreen() {
     try {
       // Fetch weather data
       console.log(`🌦 Fetching weather for ${latitude}, ${longitude}`);
-      const weatherResponse = await fetch(
-        `${BASE_URL}/weather?lat=${latitude}&lon=${longitude}`
-      );
 
-      if (!weatherResponse.ok) {
-        throw new Error("Failed to fetch weather");
+      const params = `?lat=${latitude}&lon=${longitude}`;
+      let data: any = null;
+      let lastErrorMessage = "";
+
+      outer: for (const base of API_BASE_CANDIDATES) {
+        const normalisedBase = base.replace(/\/$/, "");
+        const candidateUrls = [
+          `${normalisedBase}/weather${params}`,
+          /\/api\/?$/.test(normalisedBase)
+            ? null
+            : `${normalisedBase}/api/weather${params}`,
+        ].filter(Boolean) as string[];
+
+        for (const url of candidateUrls) {
+          try {
+            const response = await fetch(url);
+            if (!response.ok) {
+              lastErrorMessage = await response.text();
+              console.warn(`⚠️ Weather endpoint responded with ${response.status} from ${url}`);
+              continue;
+            }
+
+            data = await response.json();
+            console.log("Weather data fetched from", url);
+            break outer;
+          } catch (networkError) {
+            lastErrorMessage = networkError instanceof Error ? networkError.message : String(networkError);
+            console.warn(`⚠️ Weather request network error for ${url}:`, lastErrorMessage);
+          }
+        }
       }
 
-      const data = await weatherResponse.json();
-      console.log("Weather data fetched:", data);
+      if (!data) {
+        try {
+          const url = new URL(OPEN_METEO_URL);
+          url.searchParams.set("latitude", String(latitude));
+          url.searchParams.set("longitude", String(longitude));
+          url.searchParams.set(
+            "current",
+            "temperature_2m,relative_humidity_2m,precipitation,pressure_msl,wind_speed_10m"
+          );
+          url.searchParams.set(
+            "daily",
+            "temperature_2m_max,temperature_2m_min,precipitation_sum"
+          );
+          url.searchParams.set("timezone", "auto");
+
+          const fallbackResponse = await fetch(url.toString());
+          if (!fallbackResponse.ok) {
+            const text = await fallbackResponse.text();
+            throw new Error(
+              `Open-Meteo fallback ${fallbackResponse.status}: ${text}`
+            );
+          }
+
+          const payload = await fallbackResponse.json();
+          const current = payload?.current ?? {};
+          const forecastTimes = Array.isArray(payload?.daily?.time)
+            ? payload.daily.time
+            : [];
+
+          data = {
+            location: `Koordinat ${latitude.toFixed(2)}, ${longitude.toFixed(2)}`,
+            temperature: current?.temperature_2m ?? null,
+            highTemp: payload?.daily?.temperature_2m_max?.[0] ?? null,
+            lowTemp: payload?.daily?.temperature_2m_min?.[0] ?? null,
+            humidity: current?.relative_humidity_2m ?? null,
+            rainfall: current?.precipitation ?? null,
+            pressure: current?.pressure_msl ?? null,
+            windSpeed: current?.wind_speed_10m ?? null,
+            forecast: forecastTimes.map((time: string, index: number) => ({
+              isoDate: time,
+              highTemp: payload?.daily?.temperature_2m_max?.[index] ?? null,
+              lowTemp: payload?.daily?.temperature_2m_min?.[index] ?? null,
+              precipitationMm: payload?.daily?.precipitation_sum?.[index] ?? null,
+            })),
+          };
+
+          console.log("Weather data fetched from Open-Meteo fallback");
+        } catch (fallbackError) {
+          lastErrorMessage =
+            fallbackError instanceof Error
+              ? fallbackError.message
+              : String(fallbackError);
+          console.warn("⚠️ Open-Meteo fallback failed:", lastErrorMessage);
+        }
+      }
+
+      if (!data) {
+        throw new Error(lastErrorMessage || "Failed to fetch weather");
+      }
 
       const parseNumber = (value: unknown): number | null => {
         if (typeof value === "number") return value;
@@ -482,6 +566,14 @@ export default function HomeScreen() {
         rainfall: parseNumber(data.rainfall),
         pressure: parseNumber(data.pressure),
         windSpeed: parseNumber(data.windSpeed),
+        dailyForecasts: Array.isArray((data as any).forecast)
+          ? (data as any).forecast.map((item: any) => ({
+              isoDate: typeof item?.isoDate === "string" ? item.isoDate : null,
+              highTemp: parseNumber(item?.highTemp),
+              lowTemp: parseNumber(item?.lowTemp),
+              precipitationMm: parseNumber(item?.precipitationMm),
+            }))
+          : undefined,
       };
     } catch (err) {
       console.error("❌ Weather fetch error:", err);

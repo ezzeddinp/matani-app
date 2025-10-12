@@ -704,7 +704,7 @@ const styles = StyleSheet.create({
     fontSize: 26,
     fontWeight: "700",
     lineHeight: 32,
-    color: "#1B4332",
+    color: "#000000ff",
   },
   locationSelector: {
     flex: 1,

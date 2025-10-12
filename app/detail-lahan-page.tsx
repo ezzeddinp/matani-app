@@ -4,29 +4,34 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect, useMemo, useState } from "react";
 import {
-  ActivityIndicator,
-  ImageBackground,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    ImageBackground,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, {
-  Defs,
-  Path,
-  Stop,
-  LinearGradient as SvgLinearGradient,
+    Defs,
+    Path,
+    Stop,
+    LinearGradient as SvgLinearGradient,
 } from "react-native-svg";
 
+import {
+    NDVI_SEVERITY_CONFIG,
+    NDVI_UNKNOWN_CONFIG,
+    type NdviClassificationKey,
+} from "@/constants/ndvi";
 import { lahanService, type LahanDetail } from "@/hooks/supabase";
 import {
-  buildNdviSeries,
-  clamp,
-  Coordinate,
-  getDayOfYear,
-  toRadians,
+    buildNdviSeries,
+    clamp,
+    Coordinate,
+    getDayOfYear,
+    toRadians,
 } from "@/utils/ndvi-simulator";
 
 export const options = {
@@ -69,6 +74,14 @@ const severityPalette: Record<
   success: { background: "#E8F5E9", border: "#C8E6C9", text: "#1B5E20" },
   warning: { background: "#FFF6E5", border: "#FFE0B2", text: "#6D4C00" },
   danger: { background: "#FBE9E7", border: "#F5C6CB", text: "#B71C1C" },
+};
+
+const classificationToSeverity: Record<NdviClassificationKey, SeverityLevel> = {
+  darkGreen: "success",
+  yellowGreen: "warning",
+  orange: "danger",
+  red: "danger",
+  unknown: "warning",
 };
 
 const healthSeverityLabels: Record<SeverityLevel, string> = {
@@ -375,21 +388,67 @@ const MiniAreaChart = ({ data }: { data: AnalysisResult["ndviHistory"] }) => {
 
 export default function DetailLahanPage() {
   const router = useRouter();
-  const { id } = useLocalSearchParams<{ id?: string }>();
+  const { id, ndviKey, ndviScore } = useLocalSearchParams<{
+    id?: string;
+    ndviKey?: string;
+    ndviScore?: string;
+  }>();
   const [detail, setDetail] = useState<LahanDetail | null>(null);
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"health" | "risk">("health");
 
+  const ndviKeyParam = Array.isArray(ndviKey) ? ndviKey[0] : ndviKey;
+  const ndviScoreParam = Array.isArray(ndviScore) ? ndviScore[0] : ndviScore;
+
+  const routeClassification = useMemo(() => {
+    if (!ndviKeyParam) {
+      return null;
+    }
+    const key = ndviKeyParam.trim() as NdviClassificationKey;
+    if (key === "unknown") {
+      return NDVI_UNKNOWN_CONFIG;
+    }
+    return (
+      NDVI_SEVERITY_CONFIG.find((item) => item.key === key) ??
+      NDVI_UNKNOWN_CONFIG
+    );
+  }, [ndviKeyParam]);
+
+  const routeNdviValue = useMemo(() => {
+    if (!ndviScoreParam) {
+      return null;
+    }
+    const parsed = Number(ndviScoreParam);
+    return Number.isFinite(parsed) ? parsed : null;
+  }, [ndviScoreParam]);
+
   const heroSeverity = useMemo<SeverityLevel>(() => {
+    if (routeClassification) {
+      return classificationToSeverity[
+        routeClassification.key as NdviClassificationKey
+      ];
+    }
     if (!analysis) {
       return "success";
     }
     return evaluateNdviSeverity(analysis.ndviCurrent);
-  }, [analysis]);
+  }, [analysis, routeClassification]);
 
   const heroGradientColors = heroGradientPalette[heroSeverity];
+
+  useEffect(() => {
+    if (routeNdviValue === null) {
+      return;
+    }
+    setAnalysis((prev) => {
+      if (!prev || prev.ndviCurrent === routeNdviValue) {
+        return prev;
+      }
+      return { ...prev, ndviCurrent: routeNdviValue };
+    });
+  }, [routeNdviValue]);
 
   useEffect(() => {
     let isMounted = true;

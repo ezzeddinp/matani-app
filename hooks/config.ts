@@ -55,8 +55,15 @@ const protocol = process.env.EXPO_PUBLIC_API_PROTOCOL ?? "http";
 const host = resolveHost();
 const port = resolvePort();
 
-export const BASE_URL = publicApiUrl
-  ? publicApiUrl // 🌍 domain publik dari env
-  : `${protocol}://${host}${port ? `:${port}` : ""}`;
+const localBaseUrl = `${protocol}://${host}${port ? `:${port}` : ""}`;
+export const BASE_URL = publicApiUrl ?? localBaseUrl;
+
+const candidates = new Set<string>([BASE_URL]);
+if (publicApiUrl && publicApiUrl !== localBaseUrl) {
+  candidates.add(localBaseUrl);
+}
+
+export const API_BASE_CANDIDATES = Array.from(candidates);
 
 console.log("🌍 BASE_URL =>", BASE_URL);
+console.log("🌐 API candidates =>", API_BASE_CANDIDATES);

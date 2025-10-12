@@ -247,7 +247,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 26,
     fontWeight: '700',
-    color: '#1B4332',
+    color: '#000000ff',
     lineHeight: 32,
   },
   headerSubtitle: {

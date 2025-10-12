@@ -4,6 +4,7 @@ import fetch from "node-fetch";
 
 const router = express.Router();
 const ACCUWEATHER_BASE = "https://dataservice.accuweather.com";
+const OPEN_METEO_BASE = "https://api.open-meteo.com/v1";
 
 const buildLocationLabel = (locationData) => {
   if (!locationData) return "Lokasi tidak diketahui";
@@ -22,6 +23,81 @@ const normaliseNumber = (value) => {
   return Number.isFinite(parsed) ? parsed : null;
 };
 
+const fetchOpenMeteoWeather = async (lat, lon) => {
+  const url = `${OPEN_METEO_BASE}/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,precipitation,pressure_msl,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min,precipitation_sum&timezone=auto`;
+  const response = await fetch(url);
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Open-Meteo response ${response.status}: ${text}`);
+  }
+
+  const payload = await response.json();
+  const current = payload?.current ?? {};
+
+  const dailyForecasts = Array.isArray(payload?.daily?.time)
+    ? payload.daily.time.map((time, index) => ({
+        isoDate: time,
+        highTemp: normaliseNumber(payload.daily?.temperature_2m_max?.[index]),
+        lowTemp: normaliseNumber(payload.daily?.temperature_2m_min?.[index]),
+        precipitationMm: normaliseNumber(payload.daily?.precipitation_sum?.[index]),
+      }))
+    : [];
+
+  return {
+    source: "open-meteo",
+    locationLabel: `Koordinat ${Number(lat).toFixed(2)}, ${Number(lon).toFixed(2)}`,
+    current: {
+      temperature: normaliseNumber(current?.temperature_2m),
+      humidity: normaliseNumber(current?.relative_humidity_2m),
+      rainfall: normaliseNumber(current?.precipitation),
+      pressure: normaliseNumber(current?.pressure_msl),
+      windSpeed: normaliseNumber(current?.wind_speed_10m),
+    },
+    dailyForecasts,
+  };
+};
+
+const mapFallbackWeather = (fallbackData) => {
+  const firstForecast = Array.isArray(fallbackData?.dailyForecasts)
+    ? fallbackData.dailyForecasts[0]
+    : null;
+
+  return {
+    location: fallbackData?.locationLabel ?? "Lokasi tidak diketahui",
+    condition: null,
+    iconCode: null,
+    temperature: normaliseNumber(fallbackData?.current?.temperature),
+    highTemp: normaliseNumber(firstForecast?.highTemp),
+    lowTemp: normaliseNumber(firstForecast?.lowTemp),
+    humidity: normaliseNumber(fallbackData?.current?.humidity),
+    rainfall: normaliseNumber(fallbackData?.current?.rainfall),
+    pressure: normaliseNumber(fallbackData?.current?.pressure),
+    windSpeed: normaliseNumber(fallbackData?.current?.windSpeed),
+    dailyForecasts: Array.isArray(fallbackData?.dailyForecasts)
+      ? fallbackData.dailyForecasts.map((day) => ({
+          isoDate: day?.isoDate ?? null,
+          iconCode: null,
+          iconPhrase: null,
+          highTemp: normaliseNumber(day?.highTemp),
+          lowTemp: normaliseNumber(day?.lowTemp),
+          precipitationMm: normaliseNumber(day?.precipitationMm),
+          humidity: null,
+        }))
+      : [],
+  };
+};
+
+const respondWithFallback = async (res, lat, lon, reason) => {
+  try {
+    console.warn(`⚠️ Using Open-Meteo fallback for weather (${reason})`);
+    const fallback = await fetchOpenMeteoWeather(lat, lon);
+    return res.json(mapFallbackWeather(fallback));
+  } catch (fallbackError) {
+    console.error("❌ Open-Meteo fallback failed:", fallbackError);
+    return res.status(500).json({ error: "Failed to fetch weather" });
+  }
+};
+
 router.get("/", async (req, res) => {
   const { lat, lon } = req.query;
   if (!lat || !lon)
@@ -29,7 +105,7 @@ router.get("/", async (req, res) => {
 
   const apiKey = process.env.ACCUWEATHER_API_KEY;
   if (!apiKey) {
-    return res.status(500).json({ error: "Missing AccuWeather API key" });
+    return respondWithFallback(res, lat, lon, "API key missing");
   }
 
   try {
@@ -42,7 +118,7 @@ router.get("/", async (req, res) => {
         locationResp.status,
         errorText
       );
-      return res.status(500).json({ error: "Failed to resolve location" });
+      return respondWithFallback(res, lat, lon, "location lookup failure");
     }
     const locationData = await locationResp.json();
     const locationKey = locationData?.Key;
@@ -54,9 +130,7 @@ router.get("/", async (req, res) => {
         lon,
         locationData
       );
-      return res
-        .status(404)
-        .json({ error: "Unable to resolve AccuWeather location key" });
+      return respondWithFallback(res, lat, lon, "missing location key");
     }
 
     const [currentResp, forecastResp] = await Promise.all([
@@ -75,9 +149,7 @@ router.get("/", async (req, res) => {
         currentResp.status,
         errorText
       );
-      return res
-        .status(500)
-        .json({ error: "Failed to fetch current conditions" });
+      return respondWithFallback(res, lat, lon, "current conditions failure");
     }
 
     if (!forecastResp.ok) {
@@ -87,7 +159,7 @@ router.get("/", async (req, res) => {
         forecastResp.status,
         errorText
       );
-      return res.status(500).json({ error: "Failed to fetch forecast" });
+      return respondWithFallback(res, lat, lon, "forecast failure");
     }
 
     const currentData = await currentResp.json();
@@ -134,7 +206,7 @@ router.get("/", async (req, res) => {
     res.json(formatted);
   } catch (err) {
     console.error("❌ Weather route error:", err);
-    res.status(500).json({ error: "Failed to fetch weather" });
+    return respondWithFallback(res, lat, lon, "unexpected error");
   }
 });
 

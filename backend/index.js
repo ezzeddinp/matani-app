@@ -2,6 +2,7 @@ import cors from "cors";
 import "dotenv/config";
 import express from "express";
 
+import aiRoute from "./api/ai/route.js";
 import ndviRoute from "./api/ndvi/utils.js";
 import weatherRoute from "./api/weather/route.js";
 
@@ -21,6 +22,7 @@ app.use((req, res, next) => {
 // Routes
 app.use("/ndvi", ndviRoute);
 app.use("/weather", weatherRoute);
+app.use("/ai", aiRoute);
 
 app.get("/", (req, res) => {
   console.log("📍 Root endpoint accessed");
@@ -36,4 +38,5 @@ app.listen(PORT, "0.0.0.0", () => {
   console.log(`   GET  /`);
   console.log(`   GET  /ndvi`);
   console.log(`   GET  /weather`);
+  console.log(`   POST /ai/summary`);
 });
