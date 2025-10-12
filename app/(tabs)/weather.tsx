@@ -466,10 +466,6 @@ export default function WeatherScreen() {
       <StatusBar barStyle="dark-content" backgroundColor="#F5F7FB" />
 
       <View style={styles.header}>
-        <View style={styles.headerTopRow}>
-          <Text style={styles.headerTitle}>Cuaca Lahan</Text>
-        </View>
-
         <View style={styles.headerControls}>
           <TouchableOpacity
             style={styles.locationSelector}

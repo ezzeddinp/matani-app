@@ -1100,6 +1100,20 @@ export default function DetailLahanPage() {
               )}
             </>
           ) : null}
+
+          {/* Delete Button */}
+          <View style={styles.deleteButtonContainer}>
+            <TouchableOpacity
+              style={styles.deleteButton}
+              onPress={() => {
+                // TODO: Implement delete functionality
+                console.log("Delete lahan:", id);
+              }}
+            >
+              <Ionicons name="trash-outline" size={20} color="#C62828" />
+              <Text style={styles.deleteButtonText}>Hapus Ladang</Text>
+            </TouchableOpacity>
+          </View>
         </ScrollView>
       </View>
     </SafeAreaView>
@@ -1562,5 +1576,25 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 13,
     color: "#4E583E",
+  },
+  deleteButtonContainer: {
+    marginHorizontal: 16,
+    marginTop: 24,
+    marginBottom: 16,
+  },
+  deleteButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FFEBEE",
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    gap: 8,
+  },
+  deleteButtonText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#C62828",
   },
 });

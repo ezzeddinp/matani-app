@@ -123,7 +123,7 @@ export default function LoginScreen() {
             >
               <View style={styles.checkbox}>
                 {rememberMe && (
-                  <Ionicons name="checkmark" size={12} color="#fff" />
+                  <Ionicons name="checkmark" size={12} color="#000" />
                 )}
               </View>
               <Text style={styles.rememberText}>Ingat saya</Text>
