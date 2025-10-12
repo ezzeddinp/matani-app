@@ -1,16 +1,11 @@
-import { supabase } from '@/hooks/supabase';
-import { useRouter } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  Animated,
-  Easing,
-  StyleSheet,
-  View,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { supabase } from "@/hooks/supabase";
+import { useRouter } from "expo-router";
+import { StatusBar } from "expo-status-bar";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { Animated, Easing, StyleSheet, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-const LOGO_SOURCE = require('../assets/images/matani-logo.png');
+const LOGO_SOURCE = require("../assets/images/matani-logo.png");
 const DEBUG_LOGO_ONLY = false;
 const DEBUG_LOOP_INTRO = false;
 
@@ -103,7 +98,7 @@ export default function SplashScreen() {
 
   const handleStart = useCallback(async () => {
     if (DEBUG_LOGO_ONLY) {
-      console.log('Debug: splash navigation disabled.');
+      console.log("Debug: splash navigation disabled.");
       return;
     }
 
@@ -117,13 +112,13 @@ export default function SplashScreen() {
       const hasActiveSession = Boolean(data?.session);
 
       if (hasActiveSession) {
-        router.replace('/(tabs)');
+        router.replace("/(tabs)");
       } else {
-        router.replace('/auth/login');
+        router.replace("/auth/login");
       }
     } catch (error) {
-      console.warn('Gagal mengecek sesi Supabase:', error);
-      router.replace('/auth/login');
+      console.warn("Gagal mengecek sesi Supabase:", error);
+      router.replace("/auth/login");
     } finally {
       setIsNavigating(false);
     }
@@ -154,7 +149,10 @@ export default function SplashScreen() {
               style={[
                 styles.logoImage,
                 {
-                  transform: [{ scale: logoScale }, { translateX: logoTranslateX }],
+                  transform: [
+                    { scale: logoScale },
+                    { translateX: logoTranslateX },
+                  ],
                 },
               ]}
             />
@@ -179,20 +177,20 @@ export default function SplashScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
   },
   safeArea: {
     flex: 1,
   },
   stageContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
   },
   shapeLayer: {
     ...StyleSheet.absoluteFillObject,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   // topArc: {
   //   position: 'absolute',
@@ -226,27 +224,27 @@ const styles = StyleSheet.create({
   // },
   logoRow: {
     height: 72,
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-    width: '100%',
+    alignItems: "center",
+    justifyContent: "center",
+    position: "relative",
+    width: "100%",
     maxWidth: 280,
   },
   logoImage: {
     width: 64,
     height: 64,
-    position: 'absolute',
-    left: '50%',
+    position: "absolute",
+    left: "50%",
     marginLeft: -32,
   },
   logoText: {
     fontSize: 36,
-    fontWeight: '800',
+    fontWeight: "800",
     letterSpacing: 1,
-    color: '#C7782A',
-    textTransform: 'uppercase',
-    position: 'absolute',
-    left: '50%',
+    color: "#C7782A",
+    textTransform: "uppercase",
+    position: "absolute",
+    left: "50%",
     marginLeft: 48,
   },
 });

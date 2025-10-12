@@ -28,11 +28,13 @@ export default function TabLayout() {
 
     verifySession();
 
-    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!session) {
-        router.replace("/auth/login");
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        if (!session) {
+          router.replace("/auth/login");
+        }
       }
-    });
+    );
 
     return () => {
       isMounted = false;
@@ -124,6 +126,7 @@ const styles = StyleSheet.create({
   },
   item: {
     paddingVertical: 4,
+    paddingHorizontal: 8,
     flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",

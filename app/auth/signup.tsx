@@ -1,36 +1,41 @@
-import { authService } from '@/hooks/supabase';
-import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect, useRouter } from 'expo-router';
-import React, { useCallback, useState } from 'react';
+import { authService } from "@/hooks/supabase";
+import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect, useRouter } from "expo-router";
+import React, { useCallback, useState } from "react";
 import {
-    BackHandler,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+  BackHandler,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function SignUpScreen() {
   const router = useRouter();
 
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const navigateToHome = useCallback(() => {
-    router.replace('/(tabs)');
+    router.replace("/(tabs)");
   }, [router]);
 
   useFocusEffect(
     useCallback(() => {
-      const subscription = BackHandler.addEventListener('hardwareBackPress', () => true);
+      const subscription = BackHandler.addEventListener(
+        "hardwareBackPress",
+        () => true
+      );
       return () => subscription.remove();
     }, [])
   );
@@ -43,17 +48,17 @@ export default function SignUpScreen() {
     const trimmedConfirm = confirmPassword.trim();
 
     if (!trimmedEmail || !trimmedPassword) {
-      setErrorMessage('Email dan password wajib diisi.');
+      setErrorMessage("Email dan password wajib diisi.");
       return;
     }
 
     if (trimmedPassword.length < 8) {
-      setErrorMessage('Password minimal 8 karakter.');
+      setErrorMessage("Password minimal 8 karakter.");
       return;
     }
 
     if (trimmedPassword !== trimmedConfirm) {
-      setErrorMessage('Konfirmasi password tidak sesuai.');
+      setErrorMessage("Konfirmasi password tidak sesuai.");
       return;
     }
 
@@ -61,7 +66,7 @@ export default function SignUpScreen() {
       setIsLoading(true);
       setErrorMessage(null);
 
-      const fallbackFullName = trimmedEmail.split('@')[0] || undefined;
+      const fallbackFullName = trimmedEmail.split("@")[0] || undefined;
       const data = await authService.signUp({
         email: trimmedEmail,
         password: trimmedPassword,
@@ -69,37 +74,52 @@ export default function SignUpScreen() {
       });
 
       if (!data.session) {
-        setErrorMessage('Akun berhasil dibuat. Silakan cek email Anda untuk verifikasi sebelum masuk.');
+        setErrorMessage(
+          "Akun berhasil dibuat. Silakan cek email Anda untuk verifikasi sebelum masuk."
+        );
         return;
       }
 
       navigateToHome();
     } catch (err: any) {
-      console.error('❌ Sign up error:', err);
-      setErrorMessage(err?.message || 'Terjadi kesalahan saat membuat akun.');
+      console.error("❌ Sign up error:", err);
+      setErrorMessage(err?.message || "Terjadi kesalahan saat membuat akun.");
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleLogIn = () => {
-    router.replace('/auth/login');
+    router.replace("/auth/login");
   };
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Sign up</Text>
-        </View>
+        <View style={styles.topBar} />
 
         <View style={styles.form}>
-          {errorMessage && <Text style={styles.errorMessage}>{errorMessage}</Text>}
+          <Text style={styles.title}>Daftar</Text>
+
+          {errorMessage && (
+            <Text style={styles.errorMessage}>{errorMessage}</Text>
+          )}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Username</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Masukkan username"
+              value={username}
+              onChangeText={setUsername}
+              autoCapitalize="none"
+            />
+          </View>
+
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Email</Text>
             <TextInput
               style={styles.input}
-              placeholder="example@gmail.com"
+              placeholder="contoh@gmail.com"
               value={email}
               onChangeText={setEmail}
               keyboardType="email-address"
@@ -108,11 +128,25 @@ export default function SignUpScreen() {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Create a password</Text>
+            <Text style={styles.label}>Nomor Telepon</Text>
+            <View style={styles.phoneContainer}>
+              <Text style={styles.phonePrefix}>+62</Text>
+              <TextInput
+                style={styles.phoneInput}
+                placeholder="812345678"
+                value={phoneNumber}
+                onChangeText={setPhoneNumber}
+                keyboardType="phone-pad"
+              />
+            </View>
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Password</Text>
             <View style={styles.passwordContainer}>
               <TextInput
                 style={styles.passwordInput}
-                placeholder="must be 8 characters"
+                placeholder="Minimal 8 karakter"
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
@@ -122,7 +156,7 @@ export default function SignUpScreen() {
                 onPress={() => setShowPassword(!showPassword)}
               >
                 <Ionicons
-                  name={showPassword ? 'eye' : 'eye-off'}
+                  name={showPassword ? "eye" : "eye-off"}
                   size={20}
                   color="#999"
                 />
@@ -131,11 +165,11 @@ export default function SignUpScreen() {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Confirm password</Text>
+            <Text style={styles.label}>Konfirmasi Password</Text>
             <View style={styles.passwordContainer}>
               <TextInput
                 style={styles.passwordInput}
-                placeholder="repeat password"
+                placeholder="Ulangi password"
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
                 secureTextEntry={!showConfirmPassword}
@@ -145,7 +179,7 @@ export default function SignUpScreen() {
                 onPress={() => setShowConfirmPassword(!showConfirmPassword)}
               >
                 <Ionicons
-                  name={showConfirmPassword ? 'eye' : 'eye-off'}
+                  name={showConfirmPassword ? "eye" : "eye-off"}
                   size={20}
                   color="#999"
                 />
@@ -159,32 +193,16 @@ export default function SignUpScreen() {
             disabled={isLoading}
           >
             <Text style={styles.createButtonText}>
-              {isLoading ? 'Creating account...' : 'Create Account'}
+              {isLoading ? "Mendaftarkan akun..." : "Daftar"}
             </Text>
           </TouchableOpacity>
 
-          <View style={styles.divider}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>Or Register with</Text>
-            <View style={styles.dividerLine} />
-          </View>
-
-          <View style={styles.socialButtons}>
-            <TouchableOpacity style={styles.socialButton}>
-              <Text style={styles.socialButtonText}>f</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.socialButton}>
-              <Text style={styles.googleText}>G</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.socialButton}>
-              <Ionicons name="logo-apple" size={20} color="#000" />
-            </TouchableOpacity>
-          </View>
-
           <View style={styles.footer}>
             <Text style={styles.footerText}>
-              Already have an account?{' '}
-              <Text style={styles.linkText} onPress={handleLogIn}>Log in</Text>
+              Sudah punya akun?{" "}
+              <Text style={styles.linkText} onPress={handleLogIn}>
+                Masuk
+              </Text>
             </Text>
           </View>
         </View>
@@ -196,20 +214,22 @@ export default function SignUpScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
   },
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: 20,
   },
-  header: {
-    marginTop: 60,
-    marginBottom: 40,
+  topBar: {
+    marginTop: 12,
+    marginBottom: 52,
+    alignItems: "flex-start",
   },
   title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#000',
+    fontSize: 32,
+    fontWeight: "bold",
+    color: "#000",
+    marginBottom: 32,
   },
   form: {
     flex: 1,
@@ -218,8 +238,8 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   errorMessage: {
-    backgroundColor: '#ffe8e6',
-    color: '#b3261e',
+    backgroundColor: "#ffe8e6",
+    color: "#b3261e",
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 8,
@@ -227,100 +247,77 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 14,
-    color: '#000',
+    color: "#000",
     marginBottom: 8,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   input: {
     borderBottomWidth: 1,
-    borderBottomColor: '#ddd',
+    borderBottomColor: "#ddd",
     paddingVertical: 12,
     fontSize: 16,
-    color: '#000',
+    color: "#000",
+  },
+  phoneContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderBottomWidth: 1,
+    borderBottomColor: "#ddd",
+  },
+  phonePrefix: {
+    fontSize: 16,
+    color: "#000",
+    paddingVertical: 12,
+    paddingRight: 8,
+    fontWeight: "500",
+  },
+  phoneInput: {
+    flex: 1,
+    paddingVertical: 12,
+    fontSize: 16,
+    color: "#000",
   },
   passwordContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     borderBottomWidth: 1,
-    borderBottomColor: '#ddd',
+    borderBottomColor: "#ddd",
   },
   passwordInput: {
     flex: 1,
     paddingVertical: 12,
     fontSize: 16,
-    color: '#000',
+    color: "#000",
   },
   eyeButton: {
     padding: 4,
   },
   createButton: {
-    backgroundColor: '#000',
+    backgroundColor: "#4CAF50",
     borderRadius: 8,
     paddingVertical: 16,
-    alignItems: 'center',
+    alignItems: "center",
     marginTop: 20,
-    marginBottom: 30,
+    marginBottom: 20,
   },
   disabledButton: {
     opacity: 0.6,
   },
   createButtonText: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 16,
-    fontWeight: '600',
-  },
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 20,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#ddd',
-  },
-  dividerText: {
-    marginHorizontal: 16,
-    fontSize: 14,
-    color: '#666',
-  },
-  socialButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginVertical: 20,
-    paddingHorizontal: 40,
-  },
-  socialButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#f5f5f5',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#ddd',
-  },
-  socialButtonText: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#4267B2',
-  },
-  googleText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#DB4437',
+    fontWeight: "600",
   },
   footer: {
-    alignItems: 'center',
-    marginTop: 'auto',
+    alignItems: "center",
     marginBottom: 20,
   },
   footerText: {
     fontSize: 14,
-    color: '#666',
+    color: "#666",
   },
   linkText: {
-    color: '#000',
-    fontWeight: '600',
+    color: "#000",
+    fontWeight: "600",
   },
 });

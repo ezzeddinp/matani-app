@@ -24,7 +24,8 @@ const normaliseNumber = (value) => {
 
 router.get("/", async (req, res) => {
   const { lat, lon } = req.query;
-  if (!lat || !lon) return res.status(400).json({ error: "lat & lon required" });
+  if (!lat || !lon)
+    return res.status(400).json({ error: "lat & lon required" });
 
   const apiKey = process.env.ACCUWEATHER_API_KEY;
   if (!apiKey) {
@@ -36,15 +37,26 @@ router.get("/", async (req, res) => {
     const locationResp = await fetch(locationUrl);
     if (!locationResp.ok) {
       const errorText = await locationResp.text();
-      console.error("❌ AccuWeather location lookup failed", locationResp.status, errorText);
+      console.error(
+        "❌ AccuWeather location lookup failed",
+        locationResp.status,
+        errorText
+      );
       return res.status(500).json({ error: "Failed to resolve location" });
     }
     const locationData = await locationResp.json();
     const locationKey = locationData?.Key;
 
     if (!locationKey) {
-      console.warn("⚠️ AccuWeather location key missing for", lat, lon, locationData);
-      return res.status(404).json({ error: "Unable to resolve AccuWeather location key" });
+      console.warn(
+        "⚠️ AccuWeather location key missing for",
+        lat,
+        lon,
+        locationData
+      );
+      return res
+        .status(404)
+        .json({ error: "Unable to resolve AccuWeather location key" });
     }
 
     const [currentResp, forecastResp] = await Promise.all([
@@ -58,13 +70,23 @@ router.get("/", async (req, res) => {
 
     if (!currentResp.ok) {
       const errorText = await currentResp.text();
-      console.error("❌ AccuWeather current conditions failed", currentResp.status, errorText);
-      return res.status(500).json({ error: "Failed to fetch current conditions" });
+      console.error(
+        "❌ AccuWeather current conditions failed",
+        currentResp.status,
+        errorText
+      );
+      return res
+        .status(500)
+        .json({ error: "Failed to fetch current conditions" });
     }
 
     if (!forecastResp.ok) {
       const errorText = await forecastResp.text();
-      console.error("❌ AccuWeather forecast failed", forecastResp.status, errorText);
+      console.error(
+        "❌ AccuWeather forecast failed",
+        forecastResp.status,
+        errorText
+      );
       return res.status(500).json({ error: "Failed to fetch forecast" });
     }
 
@@ -101,7 +123,9 @@ router.get("/", async (req, res) => {
       highTemp: normaliseNumber(firstForecast?.Temperature?.Maximum?.Value),
       lowTemp: normaliseNumber(firstForecast?.Temperature?.Minimum?.Value),
       humidity: normaliseNumber(current?.RelativeHumidity),
-      rainfall: normaliseNumber(current?.PrecipitationSummary?.Past24Hours?.Metric?.Value),
+      rainfall: normaliseNumber(
+        current?.PrecipitationSummary?.Past24Hours?.Metric?.Value
+      ),
       pressure: normaliseNumber(current?.Pressure?.Metric?.Value),
       windSpeed: normaliseNumber(current?.Wind?.Speed?.Metric?.Value),
       dailyForecasts,

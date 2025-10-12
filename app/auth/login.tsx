@@ -1,7 +1,7 @@
-import { authService } from '@/hooks/supabase';
-import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect, useRouter } from 'expo-router';
-import React, { useCallback, useState } from 'react';
+import { authService } from "@/hooks/supabase";
+import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect, useRouter } from "expo-router";
+import React, { useCallback, useState } from "react";
 import {
   BackHandler,
   ScrollView,
@@ -10,13 +10,13 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function LoginScreen() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -24,7 +24,10 @@ export default function LoginScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      const subscription = BackHandler.addEventListener('hardwareBackPress', () => true);
+      const subscription = BackHandler.addEventListener(
+        "hardwareBackPress",
+        () => true
+      );
       return () => subscription.remove();
     }, [])
   );
@@ -36,7 +39,7 @@ export default function LoginScreen() {
     const trimmedPassword = password.trim();
 
     if (!trimmedEmail || !trimmedPassword) {
-      setErrorMessage('Email dan password wajib diisi.');
+      setErrorMessage("Email dan password wajib diisi.");
       return;
     }
 
@@ -50,40 +53,39 @@ export default function LoginScreen() {
       });
 
       if (!data.session?.user) {
-        setErrorMessage('Sesi login tidak tersedia. Silakan coba lagi.');
+        setErrorMessage("Sesi login tidak tersedia. Silakan coba lagi.");
         return;
       }
 
-      router.replace('/(tabs)');
+      router.replace("/(tabs)");
     } catch (err: any) {
-      console.error('❌ Sign in error:', err);
-      setErrorMessage(err?.message || 'Terjadi kesalahan saat masuk.');
+      console.error("❌ Sign in error:", err);
+      setErrorMessage(err?.message || "Terjadi kesalahan saat masuk.");
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleSignUp = () => {
-    router.replace('/auth/signup');
+    router.replace("/auth/signup");
   };
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.topBar} />
-        <View style={styles.header}>
-          <Text style={styles.title}>Hi, Welcome! 👋</Text>
-        </View>
 
         <View style={styles.form}>
+          <Text style={styles.pageTitle}>Masuk</Text>
+
           {errorMessage && (
             <Text style={styles.errorMessage}>{errorMessage}</Text>
           )}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Email address</Text>
+            <Text style={styles.label}>Email</Text>
             <TextInput
               style={styles.input}
-              placeholder="Your email"
+              placeholder="contoh@gmail.com"
               value={email}
               onChangeText={setEmail}
               keyboardType="email-address"
@@ -96,7 +98,7 @@ export default function LoginScreen() {
             <View style={styles.passwordContainer}>
               <TextInput
                 style={styles.passwordInput}
-                placeholder="Password"
+                placeholder="Minimal 8 karakter"
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
@@ -106,7 +108,7 @@ export default function LoginScreen() {
                 onPress={() => setShowPassword(!showPassword)}
               >
                 <Ionicons
-                  name={showPassword ? 'eye' : 'eye-off'}
+                  name={showPassword ? "eye" : "eye-off"}
                   size={20}
                   color="#999"
                 />
@@ -124,10 +126,10 @@ export default function LoginScreen() {
                   <Ionicons name="checkmark" size={12} color="#fff" />
                 )}
               </View>
-              <Text style={styles.rememberText}>Remember me</Text>
+              <Text style={styles.rememberText}>Ingat saya</Text>
             </TouchableOpacity>
             <TouchableOpacity>
-              <Text style={styles.forgotText}>Forgot password?</Text>
+              <Text style={styles.forgotText}>Lupa password?</Text>
             </TouchableOpacity>
           </View>
 
@@ -137,31 +139,16 @@ export default function LoginScreen() {
             disabled={isLoading}
           >
             <Text style={styles.signInButtonText}>
-              {isLoading ? 'Signing in...' : 'Sign in'}
+              {isLoading ? "Masuk..." : "Masuk"}
             </Text>
           </TouchableOpacity>
 
-          <View style={styles.divider}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>Or with</Text>
-            <View style={styles.dividerLine} />
-          </View>
-
-          <View style={styles.socialButtons}>
-            <TouchableOpacity style={styles.socialButton}>
-              <Text style={styles.socialButtonText}>f</Text>
-              <Text style={styles.socialLabel}>Facebook</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.socialButton}>
-              <Text style={styles.googleText}>G</Text>
-              <Text style={styles.socialLabel}>Google</Text>
-            </TouchableOpacity>
-          </View>
-
           <View style={styles.footer}>
             <Text style={styles.footerText}>
-              Don&apos;t have an account?{' '}
-              <Text style={styles.linkText} onPress={handleSignUp}>Sign up</Text>
+              Belum memiliki akun?{" "}
+              <Text style={styles.linkText} onPress={handleSignUp}>
+                Daftar sekarang
+              </Text>
             </Text>
           </View>
         </View>
@@ -173,7 +160,7 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
   },
   scrollContent: {
     flexGrow: 1,
@@ -181,27 +168,24 @@ const styles = StyleSheet.create({
   },
   topBar: {
     marginTop: 12,
-    marginBottom: 12,
-    alignItems: 'flex-start',
-  },
-  header: {
-    marginTop: 40,
-    marginBottom: 40,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#000',
+    marginBottom: 52,
+    alignItems: "flex-start",
   },
   form: {
     flex: 1,
+  },
+  pageTitle: {
+    fontSize: 32,
+    fontWeight: "bold",
+    color: "#000",
+    marginBottom: 32,
   },
   inputGroup: {
     marginBottom: 24,
   },
   errorMessage: {
-    backgroundColor: '#ffe8e6',
-    color: '#b3261e',
+    backgroundColor: "#ffe8e6",
+    color: "#b3261e",
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 8,
@@ -209,130 +193,85 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 14,
-    color: '#000',
+    color: "#000",
     marginBottom: 8,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   input: {
     borderBottomWidth: 1,
-    borderBottomColor: '#ddd',
+    borderBottomColor: "#ddd",
     paddingVertical: 12,
     fontSize: 16,
-    color: '#000',
+    color: "#000",
   },
   passwordContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     borderBottomWidth: 1,
-    borderBottomColor: '#ddd',
+    borderBottomColor: "#ddd",
   },
   passwordInput: {
     flex: 1,
     paddingVertical: 12,
     fontSize: 16,
-    color: '#000',
+    color: "#000",
   },
   eyeButton: {
     padding: 4,
   },
   optionsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 30,
   },
   rememberRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   checkbox: {
     width: 18,
     height: 18,
-    borderRadius: 9,
-    backgroundColor: '#000',
-    alignItems: 'center',
-    justifyContent: 'center',
+    borderRadius: 4,
+    backgroundColor: "#dadadaff",
+    alignItems: "center",
+    justifyContent: "center",
     marginRight: 8,
   },
   rememberText: {
     fontSize: 14,
-    color: '#000',
+    color: "#000",
   },
   forgotText: {
     fontSize: 14,
-    color: '#666',
+    color: "#666",
   },
   signInButton: {
-    backgroundColor: '#000',
+    backgroundColor: "#4CAF50",
     borderRadius: 8,
     paddingVertical: 16,
-    alignItems: 'center',
-    marginBottom: 30,
+    alignItems: "center",
+    marginBottom: 20,
   },
   disabledButton: {
     opacity: 0.6,
   },
   signInButtonText: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 16,
-    fontWeight: '600',
-  },
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 20,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#ddd',
-  },
-  dividerText: {
-    marginHorizontal: 16,
-    fontSize: 14,
-    color: '#666',
-  },
-  socialButtons: {
-    marginVertical: 20,
-  },
-  socialButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    paddingVertical: 12,
-    marginBottom: 12,
-  },
-  socialButtonText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#4267B2',
-    marginRight: 8,
-  },
-  googleText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#DB4437',
-    marginRight: 8,
-  },
-  socialLabel: {
-    fontSize: 16,
-    color: '#000',
-    fontWeight: '500',
+    fontWeight: "600",
   },
   footer: {
-    alignItems: 'center',
-    marginTop: 'auto',
+    alignItems: "center",
     marginBottom: 20,
   },
   footerText: {
     fontSize: 14,
-    color: '#666',
+    color: "#666",
+    textAlign: "center",
   },
   linkText: {
-    color: '#000',
-    fontWeight: '600',
+    color: "#000",
+    fontWeight: "600",
   },
 });
