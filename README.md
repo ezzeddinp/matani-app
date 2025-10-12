@@ -3,9 +3,9 @@
 Selamat datang di panduan resmi untuk menilai proyek **Matani App**. Dokumen ini menuntun juri menyiapkan backend, layanan Supabase, dan aplikasi mobile Expo hingga bisa diuji langsung di perangkat masing-masing.
 
 # 2 opsi untuk menjalankan aplikasi:
-## A.) Melalui public QR & Link
-## B.) Setup manual in local computer
-
+### A.) Melalui public QR & Link
+### B.) Setup manual in local computer
+---
 # A.) Melalui public QR & Link
 - Scan QR (IOS)
 <img width="385" height="294" alt="image" src="https://github.com/user-attachments/assets/f1e91162-cfd0-4ace-bccd-3d4e91e2a69e" />
