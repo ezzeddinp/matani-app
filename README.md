@@ -37,18 +37,20 @@ https://expo.dev/preview/update?message=android+production%3A+moment+of+truth%2C
 - **dianjurkan untuk menggunakan Android/Ios dikarenakan base matani adalah aplikasi :D**.
 
 ## 3. Kloning & Instalasi Dependensi (terminal tab ke-1)
-```powershell
+
 # 1) Kloning repository
+```powershell
 1. a) cd D:\
 1. b) git clone https://github.com/ezzeddinp/matani-app.git
 1. c) cd matani-app
 1. d) npm install
+```
 
 # 2) Run frontend Expo (terminal tab ke-2)
+```powershell
 2. a) npx expo start
 2. b) scan QR Code menggunakan kamera bawaan device
 - file .env untuk FE -> matani-app/.env:
-```powershell
 EXPO_PUBLIC_SUPABASE_URL=https://eyhdrqablhkqmwzfevpk.supabase.co
 EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_D48epnwIsMB1Iib_ALOF6w_ZAlrx0vt
 
@@ -56,11 +58,12 @@ EXPO_PUBLIC_API_URL=https://matani-backend-ne4yn7s1s-ezzeddinps-projects.vercel.
 ```
 
 # 3) Instal dependensi backend Express (terminal tab ke-3)
+```powershell
 3. a) cd backend
 3. b) npm install
 3. c) node index.js
 - buat folder & file untuk BE -> matani-app/backend/.env:
-```powershell
+  
 # Sentinel Hub API credentials
 SENTINEL_CLIENT_ID=2bbb5581-b56b-46a2-a22a-ac2395dcbcb8
 SENTINEL_CLIENT_SECRET=whoga2y0eA05JzWvbTrTKO8RM4Qw8l6z
