@@ -1,5 +1,5 @@
 import { ThemedView } from "@/components/themed-view";
-import { BASE_URL } from "@/hooks/config";
+import { API_BASE_CANDIDATES } from "@/hooks/config";
 import {
   getWeatherIconSource,
   mapAccuWeatherCodeToIconKey,
@@ -19,6 +19,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+
+const OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast";
 
 interface CurrentWeather {
   temperature: number | null;
@@ -215,15 +217,128 @@ export default function WeatherScreen() {
       longitude: number,
       labelHint?: string
     ) {
-      const response = await fetch(
-        `${BASE_URL}/weather?lat=${latitude}&lon=${longitude}`
-      );
-      if (!response.ok) {
-        const text = await response.text();
-        throw new Error(`Gagal memuat cuaca: ${response.status} ${text}`);
+      const params = `?lat=${latitude}&lon=${longitude}`;
+      let payload: any = null;
+      let lastErrorMessage = "";
+      let lastStatus: number | null = null;
+      let lastUrl: string | null = null;
+
+      outer: for (const base of API_BASE_CANDIDATES) {
+        const normalisedBase = base.replace(/\/$/, "");
+        const candidateUrls = [
+          `${normalisedBase}/weather${params}`,
+          /\/api\/?$/.test(normalisedBase)
+            ? null
+            : `${normalisedBase}/api/weather${params}`,
+        ].filter(Boolean) as string[];
+
+        for (const url of candidateUrls) {
+          try {
+            const response = await fetch(url);
+            if (!response.ok) {
+              const text = await response.text();
+              lastStatus = response.status;
+              lastUrl = url;
+              lastErrorMessage = text || response.statusText || "Unknown";
+              console.warn(
+                `⚠️ Weather endpoint responded with ${response.status} from ${url}`
+              );
+              continue;
+            }
+
+            payload = await response.json();
+            lastStatus = response.status;
+            lastUrl = url;
+            console.log("Weather data fetched from", url);
+            break outer;
+          } catch (networkError) {
+            lastStatus = null;
+            lastUrl = url;
+            lastErrorMessage =
+              networkError instanceof Error
+                ? networkError.message
+                : String(networkError);
+            console.warn(
+              `⚠️ Weather request network error for ${url}:`,
+              lastErrorMessage
+            );
+          }
+        }
       }
 
-      const currentJson = await response.json();
+      if (!payload) {
+        try {
+          const url = new URL(OPEN_METEO_URL);
+          url.searchParams.set("latitude", String(latitude));
+          url.searchParams.set("longitude", String(longitude));
+          url.searchParams.set(
+            "current",
+            "temperature_2m,relative_humidity_2m,precipitation,pressure_msl,wind_speed_10m"
+          );
+          url.searchParams.set(
+            "daily",
+            "temperature_2m_max,temperature_2m_min,precipitation_sum"
+          );
+          url.searchParams.set("timezone", "auto");
+
+          const fallbackResponse = await fetch(url.toString());
+          if (!fallbackResponse.ok) {
+            const text = await fallbackResponse.text();
+            throw new Error(
+              `Open-Meteo fallback ${fallbackResponse.status}: ${text}`
+            );
+          }
+
+          const data = await fallbackResponse.json();
+          const current = data?.current ?? {};
+          const forecastTimes = Array.isArray(data?.daily?.time)
+            ? data.daily.time
+            : [];
+
+          payload = {
+            locationLabel: `Koordinat ${latitude.toFixed(
+              2
+            )}, ${longitude.toFixed(2)}`,
+            temperature: current?.temperature_2m ?? null,
+            highTemp: data?.daily?.temperature_2m_max?.[0] ?? null,
+            lowTemp: data?.daily?.temperature_2m_min?.[0] ?? null,
+            humidity: current?.relative_humidity_2m ?? null,
+            rainfall: current?.precipitation ?? null,
+            pressure: current?.pressure_msl ?? null,
+            windSpeed: current?.wind_speed_10m ?? null,
+            condition: null,
+            iconCode: null,
+            dailyForecasts: forecastTimes.map(
+              (time: string, index: number) => ({
+                isoDate: time,
+                highTemp: data?.daily?.temperature_2m_max?.[index] ?? null,
+                lowTemp: data?.daily?.temperature_2m_min?.[index] ?? null,
+                precipitationMm:
+                  data?.daily?.precipitation_sum?.[index] ?? null,
+                humidity: null,
+                iconCode: null,
+                iconPhrase: null,
+              })
+            ),
+          };
+          console.log("Weather data fetched from Open-Meteo fallback");
+        } catch (fallbackError) {
+          lastErrorMessage =
+            fallbackError instanceof Error
+              ? fallbackError.message
+              : String(fallbackError);
+          console.warn("⚠️ Open-Meteo fallback failed:", lastErrorMessage);
+        }
+      }
+
+      if (!payload) {
+        const details = lastUrl
+          ? `${lastStatus ?? ""} from ${lastUrl}`
+          : lastErrorMessage || "Tidak ada data cuaca.";
+        throw new Error(`Gagal memuat cuaca: ${details}`.trim());
+      }
+
+      const currentJson: any = payload;
       if (!isMounted) return;
 
       const dailyData: DailyForecast[] = Array.isArray(

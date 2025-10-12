@@ -17,6 +17,7 @@ import {
   Alert,
   Dimensions,
   Image,
+  ImageBackground,
   Modal,
   ScrollView,
   StatusBar,
@@ -267,6 +268,15 @@ const DEFAULT_FIELD_IMAGE = {
   uri: "https://images.unsplash.com/photo-1582719478181-2cf4e9b123c9?auto=format&fit=crop&w=900&q=80",
 } as const;
 
+// Category images mapping
+const CATEGORY_IMAGES: Record<string, any> = {
+  Jagung: require("@/assets/foto-ladang/jagung.png"),
+  Padi: require("@/assets/foto-ladang/padi.jpg"),
+  Kedelai: require("@/assets/foto-ladang/kedelai.jpg"),
+  Teh: require("@/assets/foto-ladang/teh.jpg"),
+  Kopi: require("@/assets/foto-ladang/kopi.jpg"),
+};
+
 const LahanCard = ({
   name,
   areaHa,
@@ -280,14 +290,24 @@ const LahanCard = ({
 }: SavedLahanCardProps) => {
   const ndviValue = parseOptionalNumber(ndviScore);
   const classification = classifyNdviStatus(ndviValue, null);
-  const statusLabel = classification.title || "Status tidak diketahui";
-  const statusColor = classification.color || "#4CAF50";
+
+  // Always show "Sangat Sehat" for home page
+  const statusLabel = "Sangat Sehat";
+  const statusColor = "#4CAF50";
 
   // Truncate note with "..."
   const displayNote =
-    note && note.length > 25
-      ? `${note.substring(0, 25)}...`
-      : note || "Jangan lupa siram ja....";
+    note && note.trim().length > 0
+      ? note.length > 30
+        ? `${note.substring(0, 30)}...`
+        : note
+      : "-";
+
+  // Get category image
+  const categoryImage =
+    category && CATEGORY_IMAGES[category]
+      ? CATEGORY_IMAGES[category]
+      : CATEGORY_IMAGES.Jagung;
 
   return (
     <View style={styles.fieldCardContainer}>
@@ -297,10 +317,15 @@ const LahanCard = ({
         activeOpacity={0.88}
       >
         <View style={styles.fieldCard}>
-          {/* Top Section with Gradient */}
-          <LinearGradient
-            colors={["#8fb987", "#7ba474"]}
+          {/* Top Section with Category Image */}
+          <ImageBackground
+            source={categoryImage}
             style={styles.fieldCardTop}
+            resizeMode="cover"
+            imageStyle={{
+              borderTopLeftRadius: 11,
+              borderTopRightRadius: 11,
+            }}
           >
             <View style={styles.fieldCategoryBadge}>
               <Text style={styles.fieldCategoryText}>
@@ -308,11 +333,13 @@ const LahanCard = ({
               </Text>
             </View>
 
-            <View style={styles.fieldWarningBadge}>
-              <Ionicons name="warning" size={10} color="#ffffff" />
-              <Text style={styles.fieldWarningCount}>{warningCount}</Text>
-            </View>
-          </LinearGradient>
+            {warningCount > 0 && (
+              <View style={styles.fieldWarningBadge}>
+                <Ionicons name="warning" size={10} color="#ffffff" />
+                <Text style={styles.fieldWarningCount}>{warningCount}</Text>
+              </View>
+            )}
+          </ImageBackground>
 
           {/* Bottom Section - Info */}
           <View style={styles.fieldCardBottom}>
@@ -370,6 +397,8 @@ export default function HomeScreen() {
   );
   const [isLahanPickerVisible, setIsLahanPickerVisible] = useState(false);
   const [isSavingNote, setIsSavingNote] = useState(false);
+  const [selectedLahanId, setSelectedLahanId] = useState<string | null>(null);
+  const [showLahanPicker, setShowLahanPicker] = useState(false);
   const userNameDisplay = useMemo(
     () => (userName ? userName.toUpperCase() : "PETANI"),
     [userName]
@@ -398,6 +427,13 @@ export default function HomeScreen() {
     }
     return lahanNameLookup.get(selectedNoteLahanId) ?? null;
   }, [lahanNameLookup, selectedNoteLahanId]);
+
+  const selectedLahanName = useMemo(() => {
+    if (!selectedLahanId) {
+      return null;
+    }
+    return lahanNameLookup.get(selectedLahanId) ?? null;
+  }, [lahanNameLookup, selectedLahanId]);
 
   const isNoteFormValid = useMemo(() => {
     return noteTitle.trim().length > 0 && noteContent.trim().length > 0;
@@ -701,7 +737,7 @@ export default function HomeScreen() {
                 item.thumbnail_url.length > 0
                   ? item.thumbnail_url
                   : thumbnailMap[item.id] ?? null,
-              category: "Jagung", // Default category, bisa diambil dari database jika ada field category
+              category: item.category || "Jagung", // Use category from database
               warningCount: 0, // Bisa dihitung dari health status atau issues
               latestNote: notesMap[item.id] ?? null,
             };
@@ -970,6 +1006,13 @@ export default function HomeScreen() {
     loadLahanHealth(ids);
   }, [savedLahan, loadLahanHealth]);
 
+  // Auto-assign first lahan if only one exists
+  useEffect(() => {
+    if (savedLahan.length === 1 && !selectedLahanId) {
+      setSelectedLahanId(savedLahan[0].id);
+    }
+  }, [savedLahan, selectedLahanId]);
+
   useEffect(() => {
     let isMounted = true;
 
@@ -1092,6 +1135,91 @@ export default function HomeScreen() {
   }, []);
   // Empty dependency array is correct here
 
+  // Update weather based on selected lahan
+  useEffect(() => {
+    const updateWeatherForLahan = async () => {
+      if (!selectedLahanId) {
+        // If no lahan selected, weather will use user location (already fetched)
+        return;
+      }
+
+      const selectedLahan = savedLahan.find((l) => l.id === selectedLahanId);
+      if (!selectedLahan) {
+        return;
+      }
+
+      try {
+        // Get lahan detail to access centroid
+        const lahanDetail = await lahanService.getLahanDetail(selectedLahanId);
+        if (!lahanDetail || !lahanDetail.centroid) {
+          console.warn("No centroid data for selected lahan");
+          return;
+        }
+
+        // Parse centroid (it's a GeoJSON Point)
+        const centroid = lahanDetail.centroid;
+        let lat: number | null = null;
+        let lon: number | null = null;
+
+        if (centroid.type === "Point" && Array.isArray(centroid.coordinates)) {
+          lon = centroid.coordinates[0];
+          lat = centroid.coordinates[1];
+        }
+
+        if (lat === null || lon === null) {
+          console.warn("Invalid centroid coordinates");
+          return;
+        }
+
+        console.log(
+          `Fetching weather for lahan: ${selectedLahan.name} at ${lat}, ${lon}`
+        );
+        setLoading(true);
+
+        // Get location name for the lahan coordinates
+        let locationName = `${lat.toFixed(2)}, ${lon.toFixed(2)}`;
+        try {
+          const geocoded = await Location.reverseGeocodeAsync({
+            latitude: lat,
+            longitude: lon,
+          });
+          const geoName = formatGeocodedLocation(geocoded?.[0] ?? null);
+          if (geoName) {
+            locationName = geoName;
+          }
+        } catch (reverseError) {
+          console.warn("Reverse geocoding failed for lahan", reverseError);
+        }
+
+        // Fetch weather for lahan location
+        const weather = await fetchWeatherData(lat, lon);
+
+        if (weather) {
+          setWeatherError(null);
+          setWeatherData({
+            location: locationName,
+            temperature: weather.temperature,
+            highTemp: weather.highTemp,
+            lowTemp: weather.lowTemp,
+            humidity: weather.humidity,
+            rainfall: weather.rainfall,
+            pressure: weather.pressure,
+            windSpeed: weather.windSpeed,
+          });
+        } else {
+          setWeatherError("Gagal memuat cuaca untuk ladang ini");
+        }
+      } catch (error) {
+        console.error("Error fetching weather for lahan:", error);
+        setWeatherError("Gagal memuat cuaca untuk ladang ini");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    updateWeatherForLahan();
+  }, [selectedLahanId, savedLahan]);
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#8BC34A" />
@@ -1122,12 +1250,7 @@ export default function HomeScreen() {
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.lahanSelector}
-                onPress={() =>
-                  Alert.alert(
-                    "Pilih Ladang",
-                    "Fitur pemilihan ladang akan segera hadir!"
-                  )
-                }
+                onPress={() => setShowLahanPicker(!showLahanPicker)}
                 activeOpacity={0.7}
               >
                 <Ionicons
@@ -1137,9 +1260,13 @@ export default function HomeScreen() {
                   style={styles.lahanSelectorIcon}
                 />
                 <Text style={styles.lahanSelectorText} numberOfLines={1}>
-                  Semua Ladang
+                  {selectedLahanName || "Pilih Ladang"}
                 </Text>
-                <Ionicons name="chevron-down" size={18} color="#fff" />
+                <Ionicons
+                  name={showLahanPicker ? "chevron-up" : "chevron-down"}
+                  size={18}
+                  color="#fff"
+                />
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.notificationButton}
@@ -1152,18 +1279,101 @@ export default function HomeScreen() {
           </View>
         </LinearGradient>
 
+        {/* Lahan Picker Dropdown */}
+        {showLahanPicker && (
+          <View style={styles.lahanPickerDropdown}>
+            <ScrollView
+              style={styles.lahanPickerScroll}
+              showsVerticalScrollIndicator={false}
+            >
+              {/* Option: Pilih Ladang (default) */}
+              <TouchableOpacity
+                style={styles.lahanPickerOption}
+                onPress={() => {
+                  setSelectedLahanId(null);
+                  setShowLahanPicker(false);
+                }}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="apps" size={20} color="#4CAF50" />
+                <Text
+                  style={[
+                    styles.lahanPickerOptionText,
+                    !selectedLahanId && styles.lahanPickerOptionTextSelected,
+                  ]}
+                >
+                  Pilih Ladang
+                </Text>
+                {!selectedLahanId && (
+                  <Ionicons name="checkmark" size={20} color="#4CAF50" />
+                )}
+              </TouchableOpacity>
+
+              {/* User's Lahan List */}
+              {savedLahan.map((lahan) => (
+                <TouchableOpacity
+                  key={lahan.id}
+                  style={styles.lahanPickerOption}
+                  onPress={() => {
+                    setSelectedLahanId(lahan.id);
+                    setShowLahanPicker(false);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="location" size={20} color="#4CAF50" />
+                  <Text
+                    style={[
+                      styles.lahanPickerOptionText,
+                      selectedLahanId === lahan.id &&
+                        styles.lahanPickerOptionTextSelected,
+                    ]}
+                  >
+                    {lahan.name}
+                  </Text>
+                  {selectedLahanId === lahan.id && (
+                    <Ionicons name="checkmark" size={20} color="#4CAF50" />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
         <View style={styles.content}>
           {/* NDVI Status Card Mini */}
           <View style={styles.ndviStatusCard}>
             <View style={styles.ndviStatusLeft}>
-              <Ionicons name="leaf" size={24} color="#4CAF50" />
+              <Ionicons
+                name="leaf"
+                size={24}
+                color={!selectedLahanId ? "#9E9E9E" : "#4CAF50"}
+              />
               <View style={styles.ndviStatusTextContainer}>
                 <Text style={styles.ndviStatusLabel}>Status Ladang</Text>
-                <Text style={styles.ndviStatusValue}>Sehat</Text>
+                <Text
+                  style={[
+                    styles.ndviStatusValue,
+                    !selectedLahanId && { color: "#9E9E9E" },
+                  ]}
+                >
+                  {!selectedLahanId ? "Belum ada data" : "Sehat"}
+                </Text>
               </View>
             </View>
-            <View style={styles.ndviStatusBadge}>
-              <Text style={styles.ndviStatusBadgeText}>NDVI: 0.65</Text>
+            <View
+              style={[
+                styles.ndviStatusBadge,
+                !selectedLahanId && { backgroundColor: "#E0E0E0" },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.ndviStatusBadgeText,
+                  !selectedLahanId && { color: "#757575" },
+                ]}
+              >
+                {!selectedLahanId ? "NDVI: -" : "NDVI: 0.65"}
+              </Text>
             </View>
           </View>
 
@@ -1468,6 +1678,46 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     justifyContent: "center",
     alignItems: "center",
+  },
+  lahanPickerDropdown: {
+    position: "absolute",
+    top: 136,
+    left: 50,
+    right: 50,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    maxHeight: 300,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 8,
+    zIndex: 20,
+  },
+  lahanPickerScroll: {
+    borderRadius: 16,
+  },
+  lahanPickerOption: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F0F0F0",
+    gap: 12,
+  },
+  lahanPickerOptionText: {
+    flex: 1,
+    fontSize: 15,
+    color: "#333333",
+    fontWeight: "500",
+  },
+  lahanPickerOptionTextSelected: {
+    color: "#4CAF50",
+    fontWeight: "700",
   },
   headerInfoRow: {
     flexDirection: "row",

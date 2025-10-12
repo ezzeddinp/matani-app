@@ -9,13 +9,19 @@ CREATE TABLE IF NOT EXISTS lahan (
   geom GEOMETRY(POLYGON, 4326), -- WGS84 coordinate system
   area_ha DECIMAL GENERATED ALWAYS AS (ST_Area(geom::geography) / 10000) STORED, -- Auto-calculate area in hectares
   thumbnail_url TEXT,
+  category TEXT, -- Kategori/jenis tanaman (Jagung, Padi, Kedelai, Teh, Kopi)
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Backfill column for existing deployments that predate thumbnail feature
+-- Backfill columns for existing deployments
 ALTER TABLE IF EXISTS lahan
-  ADD COLUMN IF NOT EXISTS thumbnail_url TEXT;
+  ADD COLUMN IF NOT EXISTS thumbnail_url TEXT,
+  ADD COLUMN IF NOT EXISTS category TEXT;
+
+-- Index untuk performa query filtering berdasarkan category
+CREATE INDEX IF NOT EXISTS idx_lahan_category ON lahan(category);
+CREATE INDEX IF NOT EXISTS idx_lahan_user_category ON lahan(user_id, category);
 
 -- Table metadata thumbnail lahan
 CREATE TABLE IF NOT EXISTS public.lahan_thumbnails (
@@ -110,6 +116,7 @@ SELECT
   ST_AsGeoJSON(geom) as geojson,
   area_ha,
   thumbnail_url,
+  category,
   ST_Centroid(geom::geography)::geometry as centroid,
   created_at,
   updated_at
@@ -248,6 +255,7 @@ SELECT
   ST_AsGeoJSON(geom) as geojson,
   area_ha,
   thumbnail_url,
+  category,
   ST_Centroid(geom::geography)::geometry as centroid,
   created_at,
   updated_at

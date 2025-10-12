@@ -9,12 +9,7 @@ import {
   type NdviClassificationKey,
 } from "@/constants/ndvi";
 import { API_BASE_CANDIDATES, BASE_URL } from "@/hooks/config";
-import {
-  LahanWithInfo,
-  lahanService,
-  lahanThumbnailService,
-  supabase,
-} from "@/hooks/supabase";
+import { LahanWithInfo, lahanService, supabase } from "@/hooks/supabase";
 import { computeSyntheticNdviForPolygon } from "@/utils/ndvi-simulator";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -31,6 +26,7 @@ import {
   ActivityIndicator,
   Alert,
   Dimensions,
+  Image,
   ImageBackground,
   ImageSourcePropType,
   Keyboard,
@@ -54,6 +50,34 @@ import MapView, {
   Polyline,
   Region,
 } from "react-native-maps";
+
+const LAHAN_CATEGORIES = [
+  {
+    id: "jagung",
+    label: "Jagung",
+    thumbnail: require("@/assets/foto-ladang/jagung.png"),
+  },
+  {
+    id: "padi",
+    label: "Padi",
+    thumbnail: require("@/assets/foto-ladang/padi.jpg"),
+  },
+  {
+    id: "kedelai",
+    label: "Kedelai",
+    thumbnail: require("@/assets/foto-ladang/kedelai.jpg"),
+  },
+  {
+    id: "teh",
+    label: "Teh",
+    thumbnail: require("@/assets/foto-ladang/teh.jpg"),
+  },
+  {
+    id: "kopi",
+    label: "Kopi",
+    thumbnail: require("@/assets/foto-ladang/kopi.jpg"),
+  },
+];
 
 type LahanHealthRecord = {
   id: string;
@@ -79,6 +103,7 @@ type SavedLahanItem = {
   areaHa: number | null;
   createdAt: string | null;
   thumbnailUrl: string | null;
+  category?: string | null;
 };
 
 type SearchSuggestion = {
@@ -454,6 +479,8 @@ export default function ExploreScreen() {
   const [drawingMode, setDrawingMode] = useState(false);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [lahanName, setLahanName] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [currentVertices, setCurrentVertices] = useState<LatLng[]>([]);
   const [pendingPolygon, setPendingPolygon] = useState<LatLng[]>([]);
   const [redoVertices, setRedoVertices] = useState<LatLng[]>([]);
@@ -703,6 +730,7 @@ export default function ExploreScreen() {
             item.thumbnail_url.length > 0
               ? item.thumbnail_url
               : null,
+          category: item.category ?? null,
         }))
         .filter((item) => item.coordinates.length >= 3);
 
@@ -1509,6 +1537,11 @@ export default function ExploreScreen() {
       return;
     }
 
+    if (!selectedCategory) {
+      Alert.alert("Error", "Silakan pilih kategori tanaman");
+      return;
+    }
+
     if (pendingPolygon.length < 3) {
       Alert.alert("Error", "Polygon lahan belum lengkap untuk disimpan.");
       return;
@@ -1543,38 +1576,34 @@ export default function ExploreScreen() {
         return;
       }
 
-      let uploadResult: {
-        publicUrl: string | null;
-        storagePath: string | null;
-      } = {
-        publicUrl: null,
-        storagePath: null,
-      };
+      // Get category thumbnail URL
+      const selectedCategoryData = LAHAN_CATEGORIES.find(
+        (c) => c.id === selectedCategory
+      );
+      let categoryThumbnailUrl: string | null = null;
 
-      const snapshotUri = await capturePolygonSnapshot(polygonToPersist);
-      if (snapshotUri) {
+      if (selectedCategoryData) {
         try {
-          uploadResult = await lahanService.uploadThumbnailFromFile(
-            userId,
-            snapshotUri
+          const resolvedAsset = Image.resolveAssetSource(
+            selectedCategoryData.thumbnail
           );
+          categoryThumbnailUrl = resolvedAsset.uri;
           console.log(
-            "� Thumbnail lahan tersimpan di storage Supabase:",
-            uploadResult
+            "🖼️ Using category thumbnail:",
+            selectedCategoryData.label,
+            categoryThumbnailUrl
           );
-        } catch (thumbnailUploadError) {
-          console.warn(
-            "❌ Gagal mengunggah thumbnail lahan:",
-            thumbnailUploadError
-          );
+        } catch (error) {
+          console.warn("❌ Failed to resolve category thumbnail:", error);
         }
       }
 
-      console.log("�💾 Saving lahan to Supabase:", {
+      console.log("📦💾 Saving lahan to Supabase:", {
         name: trimmedName,
         coordinates: polygonToPersist,
         area,
         userId,
+        category: selectedCategory,
       });
 
       const savedEntry = await lahanService.saveLahan(
@@ -1583,31 +1612,12 @@ export default function ExploreScreen() {
         userId,
         area,
         {
-          thumbnailUrl: uploadResult.publicUrl,
+          thumbnailUrl: categoryThumbnailUrl,
+          category: selectedCategory,
         }
       );
 
       console.log("✅ Lahan saved response:", savedEntry);
-
-      if (
-        savedEntry?.id &&
-        (uploadResult.publicUrl || uploadResult.storagePath)
-      ) {
-        try {
-          await lahanThumbnailService.createThumbnailRecord({
-            lahanId: savedEntry.id,
-            userId,
-            storagePath: uploadResult.storagePath,
-            publicUrl: savedEntry.thumbnail_url ?? uploadResult.publicUrl,
-            capturedAt: new Date(),
-          });
-        } catch (metadataError) {
-          console.warn(
-            "❌ Gagal membuat metadata thumbnail lahan:",
-            metadataError
-          );
-        }
-      }
 
       const savedArea = Number(savedEntry?.area_ha ?? area);
       const areaText = Number.isFinite(savedArea)
@@ -1620,8 +1630,8 @@ export default function ExploreScreen() {
         coordinates: polygonToPersist,
         areaHa: savedArea,
         createdAt: savedEntry?.created_at ?? new Date().toISOString(),
-        thumbnailUrl:
-          savedEntry?.thumbnail_url ?? uploadResult.publicUrl ?? null,
+        thumbnailUrl: savedEntry?.thumbnail_url ?? categoryThumbnailUrl ?? null,
+        category: savedEntry?.category ?? selectedCategory ?? null,
       };
 
       setSavedLahan((prev) => {
@@ -1633,6 +1643,8 @@ export default function ExploreScreen() {
 
       setShowSaveModal(false);
       setLahanName("");
+      setSelectedCategory(null);
+      setShowCategoryPicker(false);
       clearActivePath();
       Alert.alert(
         "Sukses",
@@ -1653,6 +1665,8 @@ export default function ExploreScreen() {
   const handleCancelSave = () => {
     setShowSaveModal(false);
     setLahanName("");
+    setSelectedCategory(null);
+    setShowCategoryPicker(false);
     clearActivePath();
   };
 
@@ -3089,15 +3103,15 @@ export default function ExploreScreen() {
                               {formatHa(card.areaHa)}
                             </Text>
                           </View>
-                          {card.createdAt && (
+                          {card.category && (
                             <View style={styles.lahanCardInfoItem}>
                               <Ionicons
-                                name="calendar-outline"
+                                name="leaf-outline"
                                 size={14}
                                 color="#6B7280"
                               />
                               <Text style={styles.lahanCardInfoText}>
-                                {formatYearLabel(card.createdAt)}
+                                {card.category}
                               </Text>
                             </View>
                           )}
@@ -3697,43 +3711,113 @@ export default function ExploreScreen() {
         </ScrollView>
 
         <Modal visible={showSaveModal} transparent animationType="slide">
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>Simpan Lahan</Text>
-              <Text style={styles.modalSubtitle}>
-                Luas: {formattedPendingArea} ha
-              </Text>
-              <Text style={styles.modalSubtitle}>
-                {pendingPolygon.length} titik koordinat
-              </Text>
-              <TextInput
-                style={styles.textInput}
-                placeholder="Nama lahan (contoh: Lahan Jagung A)"
-                value={lahanName}
-                onChangeText={setLahanName}
-              />
-              <View style={styles.modalButtons}>
-                <TouchableOpacity
-                  style={styles.modalCancelButton}
-                  onPress={handleCancelSave}
-                >
-                  <Text style={styles.modalCancelText}>Batal</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    styles.modalSaveButton,
-                    isSaving && styles.modalSaveButtonDisabled,
-                  ]}
-                  onPress={saveLahan}
-                  disabled={isSaving}
-                >
-                  <Text style={styles.modalSaveText}>
-                    {isSaving ? "Menyimpan..." : "Simpan"}
+          <TouchableWithoutFeedback onPress={handleCancelSave}>
+            <View style={styles.modalOverlay}>
+              <TouchableWithoutFeedback onPress={() => {}}>
+                <View style={styles.modalContent}>
+                  <Text style={styles.modalTitle}>Simpan Lahan</Text>
+                  <Text style={styles.modalSubtitle}>
+                    Luas: {formattedPendingArea} ha
                   </Text>
-                </TouchableOpacity>
-              </View>
+                  <Text style={styles.modalSubtitle}>
+                    {pendingPolygon.length} titik koordinat
+                  </Text>
+                  <TextInput
+                    style={styles.textInput}
+                    placeholder="Nama lahan (contoh: Lahan Jagung A)"
+                    value={lahanName}
+                    onChangeText={setLahanName}
+                  />
+
+                  {/* Category Picker */}
+                  <View style={styles.categoryPickerContainer}>
+                    <Text style={styles.categoryPickerTitle}>
+                      Kategori Tanaman *
+                    </Text>
+                    <TouchableOpacity
+                      style={styles.categoryPickerButton}
+                      onPress={() => setShowCategoryPicker((prev) => !prev)}
+                    >
+                      <Text style={styles.categoryPickerLabel}>
+                        {selectedCategory
+                          ? LAHAN_CATEGORIES.find(
+                              (c) => c.id === selectedCategory
+                            )?.label
+                          : "Pilih Kategori"}
+                      </Text>
+                      <Ionicons
+                        name={
+                          showCategoryPicker ? "chevron-up" : "chevron-down"
+                        }
+                        size={20}
+                        color="#4CAF50"
+                      />
+                    </TouchableOpacity>
+
+                    {showCategoryPicker && (
+                      <View style={styles.categoryPickerDropdown}>
+                        <ScrollView
+                          style={{ maxHeight: 200 }}
+                          keyboardShouldPersistTaps="handled"
+                        >
+                          {LAHAN_CATEGORIES.map((category) => (
+                            <TouchableOpacity
+                              key={category.id}
+                              style={styles.categoryPickerOption}
+                              onPress={() => {
+                                setSelectedCategory(category.id);
+                                setShowCategoryPicker(false);
+                              }}
+                            >
+                              <Text
+                                style={[
+                                  styles.categoryPickerOptionText,
+                                  selectedCategory === category.id && {
+                                    color: "#4CAF50",
+                                    fontWeight: "600",
+                                  },
+                                ]}
+                              >
+                                {category.label}
+                              </Text>
+                              {selectedCategory === category.id && (
+                                <Ionicons
+                                  name="checkmark-circle"
+                                  size={20}
+                                  color="#4CAF50"
+                                />
+                              )}
+                            </TouchableOpacity>
+                          ))}
+                        </ScrollView>
+                      </View>
+                    )}
+                  </View>
+
+                  <View style={styles.modalButtons}>
+                    <TouchableOpacity
+                      style={styles.modalCancelButton}
+                      onPress={handleCancelSave}
+                    >
+                      <Text style={styles.modalCancelText}>Batal</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        styles.modalSaveButton,
+                        isSaving && styles.modalSaveButtonDisabled,
+                      ]}
+                      onPress={saveLahan}
+                      disabled={isSaving}
+                    >
+                      <Text style={styles.modalSaveText}>
+                        {isSaving ? "Menyimpan..." : "Simpan"}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </TouchableWithoutFeedback>
             </View>
-          </View>
+          </TouchableWithoutFeedback>
         </Modal>
 
         <Modal visible={showNoteModal} transparent animationType="fade">
@@ -4049,6 +4133,7 @@ const styles = StyleSheet.create({
   headerSubtitle: {
     fontSize: 14,
     color: "#666",
+    marginTop: 8,
   },
   sectionContainer: {
     marginHorizontal: 20,
@@ -5252,29 +5337,38 @@ const styles = StyleSheet.create({
   },
   modalButtons: {
     flexDirection: "row",
-    justifyContent: "space-around",
+    justifyContent: "space-between",
+    marginTop: 24,
+    gap: 12,
   },
   modalCancelButton: {
-    backgroundColor: "#ccc",
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 5,
+    flex: 1,
+    backgroundColor: "#F5F5F5",
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#E0E0E0",
   },
   modalCancelText: {
-    color: "#333",
+    color: "#666",
+    fontSize: 15,
+    fontWeight: "600",
   },
   modalSaveButton: {
+    flex: 1,
     backgroundColor: "#4CAF50",
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 5,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: "center",
   },
   modalSaveButtonDisabled: {
     opacity: 0.6,
   },
   modalSaveText: {
     color: "white",
-    fontWeight: "bold",
+    fontWeight: "600",
+    fontSize: 15,
   },
   noteModalContent: {
     backgroundColor: "#FFFFFF",
@@ -5357,6 +5451,57 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   notePickerOptionText: {
+    fontSize: 14,
+    color: "#37474F",
+  },
+  categoryPickerContainer: {
+    marginTop: 20,
+  },
+  categoryPickerTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#333",
+    marginBottom: 10,
+  },
+  categoryPickerButton: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#A5D6A7",
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    backgroundColor: "#E8F5E9",
+  },
+  categoryPickerLabel: {
+    fontSize: 14,
+    color: "#2E7D32",
+    flex: 1,
+  },
+  categoryPickerDropdown: {
+    borderWidth: 1,
+    borderColor: "#A5D6A7",
+    borderRadius: 12,
+    marginTop: 8,
+    backgroundColor: "#FFFFFF",
+    shadowColor: "#4CAF50",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    overflow: "hidden",
+  },
+  categoryPickerOption: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F1F1F1",
+  },
+  categoryPickerOptionText: {
     fontSize: 14,
     color: "#37474F",
   },

@@ -112,6 +112,15 @@ const DEFAULT_LAHAN_THUMBNAIL = {
   uri: "https://images.unsplash.com/photo-1582719478181-2cf4e9b123c9?auto=format&fit=crop&w=1200&q=80",
 } as const;
 
+// Category images mapping
+const CATEGORY_IMAGES: Record<string, any> = {
+  Jagung: require("@/assets/foto-ladang/jagung.png"),
+  Padi: require("@/assets/foto-ladang/padi.jpg"),
+  Kedelai: require("@/assets/foto-ladang/kedelai.jpg"),
+  Teh: require("@/assets/foto-ladang/teh.jpg"),
+  Kopi: require("@/assets/foto-ladang/kopi.jpg"),
+};
+
 const evaluateNdviSeverity = (value: number): SeverityLevel => {
   if (value >= 0.6) return "success";
   if (value >= 0.2) return "warning";
@@ -615,9 +624,9 @@ export default function DetailLahanPage() {
           <View style={styles.heroContainer}>
             <ImageBackground
               source={
-                detail?.thumbnail_url
-                  ? { uri: detail.thumbnail_url }
-                  : DEFAULT_LAHAN_THUMBNAIL
+                detail?.category && CATEGORY_IMAGES[detail.category]
+                  ? CATEGORY_IMAGES[detail.category]
+                  : CATEGORY_IMAGES.Jagung
               }
               style={styles.heroImageBackground}
               imageStyle={styles.heroImage}

@@ -192,6 +192,7 @@ export interface LahanWithInfo {
   geojson: any;
   area_ha: number | null;
   thumbnail_url: string | null;
+  category?: string | null;
   centroid?: any;
   created_at?: string;
   updated_at?: string;
@@ -221,6 +222,7 @@ export const lahanService = {
     areaHa?: number,
     options?: {
       thumbnailUrl?: string | null;
+      category?: string | null;
     }
   ) {
     if (!userId) {
@@ -240,6 +242,7 @@ export const lahanService = {
           name: name,
           geom: polygonWkt,
           thumbnail_url: options?.thumbnailUrl ?? null,
+          category: options?.category ?? null,
         },
       ])
       .select();
@@ -259,7 +262,7 @@ export const lahanService = {
   // Ambil semua lahan user
   async getLahanByUser(userId: string) {
     const baseSelect =
-      "id, name, geojson, area_ha, thumbnail_url, centroid, created_at, updated_at";
+      "id, name, geojson, area_ha, thumbnail_url, category, centroid, created_at, updated_at";
 
     const { data, error } = await supabase
       .from("lahan_with_info")
@@ -272,13 +275,13 @@ export const lahanService = {
 
     if (error.code === "42703") {
       console.warn(
-        "Kolom thumbnail_url tidak ditemukan pada view lahan_with_info, menggunakan fallback tanpa kolom tersebut"
+        "Kolom tidak ditemukan pada view lahan_with_info, menggunakan fallback tanpa kolom tersebut"
       );
 
       const fallbackSelect = baseSelect
         .split(",")
         .map((part) => part.trim())
-        .filter((part) => part !== "thumbnail_url")
+        .filter((part) => part !== "thumbnail_url" && part !== "category")
         .join(", ");
 
       const { data: fallbackData, error: fallbackError } = await supabase
@@ -299,7 +302,7 @@ export const lahanService = {
           item && typeof item === "object"
             ? (item as Record<string, unknown>)
             : {};
-        return { ...base, thumbnail_url: null };
+        return { ...base, thumbnail_url: null, category: null };
       });
     }
 
@@ -312,7 +315,7 @@ export const lahanService = {
     }
 
     const baseSelect =
-      "id, name, geojson, area_ha, thumbnail_url, centroid, created_at, updated_at";
+      "id, name, geojson, area_ha, thumbnail_url, category, centroid, created_at, updated_at";
 
     const { data, error } = await supabase
       .from("lahan_with_info")
@@ -326,13 +329,13 @@ export const lahanService = {
 
     if (error.code === "42703") {
       console.warn(
-        "Kolom thumbnail_url tidak ditemukan pada view lahan_with_info untuk detail, menggunakan fallback"
+        "Kolom tidak ditemukan pada view lahan_with_info untuk detail, menggunakan fallback"
       );
 
       const fallbackSelect = baseSelect
         .split(",")
         .map((part) => part.trim())
-        .filter((part) => part !== "thumbnail_url")
+        .filter((part) => part !== "thumbnail_url" && part !== "category")
         .join(", ");
 
       const { data: fallbackData, error: fallbackError } = await supabase
@@ -352,6 +355,7 @@ export const lahanService = {
       return {
         ...(fallbackData as Record<string, unknown>),
         thumbnail_url: null,
+        category: null,
       } as LahanDetail;
     }
 
