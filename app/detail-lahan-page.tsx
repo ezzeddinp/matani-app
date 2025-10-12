@@ -4,34 +4,34 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect, useMemo, useState } from "react";
 import {
-    ActivityIndicator,
-    ImageBackground,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  ImageBackground,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, {
-    Defs,
-    Path,
-    Stop,
-    LinearGradient as SvgLinearGradient,
+  Defs,
+  Path,
+  Stop,
+  LinearGradient as SvgLinearGradient,
 } from "react-native-svg";
 
 import {
-    NDVI_SEVERITY_CONFIG,
-    NDVI_UNKNOWN_CONFIG,
-    type NdviClassificationKey,
+  NDVI_SEVERITY_CONFIG,
+  NDVI_UNKNOWN_CONFIG,
+  type NdviClassificationKey,
 } from "@/constants/ndvi";
 import { lahanService, type LahanDetail } from "@/hooks/supabase";
 import {
-    buildNdviSeries,
-    clamp,
-    Coordinate,
-    getDayOfYear,
-    toRadians,
+  buildNdviSeries,
+  clamp,
+  Coordinate,
+  getDayOfYear,
+  toRadians,
 } from "@/utils/ndvi-simulator";
 
 export const options = {
