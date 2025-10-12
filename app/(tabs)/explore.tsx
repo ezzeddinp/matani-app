@@ -14,6 +14,7 @@ import {
   Alert,
   Dimensions,
   ImageBackground,
+  ImageSourcePropType,
   Keyboard,
   Modal,
   ScrollView,
@@ -98,6 +99,31 @@ const LAHAN_PAGE_SIZE = 5;
 const DEFAULT_LAHAN_THUMBNAIL = {
   uri: "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=900&q=80",
 } as const;
+const GEOCODE_CACHE_PRECISION = 4;
+const GEOCODE_RATE_LIMIT_COOLDOWN_MS = 5 * 60 * 1000;
+const RATE_LIMIT_LOG_INTERVAL_MS = 60 * 1000;
+
+let ndviFallbackWarningLogged = false;
+
+const CROP_FILTERS = ["Jagung", "Kedelai", "Kopi", "Padi", "Teh"] as const;
+
+const CROP_IMAGE_MAP: Record<string, ImageSourcePropType> = {
+  jagung: require('../../assets/foto-ladang/jagung.png'),
+  kedelai: require('../../assets/foto-ladang/kedelai.jpg'),
+  kopi: require('../../assets/foto-ladang/kopi.jpg'),
+  padi: require('../../assets/foto-ladang/padi.jpg'),
+  teh: require('../../assets/foto-ladang/teh.jpg'),
+};
+
+const FILTER_FIT_PADDING: EdgePadding = {
+  top: 100,
+  right: 100,
+  bottom: 140,
+  left: 100,
+};
+
+const normaliseCropKey = (value: string | null | undefined) =>
+  value ? value.trim().toLowerCase() : "";
 
 const sleep = (ms: number) =>
   new Promise<void>((resolve) => setTimeout(resolve, ms));
@@ -385,10 +411,28 @@ const formatGeocodedLocation = (
   return uniqueParts.slice(0, 3).join(", ");
 };
 
+const buildCoordinateLabel = (latitude: number, longitude: number) =>
+  `Lat ${latitude.toFixed(2)}, Lon ${longitude.toFixed(2)}`;
+
+const buildGeocodeCacheKey = (latitude: number, longitude: number) =>
+  `${latitude.toFixed(GEOCODE_CACHE_PRECISION)},${longitude.toFixed(
+    GEOCODE_CACHE_PRECISION
+  )}`;
+
+const isRateLimitError = (error: unknown) => {
+  const message =
+    error instanceof Error
+      ? error.message
+      : typeof error === "string"
+      ? error
+      : String(error ?? "");
+  return message.toLowerCase().includes("rate limit");
+};
+
 export default function ExploreScreen() {
   const router = useRouter();
   const fallbackUserId = process.env.EXPO_PUBLIC_SUPABASE_DEFAULT_USER_ID;
-  const [selectedFilter, setSelectedFilter] = useState("NDVI");
+  const [selectedFilter, setSelectedFilter] = useState<string | null>(null);
   const [drawingMode, setDrawingMode] = useState(false);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [lahanName, setLahanName] = useState("");
@@ -454,6 +498,9 @@ export default function ExploreScreen() {
   );
   const mapTouchActiveRef = useRef(false);
   const mapTouchLastActiveRef = useRef<number>(0);
+  const geocodeCacheRef = useRef<Map<string, string | null>>(new Map());
+  const geocodeRateLimitedUntilRef = useRef<number | null>(null);
+  const geocodeRateLimitLogRef = useRef<number | null>(null);
   const releaseScrollLock = useCallback(() => {
     setScrollEnabled((prev) => {
       if (prev) {
@@ -480,6 +527,22 @@ export default function ExploreScreen() {
       scheduleScrollLockReset();
     }, 1600);
   }, [releaseScrollLock]);
+  const isGeocodeRateLimited = useCallback(() => {
+    const until = geocodeRateLimitedUntilRef.current;
+    return typeof until === "number" && until > Date.now();
+  }, []);
+  const markGeocodeRateLimited = useCallback((context: string) => {
+    geocodeRateLimitedUntilRef.current =
+      Date.now() + GEOCODE_RATE_LIMIT_COOLDOWN_MS;
+
+    const lastLogged = geocodeRateLimitLogRef.current ?? 0;
+    if (Date.now() - lastLogged >= RATE_LIMIT_LOG_INTERVAL_MS) {
+      console.warn(
+        `⚠️ Reverse geocode dibatasi (${context}). Menggunakan label koordinat sementara.`
+      );
+      geocodeRateLimitLogRef.current = Date.now();
+    }
+  }, []);
   const [userLocation, setUserLocation] = useState({
     latitude: -6.2088,
     longitude: 106.8456,
@@ -524,7 +587,7 @@ export default function ExploreScreen() {
       .slice(0, 3);
   }, [lahanSummaryText]);
 
-  const filters = ["NDVI", "Kontras NDVI", "Pengendapan", "Tanah"];
+  const filters = Array.from(CROP_FILTERS);
 
   const promptAuthSignup = useCallback(() => {
     Alert.alert(
@@ -706,31 +769,45 @@ export default function ExploreScreen() {
       currentRegionRef.current = nextRegion;
       mapRef.current?.animateToRegion(nextRegion, 350);
 
-      try {
-        const geocoded = await Location.reverseGeocodeAsync({
-          latitude: location.coords.latitude,
-          longitude: location.coords.longitude,
-        });
-        setLocationLabel(
-          formatGeocodedLocation(geocoded?.[0] ?? null) ??
-            `Lat ${location.coords.latitude.toFixed(
-              2
-            )}, Lon ${location.coords.longitude.toFixed(2)}`
-        );
-      } catch (reverseError) {
-        console.warn("Reverse geocode gagal", reverseError);
-        setLocationLabel(
-          `Lat ${location.coords.latitude.toFixed(
-            2
-          )}, Lon ${location.coords.longitude.toFixed(2)}`
-        );
+      const fallbackLabel = buildCoordinateLabel(
+        location.coords.latitude,
+        location.coords.longitude
+      );
+      const cacheKey = buildGeocodeCacheKey(
+        location.coords.latitude,
+        location.coords.longitude
+      );
+      const cachedLabel = geocodeCacheRef.current.get(cacheKey);
+
+      if (cachedLabel !== undefined) {
+        setLocationLabel(cachedLabel ?? fallbackLabel);
+      } else if (isGeocodeRateLimited()) {
+        setLocationLabel(fallbackLabel);
+      } else {
+        try {
+          const geocoded = await Location.reverseGeocodeAsync({
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude,
+          });
+          const formatted = formatGeocodedLocation(geocoded?.[0] ?? null);
+          geocodeCacheRef.current.set(cacheKey, formatted ?? null);
+          setLocationLabel(formatted ?? fallbackLabel);
+        } catch (reverseError) {
+          geocodeCacheRef.current.set(cacheKey, null);
+          if (isRateLimitError(reverseError)) {
+            markGeocodeRateLimited("lokasi pengguna");
+          } else {
+            console.warn("Reverse geocode gagal", reverseError);
+          }
+          setLocationLabel(fallbackLabel);
+        }
       }
     } catch (error) {
       console.error("❌ Location error:", error);
       Alert.alert("Error", "Gagal mendapatkan lokasi");
       setLocationLabel("Lokasi tidak diketahui");
     }
-  }, []);
+  }, [isGeocodeRateLimited, markGeocodeRateLimited]);
 
   useEffect(() => {
     getCurrentLocation();
@@ -905,9 +982,33 @@ export default function ExploreScreen() {
       const updates: Record<string, string | null> = {};
 
       for (const lahan of pending) {
+        if (isCancelled) {
+          break;
+        }
+
         const centroid = computePolygonCentroid(lahan.coordinates);
         if (!centroid) {
           updates[lahan.id] = null;
+          continue;
+        }
+
+        const fallbackLabel = buildCoordinateLabel(
+          centroid.latitude,
+          centroid.longitude
+        );
+        const cacheKey = buildGeocodeCacheKey(
+          centroid.latitude,
+          centroid.longitude
+        );
+        const cachedLabel = geocodeCacheRef.current.get(cacheKey);
+
+        if (cachedLabel !== undefined) {
+          updates[lahan.id] = cachedLabel ?? fallbackLabel;
+          continue;
+        }
+
+        if (isGeocodeRateLimited()) {
+          updates[lahan.id] = fallbackLabel;
           continue;
         }
 
@@ -917,14 +1018,16 @@ export default function ExploreScreen() {
             longitude: centroid.longitude,
           });
           const formatted = formatGeocodedLocation(result?.[0] ?? null);
-          updates[lahan.id] = formatted ?? null;
+          geocodeCacheRef.current.set(cacheKey, formatted ?? null);
+          updates[lahan.id] = formatted ?? fallbackLabel;
         } catch (error) {
-          console.warn("❌ Gagal reverse geocode lahan:", lahan.id, error);
-          updates[lahan.id] = null;
-        }
-
-        if (isCancelled) {
-          break;
+          geocodeCacheRef.current.set(cacheKey, null);
+          if (isRateLimitError(error)) {
+            markGeocodeRateLimited(`lahan ${lahan.id}`);
+          } else {
+            console.warn("❌ Gagal reverse geocode lahan:", lahan.id, error);
+          }
+          updates[lahan.id] = fallbackLabel;
         }
       }
 
@@ -939,7 +1042,7 @@ export default function ExploreScreen() {
     return () => {
       isCancelled = true;
     };
-  }, [lahanLocationLabels, savedLahan]);
+  }, [isGeocodeRateLimited, lahanLocationLabels, markGeocodeRateLimited, savedLahan]);
   // Enhanced map interaction for polygon drawing like in the image
   const handleMapPress = (event: MapPressEvent) => {
     if (showSearchResults) {
@@ -1126,8 +1229,9 @@ export default function ExploreScreen() {
         } catch (error) {
           const count = (ndviStatisticErrorCount.get(bboxKey) ?? 0) + 1;
           ndviStatisticErrorCount.set(bboxKey, count);
-          if (__DEV__ && count <= 3) {
+          if (__DEV__ && !ndviFallbackWarningLogged) {
             console.warn("⚠️ NDVI fetch fallback akan digunakan:", error);
+            ndviFallbackWarningLogged = true;
           }
           ndviStatisticCache.set(bboxKey, null);
           return null;
@@ -1598,6 +1702,88 @@ export default function ExploreScreen() {
     });
     return map;
   }, [lahanCards]);
+
+  const resolveLahanThumbnailSource = useCallback(
+    (card: LahanCard): ImageSourcePropType => {
+      const cropKey = normaliseCropKey(card.name);
+      const asset = CROP_IMAGE_MAP[cropKey];
+      if (asset) {
+        return asset;
+      }
+      if (card.thumbnailUrl) {
+        return { uri: card.thumbnailUrl };
+      }
+      return DEFAULT_LAHAN_THUMBNAIL;
+    },
+    []
+  );
+
+  const focusOnCropCategory = useCallback(
+    (categoryLabel: string) => {
+      const categoryKey = normaliseCropKey(categoryLabel);
+      if (!categoryKey) {
+        return;
+      }
+
+      const matches = lahanCards.filter(
+        (card) => normaliseCropKey(card.name) === categoryKey
+      );
+
+      if (matches.length === 0) {
+        Alert.alert(
+          'Lahan belum tersedia',
+          `Belum ada lahan dengan nama "${categoryLabel}".`
+        );
+        return;
+      }
+
+      const coordinatesToFit = matches.flatMap((card) => card.coordinates ?? []);
+      const mapInstance = mapRef.current;
+
+      if (!mapInstance) {
+        return;
+      }
+
+      if (coordinatesToFit.length >= 2) {
+        mapInstance.fitToCoordinates(coordinatesToFit, {
+          edgePadding: FILTER_FIT_PADDING,
+          animated: true,
+        });
+        return;
+      }
+
+      const target = matches[0];
+      const fallbackPoint =
+        target.centroid ?? coordinatesToFit[0] ?? null;
+
+      if (fallbackPoint) {
+        mapInstance.animateToRegion(
+          {
+            latitude: fallbackPoint.latitude,
+            longitude: fallbackPoint.longitude,
+            latitudeDelta: Math.max(userLocation.latitudeDelta ?? 0.02, 0.02),
+            longitudeDelta: Math.max(userLocation.longitudeDelta ?? 0.02, 0.02),
+          },
+          450
+        );
+        return;
+      }
+
+      Alert.alert(
+        'Lahan tidak dapat ditampilkan',
+        'Koordinat lahan belum lengkap. Silakan perbarui polygon lahan.'
+      );
+    },
+    [lahanCards, userLocation.latitudeDelta, userLocation.longitudeDelta]
+  );
+
+  const handleSelectFilter = useCallback(
+    (label: string) => {
+      setSelectedFilter(label);
+      focusOnCropCategory(label);
+    },
+    [focusOnCropCategory]
+  );
 
   const lahanSummaryPayload = useMemo(() => {
     if (lahanCards.length === 0) {
@@ -2591,7 +2777,7 @@ export default function ExploreScreen() {
                   index === filters.length - 1 && styles.filterButtonLast,
                   selectedFilter === filter && styles.activeFilterButton,
                 ]}
-                onPress={() => setSelectedFilter(filter)}
+                onPress={() => handleSelectFilter(filter)}
               >
                 <Text
                   style={[
@@ -2746,7 +2932,7 @@ export default function ExploreScreen() {
                 >
                   <View style={styles.lahanCardRow}>
                     <ImageBackground
-                      source={card.thumbnailUrl ? { uri: card.thumbnailUrl } : DEFAULT_LAHAN_THUMBNAIL}
+                      source={resolveLahanThumbnailSource(card)}
                       style={styles.lahanCardThumbnail}
                       imageStyle={styles.lahanCardThumbnailImage}
                       resizeMode="cover"
