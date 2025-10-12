@@ -5,13 +5,22 @@
     "paths": {
       "@/*": [
         "./*"
-      ]
-    }
+      ],
+      
+    },
+        "allowJs": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "moduleResolution": "node",
+    "resolveJsonModule": true
   },
   "include": [
     "**/*.ts",
     "**/*.tsx",
     ".expo/types/**/*.ts",
+    "**/*.d.ts",
+    "**/*.js",
     "expo-env.d.ts"
   ]
 }
