@@ -53,10 +53,9 @@ https://expo.dev/preview/update?message=android+production%3A+moment+of+truth%2C
 2. b) scan QR Code menggunakan kamera bawaan device
 
 - file .env untuk FE -> matani-app/.env:
-EXPO_PUBLIC_SUPABASE_URL=https://eyhdrqablhkqmwzfevpk.supabase.co
-EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_D48epnwIsMB1Iib_ALOF6w_ZAlrx0vt
-
-EXPO_PUBLIC_API_URL=https://matani-backend-ne4yn7s1s-ezzeddinps-projects.vercel.app
+EXPO_PUBLIC_SUPABASE_URL=https://[blablabla].supabase.co
+EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
+EXPO_PUBLIC_API_URL=
 ```
 
 # 3) Instal dependensi backend Express (terminal tab ke-3)
@@ -65,20 +64,20 @@ EXPO_PUBLIC_API_URL=https://matani-backend-ne4yn7s1s-ezzeddinps-projects.vercel.
 ```powershell
 - buat folder & file untuk BE -> matani-app/backend/.env:
 # Sentinel Hub API credentials
-SENTINEL_CLIENT_ID=2bbb5581-b56b-46a2-a22a-ac2395dcbcb8
-SENTINEL_CLIENT_SECRET=whoga2y0eA05JzWvbTrTKO8RM4Qw8l6z
+SENTINEL_CLIENT_ID=
+SENTINEL_CLIENT_SECRET=
 
-EXPO_PUBLIC_SUPABASE_URL=https://eyhdrqablhkqmwzfevpk.supabase.co
-EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_D48epnwIsMB1Iib_ALOF6w_ZAlrx0vt
+EXPO_PUBLIC_SUPABASE_URL=
+EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
 
-ACCUWEATHER_API_KEY=zpka_0774f1efed3f4d92a46ed25614c8c91c_01aeb462
+ACCUWEATHER_API_KEY=
 
-GOOGLE_MAP_FOR_IOS=AIzaSyCeAgDrSVC1DvGLjCuLRr-jQRKRC4C-K2U
-GOOGLE_MAP_FOR_ANDROID=AIzaSyCyMgxP5S1epzdME7UIhWE9j-dvY7Cw7j0
+GOOGLE_MAP_FOR_IOS=
+GOOGLE_MAP_FOR_ANDROID=
 
-GOOGLE_GENERATIVE_AI_API_KEY=AIzaSyApK11Y-CQAdm61zt534nj77n4kaCh-avc
+GOOGLE_GENERATIVE_AI_API_KEY=
 
-MATANI_GEMINI_MODEL="gemini-2.5-flash-lite"
+MATANI_GEMINI_MODEL=
 ```
 - Console akan menampilkan endpoint aktif (`/weather`, `/ndvi`, `/ai`).
 - Biarkan terminal ini tetap terbuka selama demo aplikasi.
