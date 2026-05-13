@@ -8,7 +8,7 @@ import {
   type NdviClassification,
   type NdviClassificationKey,
 } from "@/constants/ndvi";
-import { API_BASE_CANDIDATES, BASE_URL } from "@/hooks/config";
+import { API_BASE_CANDIDATES } from "@/hooks/config";
 import { LahanWithInfo, lahanService, supabase } from "@/hooks/supabase";
 import { computeSyntheticNdviForPolygon } from "@/utils/ndvi-simulator";
 import { Ionicons } from "@expo/vector-icons";
@@ -762,7 +762,7 @@ export default function ExploreScreen() {
     try {
       const { data, error } = await supabase
         .from("lahan_health")
-        .select("id,lahan_id,ndvi_score,status,captured_at,created_at")
+        .select("id,lahan_id,ndvi_score,ndmi_score,status,captured_at,created_at")
         .in("lahan_id", targetIds)
         .order("captured_at", { ascending: false, nullsFirst: true })
         .order("created_at", { ascending: false, nullsFirst: true });
@@ -1267,12 +1267,50 @@ export default function ExploreScreen() {
           const searchParams = new URLSearchParams();
           searchParams.set("bbox", bboxKey);
 
-          const response = await fetch(
-            `${BASE_URL}/ndvi?${searchParams.toString()}`
-          );
-          if (!response.ok) {
+          const candidateUrls: string[] = [];
+
+          API_BASE_CANDIDATES.forEach((baseUrl) => {
+            const normalised = baseUrl.replace(/\/$/, "");
+            const directUrl = `${normalised}/ndvi?${searchParams.toString()}`;
+            if (!candidateUrls.includes(directUrl)) {
+              candidateUrls.push(directUrl);
+            }
+
+            if (!/\/api\/?$/.test(normalised)) {
+              const apiUrl = `${normalised}/api/ndvi?${searchParams.toString()}`;
+              if (!candidateUrls.includes(apiUrl)) {
+                candidateUrls.push(apiUrl);
+              }
+            }
+          });
+
+          let response: Response | null = null;
+          let lastErrorMessage = "";
+
+          for (const url of candidateUrls) {
+            try {
+              const candidateResponse = await fetch(url);
+              if (!candidateResponse.ok) {
+                const message = await candidateResponse.text();
+                lastErrorMessage =
+                  message ||
+                  `NDVI request failed with status ${candidateResponse.status}`;
+                continue;
+              }
+
+              response = candidateResponse;
+              break;
+            } catch (networkError) {
+              lastErrorMessage =
+                networkError instanceof Error
+                  ? networkError.message
+                  : String(networkError);
+            }
+          }
+
+          if (!response) {
             throw new Error(
-              `NDVI request failed with status ${response.status}`
+              lastErrorMessage || "NDVI request failed for all endpoints"
             );
           }
 
@@ -1311,6 +1349,22 @@ export default function ExploreScreen() {
               typeof latestEntry.ndvi_stdev === "number"
                 ? latestEntry.ndvi_stdev
                 : 0,
+            ndmi_mean:
+              typeof latestEntry.ndmi_mean === "number"
+                ? latestEntry.ndmi_mean
+                : null,
+            ndmi_min:
+              typeof latestEntry.ndmi_min === "number"
+                ? latestEntry.ndmi_min
+                : null,
+            ndmi_max:
+              typeof latestEntry.ndmi_max === "number"
+                ? latestEntry.ndmi_max
+                : null,
+            ndmi_stdev:
+              typeof latestEntry.ndmi_stdev === "number"
+                ? latestEntry.ndmi_stdev
+                : null,
           };
 
           ndviStatisticCache.set(bboxKey, result);
@@ -1744,14 +1798,30 @@ export default function ExploreScreen() {
   const lahanCards = useMemo<LahanCard[]>(() => {
     return savedLahan.map((item) => {
       const supabaseHealth = latestHealthByLahan.get(item.id);
-      const validSupabaseHealth =
-        supabaseHealth &&
-        supabaseHealth.ndvi_score !== null &&
-        supabaseHealth.ndvi_score !== undefined
-          ? supabaseHealth
-          : undefined;
+      const supabaseNdvi =
+        typeof supabaseHealth?.ndvi_score === "number" &&
+        Number.isFinite(supabaseHealth.ndvi_score)
+          ? supabaseHealth.ndvi_score
+          : null;
+      const supabaseNdmi =
+        typeof supabaseHealth?.ndmi_score === "number" &&
+        Number.isFinite(supabaseHealth.ndmi_score)
+          ? supabaseHealth.ndmi_score
+          : null;
       const override = ndviOverrides[item.id];
-      const latestHealth = validSupabaseHealth ?? override ?? undefined;
+      const overrideNdmi =
+        typeof override?.ndmi_score === "number" &&
+        Number.isFinite(override.ndmi_score)
+          ? override.ndmi_score
+          : null;
+      const latestHealth =
+        supabaseNdvi !== null
+          ? {
+              ...supabaseHealth!,
+              ndvi_score: supabaseNdvi,
+              ndmi_score: supabaseNdmi ?? overrideNdmi ?? null,
+            }
+          : override ?? undefined;
       const classification = classifyNdviStatus(
         latestHealth?.ndvi_score ?? null,
         latestHealth?.status ?? null
@@ -2139,10 +2209,16 @@ export default function ExploreScreen() {
       if (!item.coordinates || item.coordinates.length < 3) {
         return false;
       }
-      const hasSupabaseHealth = latestHealthByLahan.get(item.id);
+      const supabaseHealth = latestHealthByLahan.get(item.id);
+      const hasNdvi =
+        typeof supabaseHealth?.ndvi_score === "number" &&
+        Number.isFinite(supabaseHealth.ndvi_score);
+      const hasNdmi =
+        typeof supabaseHealth?.ndmi_score === "number" &&
+        Number.isFinite(supabaseHealth.ndmi_score);
       const overrideState = ndviOverrides[item.id];
       const isFetching = ndviFetchingMap[item.id];
-      return !hasSupabaseHealth && overrideState === undefined && !isFetching;
+      return (!hasNdvi || !hasNdmi) && overrideState === undefined && !isFetching;
     });
 
     if (lahanWithoutHealth.length === 0) {

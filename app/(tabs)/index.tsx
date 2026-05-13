@@ -96,6 +96,7 @@ type LahanHealthRecord = {
   id: string;
   lahan_id: string;
   ndvi_score: number | null;
+  ndmi_score?: number | null;
   status: string | null;
   captured_at: string | null;
   created_at: string | null;
@@ -779,7 +780,7 @@ export default function HomeScreen() {
     try {
       const { data, error } = await supabase
         .from("lahan_health")
-        .select("id,lahan_id,ndvi_score,status,captured_at,created_at")
+        .select("id,lahan_id,ndvi_score,ndmi_score,status,captured_at,created_at")
         .in("lahan_id", targetIds)
         .order("captured_at", { ascending: false, nullsFirst: true })
         .order("created_at", { ascending: false, nullsFirst: true });
