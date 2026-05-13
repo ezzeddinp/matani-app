@@ -44,9 +44,10 @@ const buildLahanSummaryPrompt = (cards, totals) => {
   const lines = cards
     .map((card, index) => {
       const ndvi = card.ndviScore === null || card.ndviScore === undefined ? "-" : card.ndviScore;
+      const ndmi = card.ndmiScore === null || card.ndmiScore === undefined ? "-" : card.ndmiScore;
       const area = card.areaHa === null || card.areaHa === undefined ? "-" : card.areaHa;
       const location = card.locationLabel ? ` | Lokasi: ${card.locationLabel}` : "";
-      return `${index + 1}. ${card.name} | Status NDVI: ${card.ndviStatus} | Nilai NDVI: ${ndvi} | Luas: ${area} ha | Titik: ${card.coordinateCount}${location}`;
+      return `${index + 1}. ${card.name} | Status NDVI: ${card.ndviStatus} | Nilai NDVI: ${ndvi} | Nilai NDMI: ${ndmi} | Luas: ${area} ha | Titik: ${card.coordinateCount}${location}`;
     })
     .join("\n");
 
@@ -96,6 +97,7 @@ router.post("/summary", async (req, res) => {
       name: card?.name ?? "Lahan Tanpa Nama",
       areaHa: normaliseNumber(card?.areaHa),
       ndviScore: normaliseNumber(card?.ndviScore),
+      ndmiScore: normaliseNumber(card?.ndmiScore),
       ndviStatus: card?.ndviStatus ?? "Belum Ada Status",
       coordinateCount: Number.isFinite(card?.coordinateCount) ? card.coordinateCount : null,
       capturedAt: card?.capturedAt ?? null,

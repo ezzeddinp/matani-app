@@ -83,6 +83,7 @@ type LahanHealthRecord = {
   id: string;
   lahan_id: string;
   ndvi_score: number | null;
+  ndmi_score?: number | null;
   status: string | null;
   captured_at: string | null;
   created_at: string | null;
@@ -128,6 +129,10 @@ type NdviStatistic = {
   ndvi_max: number;
   ndvi_mean: number;
   ndvi_stdev: number;
+  ndmi_min?: number | null;
+  ndmi_max?: number | null;
+  ndmi_mean?: number | null;
+  ndmi_stdev?: number | null;
 };
 
 const { width, height } = Dimensions.get("window");
@@ -334,6 +339,10 @@ const createNdviRecordFromStatistic = (
     id: `ndvi-${lahanId}-${stat.interval ?? Date.now()}`,
     lahan_id: lahanId,
     ndvi_score: stat.ndvi_mean,
+    ndmi_score:
+      typeof stat.ndmi_mean === "number" && Number.isFinite(stat.ndmi_mean)
+        ? stat.ndmi_mean
+        : null,
     status: null,
     captured_at: capturedDateIso,
     created_at: new Date().toISOString(),
@@ -1873,6 +1882,11 @@ export default function ExploreScreen() {
         Number.isFinite(card.latestHealth.ndvi_score)
           ? Number(card.latestHealth.ndvi_score.toFixed(2))
           : null;
+      const ndmiScore =
+        typeof card.latestHealth?.ndmi_score === "number" &&
+        Number.isFinite(card.latestHealth.ndmi_score)
+          ? Number(card.latestHealth.ndmi_score.toFixed(2))
+          : null;
 
       if (ndviScore !== null) {
         ndviSum += ndviScore;
@@ -1898,6 +1912,7 @@ export default function ExploreScreen() {
             ? Number(card.areaHa.toFixed(2))
             : null,
         ndviScore,
+        ndmiScore,
         ndviStatus: card.classification.title,
         ndviKey: card.classification.key,
         coordinateCount: card.coordinateCount,
@@ -3163,6 +3178,28 @@ export default function ExploreScreen() {
                             >
                               {formatNdviValue(card.latestHealth.ndvi_score)}
                             </Text>
+                            {typeof card.latestHealth?.ndmi_score ===
+                              "number" &&
+                              Number.isFinite(card.latestHealth.ndmi_score) && (
+                                <View style={styles.lahanCardNdmiRow}>
+                                  <Ionicons
+                                    name="water-outline"
+                                    size={13}
+                                    color={card.classification.color}
+                                  />
+                                  <Text
+                                    style={[
+                                      styles.lahanCardNdmiText,
+                                      { color: card.classification.color },
+                                    ]}
+                                  >
+                                    NDMI{" "}
+                                    {formatNdviValue(
+                                      card.latestHealth.ndmi_score
+                                    )}
+                                  </Text>
+                                </View>
+                              )}
                             {card.latestHealth?.captured_at && (
                               <Text
                                 style={[
@@ -4668,6 +4705,16 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: "800",
     marginBottom: 4,
+  },
+  lahanCardNdmiRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  lahanCardNdmiText: {
+    fontSize: 11,
+    fontWeight: "700",
+    marginLeft: 5,
   },
   lahanCardNdviDate: {
     fontSize: 10,

@@ -303,11 +303,15 @@ CREATE TABLE IF NOT EXISTS public.lahan_health (
   lahan_id UUID REFERENCES public.lahan(id) ON DELETE CASCADE,
   user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
   ndvi_score NUMERIC,
+  ndmi_score NUMERIC,
   status TEXT,
   captured_at TIMESTAMP WITH TIME ZONE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+ALTER TABLE public.lahan_health
+  ADD COLUMN IF NOT EXISTS ndmi_score NUMERIC;
 
 ALTER TABLE public.lahan_health ENABLE ROW LEVEL SECURITY;
 
