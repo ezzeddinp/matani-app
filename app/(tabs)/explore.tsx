@@ -442,6 +442,7 @@ export default function ExploreScreen() {
   const [isLahanPickerVisible, setIsLahanPickerVisible] = useState(false);
   const [ndviOverrides, setNdviOverrides] = useState<Record<string, LahanHealthRecord | null | undefined>>({});
   const [ndviFetchingMap, setNdviFetchingMap] = useState<Record<string, boolean>>({});
+  const ndviFetchAttemptedRef = useRef<Record<string, boolean>>({});
   const [scrollEnabled, setScrollEnabled] = useState(true);
   const mapRef = useRef<MapView>(null);
   const currentRegionRef = useRef<Region | null>(null);
@@ -1399,12 +1400,13 @@ export default function ExploreScreen() {
       const supabaseHealth = latestHealthByLahan.get(item.id);
       const hasNdvi = typeof supabaseHealth?.ndvi_score === "number" && Number.isFinite(supabaseHealth.ndvi_score);
       const hasNdmi = typeof supabaseHealth?.ndmi_score === "number" && Number.isFinite(supabaseHealth.ndmi_score);
-      const overrideState = ndviOverrides[item.id];
       const isFetching = ndviFetchingMap[item.id];
-      return (!hasNdvi || !hasNdmi) && overrideState === undefined && !isFetching;
+      const hasAttempted = ndviFetchAttemptedRef.current[item.id];
+      return (!hasNdvi || !hasNdmi) && !isFetching && !hasAttempted;
     });
     if (lahanWithoutHealth.length === 0) return () => { isCancelled = true; };
     lahanWithoutHealth.forEach((lahan) => {
+      ndviFetchAttemptedRef.current[lahan.id] = true;
       const bbox = getBoundingBoxFromCoordinates(lahan.coordinates);
       if (!bbox) {
         setNdviOverrides((prev) => ({ ...prev, [lahan.id]: createSyntheticNdviRecord(lahan) ?? null }));
