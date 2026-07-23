@@ -8,11 +8,13 @@ Selamat datang di panduan resmi untuk menilai proyek **Matani App**. Dokumen ini
 ---
 # A.) Melalui public QR & Link
 - Scan QR (IOS)
-<img width="248" height="255" alt="image" src="https://github.com/user-attachments/assets/eaeff41f-da69-4a1a-aa93-98857f9dac26" />
+<img width="249" height="245" alt="image" src="https://github.com/user-attachments/assets/005b2f4d-cc43-488f-a944-8ba7695e2b0a" />
+
 
 **ATAU LINK DIBAWAH**
 
-https://expo.dev/preview/update?message=ios+production%3A+moment+of+truth&updateRuntimeVersion=1.0.0&createdAt=2025-10-12T16%3A30%3A50.303Z&slug=exp&projectId=8412a993-1dcd-42cd-a433-ece093519147&group=b81bf928-6b26-4646-9bbf-dbe08bdf8c0b
+[https://expo.dev/preview/update?message=ios+production%3A+moment+of+truth&updateRuntimeVersion=1.0.0&createdAt=2025-10-12T16%3A30%3A50.303Z&slug=exp&projectId=8412a993-1dcd-42cd-a433-ece093519147&group=b81bf928-6b26-4646-9bbf-dbe08bdf8c0b
+](https://expo.dev/preview/update?message=Update+backend&updateRuntimeVersion=1.0.0&createdAt=2026-07-23T09%3A59%3A22.530Z&slug=exp&projectId=8412a993-1dcd-42cd-a433-ece093519147&group=6b243255-ff10-4727-9091-113592867b9c)
 
 - Scan QR (ANDROID)
 <img width="247" height="247" alt="image" src="https://github.com/user-attachments/assets/35b68324-a60e-4804-96e5-bf54fb7499b4" />
