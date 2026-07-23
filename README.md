@@ -24,7 +24,7 @@ The roadmap to a real, persisted, provenance-complete pipeline runs across miles
 ## Stack
 
 - **Mobile** — Expo SDK 57 / React Native 0.86 with expo-router (file-based routes), TypeScript 6, and Expo UI available for incremental adoption.
-- **Backend** — Express (Node), colocated in [`backend/`](backend/), deployed on Vercel; proxies all external providers.
+- **Backend** — Express 5 (Node), colocated in [`backend/`](backend/), deployed on Vercel; TypeScript 7 verifies the mixed JS/TS source and the service proxies all external providers.
 - **Data & auth** — Supabase: Auth, Postgres, PostGIS, Row Level Security.
 - **Maps** — Google Maps (`react-native-maps`) for polygon field drawing.
 - **Satellite** — Sentinel-2 L2A via Sentinel Hub Statistical API semantics. Target provider: Copernicus Data Space Ecosystem (migration from the commercial host is decided, not yet done).

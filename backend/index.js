@@ -30,7 +30,10 @@ app.get("/", (req, res) => {
 });
 
 // Listen sekali aja, pakai 0.0.0.0 biar bisa diakses dari HP
-app.listen(PORT, "0.0.0.0", () => {
+app.listen(PORT, "0.0.0.0", (error) => {
+  if (error) {
+    throw error;
+  }
   console.log(`🚀 Backend running at:`);
   console.log(`   👉 Local:   http://localhost:${PORT}`);
   console.log(`   👉 Network: http://192.168.x.x:${PORT}`); // ganti IP sesuai ipconfig/getifaddr

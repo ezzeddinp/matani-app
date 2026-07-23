@@ -24,7 +24,10 @@ app.use((req, res, next) => {
   next();
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, (error) => {
+  if (error) {
+    throw error;
+  }
   console.log(`🚀 Backend running at http://localhost:${PORT}`);
   console.log("📋 Available endpoints:");
   console.log(`   GET  http://localhost:${PORT}/`);

@@ -47,7 +47,7 @@ providers (Sentinel Hub, weather, Gemini) that the client never contacts directl
   `notifications`, `splash`, `modal`). `typedRoutes` and `reactCompiler` are enabled
   (`app.config.ts:59-62`).
 - Expo UI is installed as an available native/universal component foundation
-  (`package.json:16`); no existing screen has been migrated to it.
+  (`package.json:15`); no existing screen has been migrated to it.
 - **Google Maps** renders the interactive polygon field-drawing surface (via
   `react-native-maps`). Map SDK keys are **injected at build time from environment** by
   `app.config.ts` — iOS from `GOOGLE_MAPS_API_KEY_IOS` (`app.config.ts:16`), Android from
@@ -57,11 +57,15 @@ providers (Sentinel Hub, weather, Gemini) that the client never contacts directl
   the NDVI call builds `/ndvi?bbox=…` against those candidates
   (`app/(tabs)/explore.tsx:862-891`).
 
-### 1.2 Backend (Express / Node, colocated in `backend/`)
+### 1.2 Backend (Express 5 / Node, colocated in `backend/`)
 
 Single Express app, `backend/index.js`, listening on **port 5001** locally
 (`backend/index.js:10,33`) and deployed on **Vercel**. It mounts three routers
 (`backend/index.js:23-25`):
+
+The backend dependency set is independently managed in `backend/package.json`:
+Express 5.2, TypeScript 7, Node types 26, and `module` / `moduleResolution` set to
+`NodeNext` (`backend/package.json:12-24`, `backend/tsconfig.json:5-6`).
 
 | Endpoint | File | Upstream | Request flow (as-built) |
 |----------|------|----------|--------------------------|
@@ -407,11 +411,19 @@ fixes none of these** — the baseline is a snapshot of debt, not a to-do comple
 
 **Current upgrade verification (2026-07-23).** The developer directed the Expo upgrade
 before M4. Expo SDK 57 / React Native 0.86 / TypeScript 6 and Expo UI are now installed
-(`package.json:16,23,40,42,57`). `npx expo-doctor@latest` passes 20/20 checks,
+(`package.json:15,18,33,35,51`). `npx expo-doctor@latest` passes 20/20 checks,
 `npx tsc --noEmit` exits 0, and Expo exports succeed for web, Android, and iOS. Lint
 remains failing with 40 errors and 11 warnings: the original unescaped-entity debt plus
 stricter React Hooks diagnostics introduced by the current Expo ESLint preset. No device
 or store binary was built in this upgrade pass.
+
+**Dependency modernization verification (2026-07-23).** Unused frontend-only Turf,
+Express, node-fetch, and AI SDK packages were removed from the root package. All
+independently managed backend packages are current; `npm run build` passes, the Express 5
+root endpoint responds locally, and the backend production dependency audit reports zero
+vulnerabilities. The root production audit retains 11 moderate advisories solely through
+Expo's transitive `xcode` → `uuid` tooling chain; npm's proposed forced resolution would
+downgrade the SDK-pinned `expo-splash-screen`, so it was not applied.
 
 ---
 

@@ -134,7 +134,7 @@ Full positioning lives in [`product-brief.md`](product-brief.md) § 5; the opera
 - The displayed area is the authoritative PostGIS geography-based hectare value when available.
 - The crop category is one of the five supported values.
 
-**Current-fidelity note.** Earlier project descriptions referred to "Turf area computation," but **Turf is a dependency (`@turf/area`, `@turf/turf` in `package.json:21-23`) that is not used for area** — the client estimate is the hand-rolled planar shoelace formula (`explore.tsx:814-823`), which is **not equal-area** and is only a pre-save estimate; the authoritative value is the PostGIS geography column. Equal-area handling is a [Thesis] requirement ([`research-protocol.md`](research-protocol.md) § 7 — "area-in-hectares derived on an equal-area basis").
+**Current-fidelity note.** Earlier project descriptions referred to "Turf area computation," but Turf was never used for area and its unused packages have now been removed from the root dependency set (`package.json:13-43`). The client estimate remains the hand-rolled planar shoelace formula (`explore.tsx:814-823`), which is **not equal-area** and is only a pre-save estimate; the authoritative value is the PostGIS geography column. Equal-area handling is a [Thesis] requirement ([`research-protocol.md`](research-protocol.md) § 7 — "area-in-hectares derived on an equal-area basis").
 
 ### PRD-08 · Ladang field cards — NDVI status · [As-built] · **INV-01/02/06 VIOLATION**
 

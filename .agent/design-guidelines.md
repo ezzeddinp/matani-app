@@ -118,7 +118,7 @@ Ratios computed with the standard relative-luminance formula (sRGB, `≤0.03928`
 
 ### 3.1 Fonts — system only
 
-**No custom font is loaded.** `expo-font` is installed (`package.json:27`) but **never imported anywhere in `app/`, `components/`, or `hooks/`** (verified: the only references are the dependency declarations in `package.json` / `package-lock.json`; no `useFonts`, `Font.loadAsync`, or `expo-font` import exists in source). Screens rely on the platform system font (React Native default). `constants/theme.ts:30-53` defines a `Fonts` map (system-ui / ui-serif / ui-rounded / ui-monospace) but, like the rest of that file, it is unused boilerplate. **[Thesis]:** if a brand typeface is ever adopted it must be wired through a single loader; until then, "system font" is the intentional, documented choice and `expo-font` can be removed in M4.
+**No custom font is loaded.** `expo-font` is installed (`package.json:20`) but **never imported anywhere in `app/`, `components/`, or `hooks/`** (verified: the only references are the dependency declarations in `package.json` / `package-lock.json`; no `useFonts`, `Font.loadAsync`, or `expo-font` import exists in source). Screens rely on the platform system font (React Native default). `constants/theme.ts:30-53` defines a `Fonts` map (system-ui / ui-serif / ui-rounded / ui-monospace) but, like the rest of that file, it is unused boilerplate. **[Thesis]:** if a brand typeface is ever adopted it must be wired through a single loader; until then, "system font" is the intentional, documented choice and `expo-font` can be removed in M4.
 
 ### 3.2 Type scale (sampled, not tokenized)
 

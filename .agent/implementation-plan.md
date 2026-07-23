@@ -149,7 +149,7 @@ This is the canonical **order of engineering work** for the Matani thesis. Read 
 **Work items.**
 
 - **Break large screens into behavior-preserving boundaries**: `app/(tabs)/explore.tsx` (~3.7k lines), `app/(tabs)/index.tsx` (~2.4k), `app/detail-lahan-page.tsx` (~1.6k) — guarded by characterization tests so behavior is unchanged.
-- **Remove dead dependencies and boilerplate**: unused `@turf` (a dependency not used for area — the client estimate is a hand-rolled planar shoelace, PRD-07 current-fidelity note; `package.json` carries `@turf/area`, `@turf/turf`, `@turf/boolean-valid`), and `express` / `ai` / `@ai-sdk/google` present in the frontend `package.json`; plus Expo starter boilerplate per [`design-guidelines.md`](design-guidelines.md) § 6 (§ 6.3 removal candidates — `app/modal.tsx`, unused `constants/theme.ts`, `expo-font`, and the `ThemedText` / `ThemedView` refactor-out) — falling back to [`project-architecture.md`](project-architecture.md) § 8 for the repo-structure view.
+- **Remove remaining dead boilerplate**: the unused frontend-only Turf, Express, node-fetch, and AI SDK dependencies are already removed; the remaining Expo starter candidates are tracked in [`design-guidelines.md`](design-guidelines.md) § 6 (§ 6.3 — `app/modal.tsx`, unused `constants/theme.ts`, `expo-font`, and the `ThemedText` / `ThemedView` refactor-out), falling back to [`project-architecture.md`](project-architecture.md) § 8 for the repo-structure view.
 - **Formalize design tokens** ([`design-guidelines.md`](design-guidelines.md)): unify the inconsistent brand green, tokenize the sampled type scale / spacing / radius, and fix the recorded contrast issues — centralized rather than hardcoded per screen.
 - **Future Expo SDK maintenance** — keep framework upgrades separate from behavior-preserving refactors and validate them against characterization tests.
 - **Offline / field-test resilience** for real field use.
@@ -161,7 +161,7 @@ This is the canonical **order of engineering work** for the Matani thesis. Read 
 **Acceptance criteria.**
 
 - **Behavior is unchanged**, proven by characterization tests written before each refactor and passing after.
-- **Dependencies are pruned**: the unused `@turf` packages and the frontend-side `express` / `ai` / `@ai-sdk/google` are removed, and the app builds and passes tests without them; boilerplate removal candidates are eliminated or refactored out.
+- **Dependencies remain pruned**: unused frontend packages do not return, and the remaining boilerplate candidates are eliminated or refactored out without changing behavior.
 - **Design tokens are centralized**: brand green, type scale, spacing, and radius come from a single token source, and the recorded contrast issues are resolved.
 
 **Explicitly out of scope for M4.** Any behavior change presented as hardening; any Sentinel-1 work without its own scope decision (OUT-05); any reintroduction of a synthetic-as-measured path (OUT-01); any cadence claim beyond what M1 licensed (OUT-02).
