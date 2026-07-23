@@ -1,91 +1,88 @@
-# Matani App – Panduan Implementasi Juri
+# Matani
 
-Selamat datang di panduan resmi untuk menilai proyek **Matani App**. Dokumen ini menuntun juri menyiapkan backend, layanan Supabase, dan aplikasi mobile Expo hingga bisa diuji langsung di perangkat masing-masing.
+_Mata tani_ — "the farmer's eye." Matani is a thesis project evaluating whether Sentinel-2 NDVI/NDMI monitoring can work honestly for Indonesian smallholder farms, where fields are often smaller than half a hectare and tropical cloud cover strains optical observation. The thesis contribution is the measurement evaluation itself; the Expo / React Native app (Indonesian UI) is its delivery and field-interaction vehicle — the instrument that captures real field polygons and, once the measurement pipeline is built, surfaces provenance-safe satellite observations, weather, and optional advisory to farmers.
 
-# 2 opsi untuk menjalankan aplikasi:
-### A.) Melalui public QR & Link
-### B.) Setup manual in local computer
----
-# A.) Melalui public QR & Link
-- Scan QR (IOS)
-<img width="249" height="245" alt="image" src="https://github.com/user-attachments/assets/005b2f4d-cc43-488f-a944-8ba7695e2b0a" />
+## Project status
 
+**Thesis groundwork phase.** The app is a hackathon-origin prototype now being rebuilt on measurement provenance. It is not thesis-ready, and this README does not claim otherwise.
 
-**ATAU LINK DIBAWAH**
+The project distinguishes four data states, and the distinction is a product feature, not an implementation detail:
 
-[https://expo.dev/preview/update?message=ios+production%3A+moment+of+truth&updateRuntimeVersion=1.0.0&createdAt=2025-10-12T16%3A30%3A50.303Z&slug=exp&projectId=8412a993-1dcd-42cd-a433-ece093519147&group=b81bf928-6b26-4646-9bbf-dbe08bdf8c0b
-](https://expo.dev/preview/update?message=Update+backend&updateRuntimeVersion=1.0.0&createdAt=2026-07-23T09%3A59%3A22.530Z&slug=exp&projectId=8412a993-1dcd-42cd-a433-ece093519147&group=6b243255-ff10-4727-9091-113592867b9c)
+- **fixture** — labeled, deterministic test data.
+- **prototype** — partially wired, not provenance-safe.
+- **measured** — persisted and provenance-complete.
+- **unavailable** — an honest, stated absence of data.
 
-- Scan QR (ANDROID)
-<img width="247" height="247" alt="image" src="https://github.com/user-attachments/assets/35b68324-a60e-4804-96e5-bf54fb7499b4" />
-**ATAU LINK DIBAWAH**
+Where things stand today:
 
-[https://expo.dev/preview/update?message=android+production%3A+moment+of+truth%2C+will+matani+win%3F%21%3F%21+yapastilah+egiluy+kali+%28habis+update+domain+backend%29&updateRuntimeVersion=1.0.0&createdAt=2025-10-12T10%3A46%3A34.180Z&slug=exp&projectId=8412a993-1dcd-42cd-a433-ece093519147&group=83c83d43-1e90-4fe1-bda1-3c0d02d71813](https://expo.dev/preview/update?message=Update+backend&updateRuntimeVersion=1.0.0&createdAt=2026-07-23T09%3A53%3A24.257Z&slug=exp&projectId=8412a993-1dcd-42cd-a433-ece093519147&group=cd44e600-ebfe-46e7-a2a5-7bad624da1fd)
+- The satellite path is a **prototype with a silent synthetic fallback** — a Sentinel Hub request wired to the field list that falls back to synthesized values the UI does not distinguish from real ones; the field-detail history is fully synthetic. This is stated only via the canonical wording in [`.agent/project-architecture.md` § 2 (Current measurement provenance)](.agent/project-architecture.md) — read it there; it is never softened or restated.
+- **No `measured` data exists yet.** Nothing is persisted with provenance.
+- What _is_ real: interactive polygon field capture persisted to Supabase (PostGIS), area computation, weather, and education content.
 
-# B.) Setup manual in local computer
-## 1. Ringkasan Proyek
-- **Tujuan**: membantu petani memantau lahan, NDVI, cuaca mikro, dan mencatat temuan lapangan.
-- **Komponen utama**:
-  - Frontend Expo/React Native (`/app`)
-  - Backend Express (`/backend`) yang menjembatani NDVI Sentinel Hub, AccuWeather/Open-Meteo, dan Gemini AI
-  - Supabase sebagai autentikasi, penyimpanan lahan, catatan, dan bucket thumbnail
+The roadmap to a real, persisted, provenance-complete pipeline runs across milestones **M0–M4** — see [`.agent/implementation-plan.md`](.agent/implementation-plan.md).
 
-## 2. Prasyarat Perangkat & Akun
-- Pastikan perangkat mobile dan laptop berada pada **jaringan Wi-Fi yang sama**.
-- Laptop/desktop dengan **Node.js 18 LTS** atau lebih baru (`node -v` untuk verifikasi)
-- **npm** v9+ (otomatis terpasang bersama Node)
-- Aplikasi **Expo Go** pada perangkat Android/iOS juri
-- **dianjurkan untuk menggunakan Android/Ios dikarenakan base matani adalah aplikasi :D**.
+## Stack
 
-## 3. Kloning & Instalasi Dependensi (terminal tab ke-1)
+- **Mobile** — Expo SDK 54 / React Native 0.81 with expo-router (file-based routes), TypeScript.
+- **Backend** — Express (Node), colocated in [`backend/`](backend/), deployed on Vercel; proxies all external providers.
+- **Data & auth** — Supabase: Auth, Postgres, PostGIS, Row Level Security.
+- **Maps** — Google Maps (`react-native-maps`) for polygon field drawing.
+- **Satellite** — Sentinel-2 L2A via Sentinel Hub Statistical API semantics. Target provider: Copernicus Data Space Ecosystem (migration from the commercial host is decided, not yet done).
+- **Weather** — Open-Meteo (target default; AccuWeather is the as-built primary, being dropped).
+- **AI advisory** — optional, env-configured Google Gemini summary (disabled-by-default is target work).
 
-# 1) Kloning repository
-```powershell
-1. a) cd D:\
-1. b) git clone https://github.com/ezzeddinp/matani-app.git
-1. c) cd matani-app
-1. d) npm install
+## Getting started
+
+**Prerequisites:** Node and npm.
+
+From a clean clone:
+
+```sh
+# 1. App dependencies (repo root)
+npm install
+
+# 2. App environment — copy the template and fill in the values.
+#    Each variable is labeled in the file (Required / Optional, and where to get it).
+cp .env.example .env
+
+# 3. Backend dependencies + environment
+cd backend
+npm install
+cp .env.example .env   # fill in the server-secret provider keys (see the labeled comments)
 ```
 
-# 2) Run frontend Expo (terminal tab ke-2)
-```powershell
-2. a) npx expo start
-2. b) scan QR Code menggunakan kamera bawaan device
+Run the backend (port 5001; the root endpoint at `/` responds with a status message):
 
-- file .env untuk FE -> matani-app/.env:
-EXPO_PUBLIC_SUPABASE_URL=https://[blablabla].supabase.co
-EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
-EXPO_PUBLIC_API_URL=
+```sh
+cd backend
+npm run dev
 ```
 
-# 3) Instal dependensi backend Express (terminal tab ke-3)
-3. a) cd backend
-3. b) node index.js
-```powershell
-- buat folder & file untuk BE -> matani-app/backend/.env:
-# Sentinel Hub API credentials
-SENTINEL_CLIENT_ID=
-SENTINEL_CLIENT_SECRET=
+Run the app:
 
-EXPO_PUBLIC_SUPABASE_URL=
-EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
-
-ACCUWEATHER_API_KEY=
-
-GOOGLE_MAP_FOR_IOS=
-GOOGLE_MAP_FOR_ANDROID=
-
-GOOGLE_GENERATIVE_AI_API_KEY=
-
-MATANI_GEMINI_MODEL=
+```sh
+npx expo start
 ```
-- Console akan menampilkan endpoint aktif (`/weather`, `/ndvi`, `/ai`).
-- Biarkan terminal ini tetap terbuka selama demo aplikasi.
 
-```
-# Tips terminal (CMD/ Powershell)
-- CTRL + C untuk memberhentikan aplikasi.
-- Ketik "C" untuk menampilkan ulang QR Code
-- Ketik "R" untuk restart aplikasi
-```
-Selamat Mencoba
+**Note on Maps keys:** `GOOGLE_MAPS_API_KEY_IOS` / `GOOGLE_MAPS_API_KEY_ANDROID` are injected into the native build from env by `app.config.ts` at build time. They are **client-visible in the shipped binary by design** — the control is per-platform, per-API key restriction, not secrecy.
+
+## Documentation map
+
+The canonical project knowledge lives in [`.agent/`](.agent/). Listed in precedence order (highest first — when documents disagree, the more canonical one wins):
+
+| Document | Canonical for |
+|----------|---------------|
+| [`.agent/evidence-register.md`](.agent/evidence-register.md) | Every externally sourced factual claim (`EVID-*`) and dated observation (`OBS-*`). |
+| [`.agent/research-protocol.md`](.agent/research-protocol.md) | Research questions, hypotheses, methodology, and validity of the evaluation. |
+| [`.agent/project-architecture.md`](.agent/project-architecture.md) | As-built and target architecture, trust boundaries, ADRs, security risks — and the canonical measurement-provenance wording (§ 2). |
+| [`.agent/data-evaluation-plan.md`](.agent/data-evaluation-plan.md) | The engineering measurement contract: provider adapter, quality pipeline, persistence/provenance, idempotency, fixtures. |
+| [`.agent/product-requirements.md`](.agent/product-requirements.md) | Feature behavior, scope tags, and product invariants. |
+| [`.agent/product-brief.md`](.agent/product-brief.md) | Positioning, target users, and phased scope. |
+| [`.agent/design-guidelines.md`](.agent/design-guidelines.md) | Design tokens, screen map, component patterns, and data-state presentation rules. |
+| [`.agent/implementation-plan.md`](.agent/implementation-plan.md) | Milestone sequencing (M0–M4) and acceptance criteria. |
+| [`.agent/context-dump.md`](.agent/context-dump.md) | Project history, the hackathon→thesis pivot, the decisions index (`DEC-*`), and the EN↔ID glossary. |
+| [`AGENTS.md`](AGENTS.md) | Rules every agent working in this repo follows: vocabulary, provenance taxonomy, and honesty constraints. |
+
+## Provenance and honesty
+
+Every external claim in the documentation carries a typed evidence marker (`EVID-*` for sourced facts, `CODE-*` / `file:line` for repository facts, `DEC-*` for decisions, `OBS-*` for observations, `HYP-*` for unvalidated thresholds). Synthetic or fixture data is never presented as measured — in the docs or in the product UI — and unavailability is stated honestly rather than papered over. The full ruleset is in [`AGENTS.md`](AGENTS.md).
