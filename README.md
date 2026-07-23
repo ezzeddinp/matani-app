@@ -15,12 +15,10 @@ Selamat datang di panduan resmi untuk menilai proyek **Matani App**. Dokumen ini
 https://expo.dev/preview/update?message=ios+production%3A+moment+of+truth&updateRuntimeVersion=1.0.0&createdAt=2025-10-12T16%3A30%3A50.303Z&slug=exp&projectId=8412a993-1dcd-42cd-a433-ece093519147&group=b81bf928-6b26-4646-9bbf-dbe08bdf8c0b
 
 - Scan QR (ANDROID)
-![WhatsApp Image 2025-10-12 at 23 17 37_8ad92bbf](https://github.com/user-attachments/assets/26cbe7f9-1e74-4f9a-977e-341c818980a7)
-
-
+<img width="247" height="247" alt="image" src="https://github.com/user-attachments/assets/35b68324-a60e-4804-96e5-bf54fb7499b4" />
 **ATAU LINK DIBAWAH**
 
-https://expo.dev/preview/update?message=android+production%3A+moment+of+truth%2C+will+matani+win%3F%21%3F%21+yapastilah+egiluy+kali+%28habis+update+domain+backend%29&updateRuntimeVersion=1.0.0&createdAt=2025-10-12T10%3A46%3A34.180Z&slug=exp&projectId=8412a993-1dcd-42cd-a433-ece093519147&group=83c83d43-1e90-4fe1-bda1-3c0d02d71813
+[https://expo.dev/preview/update?message=android+production%3A+moment+of+truth%2C+will+matani+win%3F%21%3F%21+yapastilah+egiluy+kali+%28habis+update+domain+backend%29&updateRuntimeVersion=1.0.0&createdAt=2025-10-12T10%3A46%3A34.180Z&slug=exp&projectId=8412a993-1dcd-42cd-a433-ece093519147&group=83c83d43-1e90-4fe1-bda1-3c0d02d71813](https://expo.dev/preview/update?message=Update+backend&updateRuntimeVersion=1.0.0&createdAt=2026-07-23T09%3A53%3A24.257Z&slug=exp&projectId=8412a993-1dcd-42cd-a433-ece093519147&group=cd44e600-ebfe-46e7-a2a5-7bad624da1fd)
 
 # B.) Setup manual in local computer
 ## 1. Ringkasan Proyek
