@@ -23,7 +23,7 @@ The roadmap to a real, persisted, provenance-complete pipeline runs across miles
 
 ## Stack
 
-- **Mobile** — Expo SDK 54 / React Native 0.81 with expo-router (file-based routes), TypeScript.
+- **Mobile** — Expo SDK 57 / React Native 0.86 with expo-router (file-based routes), TypeScript 6, and Expo UI available for incremental adoption.
 - **Backend** — Express (Node), colocated in [`backend/`](backend/), deployed on Vercel; proxies all external providers.
 - **Data & auth** — Supabase: Auth, Postgres, PostGIS, Row Level Security.
 - **Maps** — Google Maps (`react-native-maps`) for polygon field drawing.

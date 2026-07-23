@@ -1588,9 +1588,6 @@ export default function ExploreScreen() {
           keyboardShouldPersistTaps="handled"
           scrollEnabled={scrollEnabled}
           removeClippedSubviews={true}
-          maxToRenderPerBatch={10}
-          updateCellsBatchingPeriod={50}
-          windowSize={21}
           scrollEventThrottle={16}
         >
           {/* ── HEADER ── */}

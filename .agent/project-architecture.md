@@ -39,13 +39,15 @@ Matani is a four-part system: an Expo mobile app, a colocated Express backend th
 all external providers, Supabase for identity and persistence, and three external
 providers (Sentinel Hub, weather, Gemini) that the client never contacts directly.
 
-### 1.1 Mobile app (Expo SDK 54 / React Native 0.81)
+### 1.1 Mobile app (Expo SDK 57 / React Native 0.86)
 
 - Expo Router with **file-based routes** under `app/` (`app/_layout.tsx`, tab group
   `app/(tabs)/` = `index`, `explore`, `weather`, `education`, `profile`; plus
   `auth/`, `detail-lahan-page.tsx`, `detail-education-page.tsx`, `onboarding`,
   `notifications`, `splash`, `modal`). `typedRoutes` and `reactCompiler` are enabled
-  (`app.config.ts:57-60`).
+  (`app.config.ts:59-62`).
+- Expo UI is installed as an available native/universal component foundation
+  (`package.json:16`); no existing screen has been migrated to it.
 - **Google Maps** renders the interactive polygon field-drawing surface (via
   `react-native-maps`). Map SDK keys are **injected at build time from environment** by
   `app.config.ts` — iOS from `GOOGLE_MAPS_API_KEY_IOS` (`app.config.ts:16`), Android from
@@ -402,6 +404,14 @@ fixes none of these** — the baseline is a snapshot of debt, not a to-do comple
 | Type-check (backend) | `npx tsc --noEmit` (after `npm ci` — `node_modules` was absent) | **0** | clean | — |
 | Tests / CI | — | — | **none** | no test scripts (`package.json` scripts: `start`, `reset-project`, `android`, `ios`, `web`, `lint`), no test files, no `.github/workflows/` |
 | Schema install | inspect `supabase_setup.sql` | — | **not a reliable clean-install migration** | 388 lines; **duplicated** table/policy/view/trigger/function blocks with `-- ...existing code...` merge markers; trigger `update_lahan_thumbnails_updated_at` (`:76-78`) references `update_updated_at_column()` which is **defined later** (`:98-104`), so a clean single-run install fails at that trigger; `lahan` table (`:5`, `:168`), `lahan_with_info` view (`:111`, `:250`), and the timestamp function (`:98`, `:234`) are each defined twice |
+
+**Current upgrade verification (2026-07-23).** The developer directed the Expo upgrade
+before M4. Expo SDK 57 / React Native 0.86 / TypeScript 6 and Expo UI are now installed
+(`package.json:16,23,40,42,57`). `npx expo-doctor@latest` passes 20/20 checks,
+`npx tsc --noEmit` exits 0, and Expo exports succeed for web, Android, and iOS. Lint
+remains failing with 40 errors and 11 warnings: the original unescaped-entity debt plus
+stricter React Hooks diagnostics introduced by the current Expo ESLint preset. No device
+or store binary was built in this upgrade pass.
 
 ---
 

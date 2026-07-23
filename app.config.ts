@@ -8,7 +8,6 @@ const config: ExpoConfig = {
   icon: "./assets/images/matani-logo.png",
   scheme: "mataniapp",
   userInterfaceStyle: "automatic",
-  newArchEnabled: true,
   ios: {
     bundleIdentifier: "com.matani.app",
     supportsTablet: true,
@@ -27,7 +26,6 @@ const config: ExpoConfig = {
       backgroundImage: "./assets/images/android-icon-background.png",
       monochromeImage: "./assets/images/android-icon-monochrome.png",
     },
-    edgeToEdgeEnabled: true,
     predictiveBackGestureEnabled: false,
     config: {
       googleMaps: {
@@ -41,6 +39,10 @@ const config: ExpoConfig = {
   },
   plugins: [
     "expo-router",
+    "expo-font",
+    "expo-image",
+    "expo-status-bar",
+    "expo-web-browser",
     [
       "expo-splash-screen",
       {

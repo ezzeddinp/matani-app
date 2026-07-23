@@ -149,7 +149,9 @@ export default function ProfileScreen() {
 
         setUserMetadata(metadata);
         setProfile(profileRecord ?? null);
-        setLahanList(Array.isArray(lahanRecords) ? lahanRecords : []);
+        setLahanList(
+          Array.isArray(lahanRecords) ? (lahanRecords as LahanWithInfo[]) : []
+        );
       } catch (error: any) {
         if (!isMounted) return;
         const message: string = error?.message ?? "";
