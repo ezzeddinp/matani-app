@@ -44,8 +44,8 @@ export default function NotificationsScreen() {
             </View>
             <Text style={styles.emptyTitle}>Belum ada notifikasi</Text>
             <Text style={styles.emptySubtitle}>
-              Notifikasi tentang cuaca, NDVI, dan aktivitas lahan Anda akan
-              muncul di sini
+              Sistem pembuatan, penyimpanan, dan pengiriman notifikasi belum
+              tersedia pada prototipe Matani saat ini.
             </Text>
           </View>
         </ScrollView>

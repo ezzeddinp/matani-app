@@ -3,7 +3,7 @@
 **Document type:** Design guidelines
 **Audience:** The developer, thesis advisor, reviewers, and AI agents working in this repo
 **Status:** Active
-**Updated:** 2026-07-23
+**Updated:** 2026-07-27
 **Canonical for:** Design tokens, the screen map, component patterns, and data-state presentation rules
 **Companion documents:** [`product-requirements.md`](product-requirements.md), [`product-brief.md`](product-brief.md), [`project-architecture.md`](project-architecture.md), [`context-dump.md`](context-dump.md)
 
@@ -46,19 +46,19 @@ The canonical brand accent is **`#2E7D32`** (Material Green 800), asserted as th
 
 The home header uses a flat `#4CAF50→#4CAF50` gradient (`app/(tabs)/index.tsx:1230`), while the Ladang tab uses dark forest Tailwind-scale gradients (`app/(tabs)/explore.tsx:1598` `["#062B14","#0A3D1F","#0E5229"]`). Unifying these onto one brand ramp is **M4** work. **[Thesis]** recommendation: adopt `#2E7D32` as the single brand primary with `#1B5E20` as its dark and one intentional bright tint, and retire the ad-hoc Tailwind/Material mixing.
 
-### 2.2 NDVI severity scale (verbatim from `constants/ndvi.ts`)
+### 2.2 NDVI prototype-interpretation scale (verbatim from `constants/ndvi.ts`)
 
 The severity scale is the one genuinely shared color token set. Reproduced verbatim from `constants/ndvi.ts:12-54`. **The `range` thresholds are HYP-04 heuristics** (unvalidated for Indonesian smallholder conditions; DEC-11, `research-protocol.md`) — the classifier boundaries live at `constants/ndvi.ts:69-80`. **The `color` / `background` values are design tokens.**
 
 | Key | Title (ID) | Color | Background (tint) | Range (**HYP-04**) | Cite |
 |---|---|---|---|---|---|
-| `darkGreen` | Sangat Sehat | `#1B5E20` | `rgba(27, 94, 32, 0.18)` | `0.60 – 1.00` | `ndvi.ts:13-20` |
-| `yellowGreen` | Perlu Pemantauan | `#F9A825` | `rgba(249, 168, 37, 0.18)` | `0.20 – 0.59` | `ndvi.ts:21-28` |
-| `orange` | Stres Tinggi | `#FB8C00` | `rgba(251, 140, 0, 0.18)` | `0.00 – 0.19` | `ndvi.ts:29-36` |
-| `red` | Tanpa Vegetasi | `#D32F2F` | `rgba(211, 47, 47, 0.18)` | `-1.00 – -0.01` | `ndvi.ts:37-44` |
-| `unknown` | Belum Ada Data | `#546E7A` | `rgba(84, 110, 122, 0.14)` | `–` | `ndvi.ts:47-54` |
+| `darkGreen` | Kehijauan Tinggi | `#1B5E20` | `rgba(27, 94, 32, 0.18)` | `0.60 – 1.00` | `ndvi.ts:13-20` |
+| `yellowGreen` | Kehijauan Sedang | `#F9A825` | `rgba(249, 168, 37, 0.18)` | `0.20 – 0.59` | `ndvi.ts:21-28` |
+| `orange` | Kehijauan Rendah | `#FB8C00` | `rgba(251, 140, 0, 0.18)` | `0.00 – 0.19` | `ndvi.ts:29-36` |
+| `red` | NDVI Negatif | `#D32F2F` | `rgba(211, 47, 47, 0.18)` | `-1.00 – -0.01` | `ndvi.ts:37-44` |
+| `unknown` | Data Tidak Tersedia | `#546E7A` | `rgba(84, 110, 122, 0.14)` | `–` | `ndvi.ts:47-54` |
 
-The `unknown` token ("Belum Ada Data" / "no NDVI monitoring yet") is the closest existing asset to a designed *unavailable* state and should anchor the § 5 work. Note the **detail screen defines a *second, parallel* severity palette** (`heroGradientPalette`, `app/detail-lahan-page.tsx:99-103`) keyed by `success`/`warning`/`danger` with different hexes (`#FFB74D`/`#F57C00` for warning, `#EF5350`/`#C62828` for danger) — a duplication that should collapse into `constants/ndvi.ts` in M4.
+The `unknown` token ("Data Tidak Tersedia") anchors the designed *unavailable* state. Note the **detail screen defines a *second, parallel* severity palette** (`heroGradientPalette`, `app/detail-lahan-page.tsx:99-103`) keyed by `success`/`warning`/`danger` with different hexes (`#FFB74D`/`#F57C00` for warning, `#EF5350`/`#C62828` for danger) — a duplication that should collapse into `constants/ndvi.ts` in M4.
 
 ### 2.3 Recurring neutrals & surfaces (sampled)
 
@@ -164,10 +164,10 @@ Derived from `app/` file-based routing (`expo-router`). Ordered by user flow.
 | 7 | `app/(tabs)/explore.tsx` | **Ladang** (Fields) | Map-based field list + interactive polygon drawing; per-field NDVI (`_layout.tsx:74-80`). |
 | 8 | `app/(tabs)/education.tsx` | **Edukasi** (Education) | Article list with filter/sort (`_layout.tsx:81-87`). |
 | 9 | `app/(tabs)/weather.tsx` | **Cuaca** (Weather) | Current conditions, metric grid, risk alert (`_layout.tsx:88-94`). |
-| 10 | `app/(tabs)/profile.tsx` | **Profil** (Profile) | Account, settings, sign-out (`_layout.tsx:95-101`). |
+| 10 | `app/(tabs)/profile.tsx` | **Profil** (Profile) | Account and saved-field facts, sign-out, explicit unavailable notification/metric states, and preview-only achievements (`_layout.tsx:95-101`; DEC-20). |
 | 11 | `app/detail-lahan-page.tsx` | Field detail | Per-field hero, NDVI history chart, advisory tabs. **NDVI history is fully synthetic** (§ 5). |
 | 12 | `app/detail-education-page.tsx` | Article detail | Full education article view. |
-| 13 | `app/notifications.tsx` | Notifications | Weather/NDVI/field alerts; currently an empty state ("Belum ada notifikasi", `notifications.tsx:45`). |
+| 13 | `app/notifications.tsx` | Notifications | Explicit unavailable state: no generation, storage, or delivery system exists (`notifications.tsx`, DEC-20). |
 | 14 | `app/modal.tsx` | Modal | **Expo starter boilerplate** ("This is a modal", `modal.tsx:10`) — not a real Matani surface; M4 removal candidate. |
 
 ---
@@ -179,11 +179,18 @@ These rules are **normative guidance**, inherited from [`../AGENTS.md`](../AGENT
 | State | Presentation rule (normative) |
 |---|---|
 | **measured** | Show the value **with its acquisition date** and a quality/valid-pixel indication (e.g. cloud-masked valid-pixel fraction). A measured NDVI/NDMI number never appears without provenance. |
-| **unavailable** | A **first-class designed state** that states the *reason* — "no cloud-free acquisition in window", "no acquisition", "quota exhausted" — without fabricating a number. The existing `unknown` token (`constants/ndvi.ts:47-54`, "Belum Ada Data") is the anchor for this state, but must be extended to carry the *why*. |
+| **unavailable** | A **first-class designed state** that states the *reason* — "no cloud-free acquisition in window", "no acquisition", "quota exhausted" — without fabricating a number. The `unknown` token (`constants/ndvi.ts:47-54`, "Data Tidak Tersedia") is the anchor for this state, but must still be extended to carry provider rejection reasons in M2. |
 | **prototype** | Partially-wired, non-provenance-safe values must be **visibly marked as not measured** — never rendered identically to a measured value. |
 | **fixture** | Test data must always be **labeled as test data** and never presented as live/measured. |
 
-**Current violation (as-built).** The build presents synthesized values indistinguishably from measured ones: the Ladang surface seeds and silently falls back to synthetic NDVI (`app/(tabs)/explore.tsx:1146,1412,1420` via `createSyntheticNdviRecord` / `computeSyntheticNdviForPolygon`), and the field-detail NDVI history is **fully synthetic**, built by `buildNdviSeries(...)` from `utils/ndvi-simulator.ts` (`app/detail-lahan-page.tsx:30,166`) with no live request. This silent-synthetic presentation **violates the honesty requirement** and is removed in **M2** (canonical provenance wording: [`project-architecture.md`](project-architecture.md) § Current measurement provenance; roadmap: [`implementation-plan.md`](implementation-plan.md)).
+**Current presentation (as-built, 2026-07-27).** The Ladang surface still seeds and falls back to synthetic NDVI, but its record is tagged `fixture` and its card says “Simulasi demo” / “Bukan pengukuran satelit” (`app/(tabs)/explore.tsx:320-343,2050-2072`). The fully synthetic detail screen displays a persistent fixture banner that scopes all graph/date/estimate/risk/recommendation output as non-measured and non-diagnostic (`app/detail-lahan-page.tsx:710-723`). This closes the indistinguishable-presentation defect; it does **not** close the M2 requirement to remove production fixture substitution and show reason-bearing `unavailable` outcomes (canonical provenance wording: [`project-architecture.md`](project-architecture.md) § Current measurement provenance).
+
+The Profile and Notifications surfaces also follow the unavailable/preview rule after the
+same-day cross-check: no functional-looking alert switches, activity counters, NDVI
+average, productivity/health scores, or expertise claims are shown without a real writer.
+Actual account/field facts remain visible; unsupported capabilities are labeled
+unavailable and achievement cards are labeled preview-only (`app/(tabs)/profile.tsx`,
+`app/notifications.tsx`; DEC-20).
 
 ---
 
@@ -234,7 +241,7 @@ Leftover from the Expo template. **Honest status — not all are safely deletabl
 
 ### 7.1 As-built
 
-UI copy is **Indonesian throughout** (DEC-02 retains ID as the product's own words; glossary: [`context-dump.md`](context-dump.md) § 7). Tone is **plain, farmer-facing, minimal jargon**: tab labels are everyday words ("Beranda", "Ladang", "Cuaca"); onboarding is warm ("Selamat Datang di MATANI", "Solusi Pertanian Cerdas", `onboarding.tsx:23,38`); the empty state coaches step-by-step in second person ("Ketuk pada peta untuk menandai sudut-sudut lahan Anda", `empty-state-lahan.tsx:51`). Severity titles translate the index into human states rather than numbers ("Sangat Sehat", "Perlu Pemantauan", "Stres Tinggi", "Tanpa Vegetasi", `ndvi.ts:16-43`). NDVI is explained in tips before it is assumed (`detail-lahan-page.tsx:105-109`).
+UI copy is **Indonesian throughout** (DEC-02 retains ID as the product's own words; glossary: [`context-dump.md`](context-dump.md) § 7). Tone is **plain, farmer-facing, minimal jargon**: tab labels are everyday words ("Beranda", "Ladang", "Cuaca"); onboarding is warm ("Selamat Datang di MATANI", "Solusi Pertanian Cerdas", `onboarding.tsx:23,38`); the empty state coaches step-by-step in second person ("Ketuk pada peta untuk menandai sudut-sudut lahan Anda", `empty-state-lahan.tsx:51`). The NDVI titles now describe **greenness ranges**, not diagnosed health ("Kehijauan Tinggi/Sedang/Rendah", "NDVI Negatif", `ndvi.ts:15-44`), and the detail screen explains HYP-04 before showing its fixture demonstration (`detail-lahan-page.tsx:105-109,710-723`).
 
 ### 7.2 Normative honesty copy [Thesis]
 
@@ -242,9 +249,9 @@ Data-state copy (§ 5) must state absence and provenance plainly, in the same fa
 
 - *Unavailable:* "Data satelit belum tersedia" + reason, e.g. "tertutup awan pada tanggal terakhir" (cloud), "belum ada pemotretan baru" (no acquisition), "kuota pemantauan habis" (quota).
 - *Measured:* always paired with an acquisition date — e.g. "Diukur 17 Jul 2026" — and a quality note.
-- *Prototype / fixture:* explicitly flagged (e.g. "Contoh data" / "Data uji"), never blended into a measured reading.
+- *Prototype / fixture:* explicitly flagged. Current strings are "Data prototipe", "Simulasi demo", and "Bukan pengukuran satelit" (`explore.tsx:145-153,2050-2072`), plus the persistent detail-screen fixture banner (`detail-lahan-page.tsx:710-723`).
 
-The existing `unknown` string "Belum ada pemantauan NDVI terbaru untuk lahan ini" (`ndvi.ts:52`) is the right register — extend it to name the *reason*, per § 5. These are [Thesis] proposals; the current code does not yet contain reason-bearing unavailable copy.
+The current `unknown` string "Belum ada nilai NDVI dengan provenance pengukuran yang lengkap" (`ndvi.ts:50`) is the right register — extend it to name the provider/quality rejection *reason* in M2, per § 5. The current code does not yet contain reason-bearing unavailable copy.
 
 ---
 

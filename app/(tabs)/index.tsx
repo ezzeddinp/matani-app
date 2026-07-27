@@ -1,5 +1,6 @@
 import {
   classifyNdviStatus,
+  formatNdviValue,
   NDVI_UNKNOWN_CONFIG,
   type NdviClassification,
 } from "@/constants/ndvi";
@@ -36,8 +37,6 @@ import {
   type LahanThumbnail,
   type LahanWithInfo,
 } from "@/hooks/supabase";
-
-const OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast";
 
 interface WeatherCardProps {
   location: string;
@@ -291,10 +290,13 @@ const LahanCard = ({
 }: SavedLahanCardProps) => {
   const ndviValue = parseOptionalNumber(ndviScore);
   const classification = classifyNdviStatus(ndviValue, null);
-
-  // Always show "Sangat Sehat" for home page
-  const statusLabel = "Sangat Sehat";
-  const statusColor = "#4CAF50";
+  const hasPrototypeNdvi = ndviValue !== null;
+  const statusLabel = hasPrototypeNdvi
+    ? `${classification.title} · Prototipe`
+    : NDVI_UNKNOWN_CONFIG.title;
+  const statusColor = hasPrototypeNdvi
+    ? classification.color
+    : NDVI_UNKNOWN_CONFIG.color;
 
   // Truncate note with "..."
   const displayNote =
@@ -527,65 +529,6 @@ export default function HomeScreen() {
               lastErrorMessage
             );
           }
-        }
-      }
-
-      if (!data) {
-        try {
-          const url = new URL(OPEN_METEO_URL);
-          url.searchParams.set("latitude", String(latitude));
-          url.searchParams.set("longitude", String(longitude));
-          url.searchParams.set(
-            "current",
-            "temperature_2m,relative_humidity_2m,precipitation,pressure_msl,wind_speed_10m"
-          );
-          url.searchParams.set(
-            "daily",
-            "temperature_2m_max,temperature_2m_min,precipitation_sum"
-          );
-          url.searchParams.set("timezone", "auto");
-
-          const fallbackResponse = await fetch(url.toString());
-          if (!fallbackResponse.ok) {
-            const text = await fallbackResponse.text();
-            throw new Error(
-              `Open-Meteo fallback ${fallbackResponse.status}: ${text}`
-            );
-          }
-
-          const payload = await fallbackResponse.json();
-          const current = payload?.current ?? {};
-          const forecastTimes = Array.isArray(payload?.daily?.time)
-            ? payload.daily.time
-            : [];
-
-          data = {
-            location: `Koordinat ${latitude.toFixed(2)}, ${longitude.toFixed(
-              2
-            )}`,
-            temperature: current?.temperature_2m ?? null,
-            highTemp: payload?.daily?.temperature_2m_max?.[0] ?? null,
-            lowTemp: payload?.daily?.temperature_2m_min?.[0] ?? null,
-            humidity: current?.relative_humidity_2m ?? null,
-            rainfall: current?.precipitation ?? null,
-            pressure: current?.pressure_msl ?? null,
-            windSpeed: current?.wind_speed_10m ?? null,
-            forecast: forecastTimes.map((time: string, index: number) => ({
-              isoDate: time,
-              highTemp: payload?.daily?.temperature_2m_max?.[index] ?? null,
-              lowTemp: payload?.daily?.temperature_2m_min?.[index] ?? null,
-              precipitationMm:
-                payload?.daily?.precipitation_sum?.[index] ?? null,
-            })),
-          };
-
-          console.log("Weather data fetched from Open-Meteo fallback");
-        } catch (fallbackError) {
-          lastErrorMessage =
-            fallbackError instanceof Error
-              ? fallbackError.message
-              : String(fallbackError);
-          console.warn("⚠️ Open-Meteo fallback failed:", lastErrorMessage);
         }
       }
 
@@ -1221,6 +1164,15 @@ export default function HomeScreen() {
     updateWeatherForLahan();
   }, [selectedLahanId, savedLahan]);
 
+  const selectedLahanHealth = selectedLahanId
+    ? lahanHealthMap[selectedLahanId] ?? null
+    : null;
+  const selectedNdviIsAvailable =
+    typeof selectedLahanHealth?.ndviScore === "number" &&
+    Number.isFinite(selectedLahanHealth.ndviScore);
+  const selectedNdviClassification =
+    selectedLahanHealth?.classification ?? NDVI_UNKNOWN_CONFIG;
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#8BC34A" />
@@ -1347,33 +1299,53 @@ export default function HomeScreen() {
               <Ionicons
                 name="leaf"
                 size={24}
-                color={!selectedLahanId ? "#9E9E9E" : "#4CAF50"}
+                color={
+                  selectedNdviIsAvailable
+                    ? selectedNdviClassification.color
+                    : "#9E9E9E"
+                }
               />
               <View style={styles.ndviStatusTextContainer}>
                 <Text style={styles.ndviStatusLabel}>Status Ladang</Text>
                 <Text
                   style={[
                     styles.ndviStatusValue,
-                    !selectedLahanId && { color: "#9E9E9E" },
+                    !selectedNdviIsAvailable && { color: "#9E9E9E" },
                   ]}
                 >
-                  {!selectedLahanId ? "Belum ada data" : "Sehat"}
+                  {!selectedLahanId
+                    ? "Pilih ladang"
+                    : selectedNdviIsAvailable
+                    ? `${selectedNdviClassification.title} · Prototipe`
+                    : "Data satelit tidak tersedia"}
                 </Text>
               </View>
             </View>
             <View
               style={[
                 styles.ndviStatusBadge,
-                !selectedLahanId && { backgroundColor: "#E0E0E0" },
+                {
+                  backgroundColor: selectedNdviIsAvailable
+                    ? selectedNdviClassification.background
+                    : "#E0E0E0",
+                },
               ]}
             >
               <Text
                 style={[
                   styles.ndviStatusBadgeText,
-                  !selectedLahanId && { color: "#757575" },
+                  {
+                    color: selectedNdviIsAvailable
+                      ? selectedNdviClassification.color
+                      : "#757575",
+                  },
                 ]}
               >
-                {!selectedLahanId ? "NDVI: -" : "NDVI: 0.65"}
+                {selectedNdviIsAvailable
+                  ? `NDVI demo: ${formatNdviValue(
+                      selectedLahanHealth?.ndviScore
+                    )}`
+                  : "NDVI: --"}
               </Text>
             </View>
           </View>
@@ -1453,7 +1425,7 @@ export default function HomeScreen() {
                   Belum ada lahan tersimpan
                 </Text>
                 <Text style={styles.emptyLahanSubtitle}>
-                  Gambar lahan dengan menekan tombol "+"
+                  Gambar lahan dengan menekan tombol “+”
                 </Text>
               </View>
             </View>
@@ -1491,7 +1463,7 @@ export default function HomeScreen() {
                     Belum ada catatan tersimpan
                   </Text>
                   <Text style={styles.emptyNotesSubtitle}>
-                    Simpan catatan dengan menekan tombol "+"
+                    Simpan catatan dengan menekan tombol “+”
                   </Text>
                 </View>
               </View>

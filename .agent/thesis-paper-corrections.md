@@ -1,10 +1,27 @@
-# Matani · Thesis-Paper Corrections (pending)
+# Matani · Thesis-Paper Corrections
 
 **Document type:** Working corrections list for the thesis paper ("thesis fix.pdf", July 2026 revision)
 **Audience:** The thesis team and advisor
-**Status:** Active — none of these are applied to the paper yet
-**Updated:** 2026-07-23
+**Status:** Applied and cross-checked in `.agent/thesis-revised-aligned.docx`; original `.agent/thesis.docx` preserved; `.agent/thesis-revised-point-21.docx` superseded
+**Updated:** 2026-07-27
 **Context:** Produced during the DEC-14 alignment of the `.agent/` suite with the paper. Same format as the paper's own "Main Corrections Applied" appendix. Priority: 1–2 are defense risks; 3–5 are accuracy fixes; 6–7 are wording hardening.
+
+**Applied artifact:** The current reproducible generator is
+[`../scripts/revise-thesis-point-21.ps1`](../scripts/revise-thesis-point-21.ps1).
+Paragraph-level traceability for all seven risks and ten additional corrections is in
+[`../docs/thesis-revision-point-21.md`](../docs/thesis-revision-point-21.md). The Notion
+coordination source is
+[Matani — Centralized Knowledge Base](https://app.notion.com/p/3a9434da822c80e9b8c7ee920b1e94dc),
+sections 21–22. Canonical factual and methodological claims still defer to the higher-
+precedence `.agent/` documents.
+
+The 2026-07-27 cross-check also corrected claims outside the original seven-item list:
+evaluation procedures are now future/planned rather than completed tests; the five-crop
+product scope is separated from rice-only thesis scope (DEC-15); notification/profile
+capabilities are not overclaimed; the backend provider boundary and external presentation
+services match code (DEC-20 / ADR-10); and comparison-table “mapping” wording follows
+DEC-19. The complete matrix is
+[`../docs/alignment-cross-check-2026-07-27.md`](../docs/alignment-cross-check-2026-07-27.md).
 
 | # | Issue in current draft | Suggested correction |
 |---|------------------------|----------------------|

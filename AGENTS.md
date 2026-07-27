@@ -32,7 +32,7 @@ Every non-obvious claim in any document carries a typed marker:
 ## Honesty constraints (non-negotiable)
 
 - Never present synthetic, fixture, or simulated data as measured data — in documents or in product UI.
-- The current satellite pipeline is **partially connected**: a prototype request with silent synthetic fallback. Describe it only via the canonical wording in `.agent/project-architecture.md`; do not soften or overstate it.
+- The current satellite pipeline is **partially connected**: a prototype request whose synthetic fallback is now visibly labeled, but which remains non-provenance-safe and non-measured. Describe it only via the canonical wording in `.agent/project-architecture.md`; do not soften or overstate it.
 - Every measured value must carry provenance; unavailability is stated honestly, never papered over.
 - External quota/pricing/coverage statements always carry a checked date and are treated as perishable.
 - Monitoring-cadence claims require the Indonesia feasibility study — never promise cadence from nominal satellite revisit.

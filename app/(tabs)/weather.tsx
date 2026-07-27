@@ -20,8 +20,6 @@ import {
   View,
 } from "react-native";
 
-const OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast";
-
 interface CurrentWeather {
   temperature: number | null;
   highTemp: number | null;
@@ -263,71 +261,6 @@ export default function WeatherScreen() {
               lastErrorMessage
             );
           }
-        }
-      }
-
-      if (!payload) {
-        try {
-          const url = new URL(OPEN_METEO_URL);
-          url.searchParams.set("latitude", String(latitude));
-          url.searchParams.set("longitude", String(longitude));
-          url.searchParams.set(
-            "current",
-            "temperature_2m,relative_humidity_2m,precipitation,pressure_msl,wind_speed_10m"
-          );
-          url.searchParams.set(
-            "daily",
-            "temperature_2m_max,temperature_2m_min,precipitation_sum"
-          );
-          url.searchParams.set("timezone", "auto");
-
-          const fallbackResponse = await fetch(url.toString());
-          if (!fallbackResponse.ok) {
-            const text = await fallbackResponse.text();
-            throw new Error(
-              `Open-Meteo fallback ${fallbackResponse.status}: ${text}`
-            );
-          }
-
-          const data = await fallbackResponse.json();
-          const current = data?.current ?? {};
-          const forecastTimes = Array.isArray(data?.daily?.time)
-            ? data.daily.time
-            : [];
-
-          payload = {
-            locationLabel: `Koordinat ${latitude.toFixed(
-              2
-            )}, ${longitude.toFixed(2)}`,
-            temperature: current?.temperature_2m ?? null,
-            highTemp: data?.daily?.temperature_2m_max?.[0] ?? null,
-            lowTemp: data?.daily?.temperature_2m_min?.[0] ?? null,
-            humidity: current?.relative_humidity_2m ?? null,
-            rainfall: current?.precipitation ?? null,
-            pressure: current?.pressure_msl ?? null,
-            windSpeed: current?.wind_speed_10m ?? null,
-            condition: null,
-            iconCode: null,
-            dailyForecasts: forecastTimes.map(
-              (time: string, index: number) => ({
-                isoDate: time,
-                highTemp: data?.daily?.temperature_2m_max?.[index] ?? null,
-                lowTemp: data?.daily?.temperature_2m_min?.[index] ?? null,
-                precipitationMm:
-                  data?.daily?.precipitation_sum?.[index] ?? null,
-                humidity: null,
-                iconCode: null,
-                iconPhrase: null,
-              })
-            ),
-          };
-          console.log("Weather data fetched from Open-Meteo fallback");
-        } catch (fallbackError) {
-          lastErrorMessage =
-            fallbackError instanceof Error
-              ? fallbackError.message
-              : String(fallbackError);
-          console.warn("⚠️ Open-Meteo fallback failed:", lastErrorMessage);
         }
       }
 
@@ -697,11 +630,13 @@ export default function WeatherScreen() {
               <Text style={styles.riskScoreValue}>
                 {riskSummary.score !== null ? `${riskSummary.score}` : "--"}
               </Text>
-              <Text style={styles.riskScoreLabel}>% risiko</Text>
+              <Text style={styles.riskScoreLabel}>skor heuristik</Text>
             </View>
 
             <View style={styles.riskInfo}>
-              <Text style={styles.riskTitle}>Skor Risiko Cuaca</Text>
+              <Text style={styles.riskTitle}>
+                Indikator Risiko Cuaca (Prototipe)
+              </Text>
               <Text style={styles.riskLevelText}>{riskSummary.level}</Text>
               <View style={styles.riskProgressTrack}>
                 <View
@@ -720,7 +655,8 @@ export default function WeatherScreen() {
                 {riskSummary.description}
               </Text>
               <Text style={styles.riskFootnote}>
-                Risiko cuaca untuk 7 hari ke depan
+                HYP-07 · dihitung client-side dan belum dikalibrasi terhadap
+                observasi lahan
               </Text>
             </View>
           </View>

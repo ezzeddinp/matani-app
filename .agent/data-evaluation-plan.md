@@ -3,7 +3,7 @@
 **Document type:** Engineering data pipeline specification
 **Audience:** The developer, thesis advisor, reviewers, and AI agents working in this repo
 **Status:** Active — specifies target behavior; nothing in it is implemented yet unless marked `[As-built]`
-**Updated:** 2026-07-23
+**Updated:** 2026-07-27
 **Canonical for:** the engineering measurement contract, provider adapter, quality pipeline, persistence/provenance, cache identity, idempotency, fixtures, and Indonesia-specific masking/resolution behavior
 **Companion documents:** [`research-protocol.md`](research-protocol.md), [`project-architecture.md`](project-architecture.md), [`product-requirements.md`](product-requirements.md), [`implementation-plan.md`](implementation-plan.md), [`evidence-register.md`](evidence-register.md)
 
@@ -23,7 +23,7 @@ This is the **engineering realization** of the research standard. Read it this w
 
 ## 1 · As-built summary `[As-built]`
 
-The satellite path today is a prototype request wired to the field-list surface with a silent synthetic fallback, computing over a bounding box on a fixed date window against a commercial endpoint, and persisting nothing as a measurement. The **canonical wording and the `file:line` evidence** for this live in [`project-architecture.md`](project-architecture.md) § 2 (Current measurement provenance) — it is not restated here; this document defers to it and specifies the target that replaces it.
+The satellite path today is a prototype request wired to the field-list surface with a visibly labeled synthetic fixture fallback, computing over a bounding box on a fixed date window against a commercial endpoint, and persisting nothing as a measurement. The **canonical wording and the `file:line` evidence** for this live in [`project-architecture.md`](project-architecture.md) § 2 (Current measurement provenance) — it is not restated here; this document defers to it and specifies the target that replaces it.
 
 ### As-built gaps this plan closes
 
@@ -33,7 +33,7 @@ The satellite path today is a prototype request wired to the field-list surface 
 | **Bounding box, not polygon** — queries a bbox, defaulting to a hard-coded Jakarta bbox when none is supplied | `backend/api/ndvi/utils.js:49` | Statistics computed over the actual field polygon geometry (§ 2, § 4); bbox is never the measurement geometry (EVID-012, protocol § 7) | ADR-06 |
 | **No cloud masking beyond `dataMask`** — evalscript passes `dataMask` through but never consults the Scene Classification Layer; no cloud/cirrus/shadow exclusion | `backend/api/ndvi/utils.js:12,15,22` | SCL-driven masking at the polygon level (§ 4), contrast EVID-008 / EVID-012 | ADR-06 |
 | **No persistence** — fetched results become transient UI overrides (`ndviOverrides` state), never rows | `app/(tabs)/explore.tsx:1143-1150,1421,1426` | Provenance-complete measurement records written by the worker (§ 5) | ADR-06, ADR-07 |
-| **Silent synthetic fallback** — on missing bbox / unusable result / thrown error the UI substitutes a synthesized record and does not distinguish it from a measured one | `app/(tabs)/explore.tsx:1146,1416-1426` | A measurement passes quality and is persisted, or is recorded as rejected with a reason; never silently replaced (§ 2, § 4); honest `unavailable` state (DEC-10, protocol § 8, § 11) | ADR-06 |
+| **Labeled synthetic fixture fallback remains in production** — on missing bbox / unusable result / thrown error the UI substitutes a fixture record; the 2026-07-27 hardening labels it “Simulasi demo” and “Bukan pengukuran satelit,” but it still substitutes rather than returning `unavailable` | `app/(tabs)/explore.tsx:320-343,1445-1462,2050-2072` | A measurement passes quality and is persisted, or is recorded as rejected with a reason; fixture substitution is removed (§ 2, § 4); honest `unavailable` state (DEC-10, protocol § 8, § 11) | ADR-06 |
 | **Commercial provider endpoint** — token and statistics calls target `services.sentinel-hub.com`, not CDSE | `backend/sentinelAuth.js:20`, `backend/api/ndvi/utils.js:86` | CDSE Sentinel Hub free tier behind a provider adapter (§ 3); a real credential + endpoint migration, not a URL swap | ADR-02, ADR-08 |
 
 ---
@@ -62,7 +62,7 @@ A measurement either:
 2. **Is recorded as rejected** with an enumerated, persisted reason (§ 4), or
 3. **Is recorded as `unavailable`** (honest absence — no acquisition in window, or no quality-passing pixels) (protocol § 8, § 11).
 
-It is **never silently replaced** by a synthesized value. This directly reverses the as-built silent synthetic fallback (§ 1) and enforces the honesty constraint (DEC-10, `AGENTS.md` § Honesty constraints): synthetic, fixture, or interpolated data is never stored or displayed as a measured observation.
+It is **never replaced** by a synthesized value on a measurement surface. This removes the as-built labeled fixture fallback (§ 1), rather than merely labeling it, and enforces the honesty constraint (DEC-10, `AGENTS.md` § Honesty constraints): synthetic, fixture, or interpolated data is never stored or displayed as a measured observation.
 
 ---
 
@@ -132,7 +132,7 @@ Every non-passing outcome carries one enumerated reason, persisted with the reco
 
 ### Honest unavailable outcome
 
-When no quality-passing observation exists for a field/window, the pipeline records and the product shows an honest **`unavailable`** state (DEC-10; replaces the prototype's silent synthetic fallback — protocol § 8, roadmap M2). Missingness is itself an outcome of RQ1 (protocol § 11) and is preserved, not filled.
+When no quality-passing observation exists for a field/window, the pipeline records and the product shows an honest **`unavailable`** state (DEC-10; replaces the prototype's labeled fixture fallback — protocol § 8, roadmap M2). Missingness is itself an outcome of RQ1 (protocol § 11) and is preserved, not filled.
 
 ---
 

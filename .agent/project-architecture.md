@@ -3,7 +3,7 @@
 **Document type:** Architecture document
 **Audience:** The developer, thesis advisor, reviewers, and AI agents working in this repo
 **Status:** Active
-**Updated:** 2026-07-23
+**Updated:** 2026-07-27
 **Canonical for:** As-built and target architecture, **current measurement provenance (canonical wording — § 2)**, trust boundaries, provider decisions, Architecture Decision Records (ADRs), free-tier constraints, security risks, verification baseline, migration triggers
 **Companion documents:** [`evidence-register.md`](evidence-register.md), [`context-dump.md`](context-dump.md), [`data-evaluation-plan.md`](data-evaluation-plan.md), [`research-protocol.md`](research-protocol.md), [`product-requirements.md`](product-requirements.md), [`implementation-plan.md`](implementation-plan.md)
 
@@ -35,9 +35,13 @@ built, and why**. Read it this way:
 
 ## 1 · System boundary (as-built)
 
-Matani is a four-part system: an Expo mobile app, a colocated Express backend that proxies
-all external providers, Supabase for identity and persistence, and three external
-providers (Sentinel Hub, weather, Gemini) that the client never contacts directly.
+Matani is a four-part system: an Expo mobile app, a colocated Express backend, Supabase
+for identity and persistence, and external services. Satellite, weather, and Gemini
+data calls pass through the backend (`backend/index.js:23-25`; DEC-20). The client still
+contacts presentation-only services directly: Google Maps through the native SDK,
+OpenStreetMap Nominatim for place search (`app/(tabs)/explore.tsx:755-778`), and remote
+avatar/display-image hosts. Those presentation integrations do not create or label
+research measurements.
 
 ### 1.1 Mobile app (Expo SDK 57 / React Native 0.86)
 
@@ -56,6 +60,10 @@ providers (Sentinel Hub, weather, Gemini) that the client never contacts directl
 - The app reaches the backend over an `EXPO_PUBLIC_API_URL` / host+port candidate list;
   the NDVI call builds `/ndvi?bbox=…` against those candidates
   (`app/(tabs)/explore.tsx:862-891`).
+- Home and Weather use the backend `/weather` route only. The prior duplicate
+  client-to-Open-Meteo fallbacks were removed on 2026-07-27 (DEC-20); an unavailable
+  backend now produces an honest weather error/unavailable state rather than bypassing
+  the integration boundary (`app/(tabs)/index.tsx`, `app/(tabs)/weather.tsx`).
 
 ### 1.2 Backend (Express 5 / Node, colocated in `backend/`)
 
@@ -71,9 +79,13 @@ Express 5.2, TypeScript 7, Node types 26, and `module` / `moduleResolution` set 
 |----------|------|----------|--------------------------|
 | `GET /ndvi` | `backend/api/ndvi/utils.js` | Sentinel Hub Statistical API | Parses `?bbox=w,s,e,n` (`utils.js:31-46`), defaults to a **Jakarta bbox** when absent (`utils.js:49`); fetches an OAuth token (`sentinelAuth.js`), POSTs a Statistics request with a **fixed Sept 2025 window** and the NDVI/NDMI evalscript, returns per-interval NDVI/NDMI stats or `{error:"No data available"}`. |
 | `GET /weather` | `backend/api/weather/route.js` | AccuWeather → Open-Meteo fallback | Requires `?lat&lon` (`route.js:101-104`); if `ACCUWEATHER_API_KEY` is set, does geoposition→current→5-day-forecast against AccuWeather (`route.js:6,106-206`); on any missing key/failure/exception falls back to Open-Meteo (`route.js:7,90-99,108,121,133,152,162,209`). |
-| `POST /ai/summary` | `backend/api/ai/route.js` | Google Gemini (Generative Language API) | Accepts `{lahanCards, totals}`, builds an Indonesian agronomy prompt, and calls Gemini with an **env-configured model** `MATANI_GEMINI_MODEL` plus an **in-code fallback candidate list** (`route.js:117-127,158-214`); requires `GOOGLE_GENERATIVE_AI_API_KEY` (`route.js:87-93`). |
+| `POST /ai/summary` | `backend/api/ai/route.js` | Google Gemini (Generative Language API) | Accepts `{lahanCards, totals}`, normalizes each card's data state, builds a bounded Indonesian summary prompt that forbids converting fixture/prototype inputs into measurements or diagnoses, and calls Gemini with an **env-configured model** `MATANI_GEMINI_MODEL` plus an **in-code fallback candidate list**; requires `GOOGLE_GENERATIVE_AI_API_KEY` (`route.js:96-148`). |
 
-**As-built processing-location note (thesis-paper discrepancy):** the weather **risk score** — `min(100, max(0, Pavg×4 + H×0.4))`, HYP-07 / DEC-16 — is computed **client-side** in `app/(tabs)/weather.tsx:541-576`, not in the backend. The thesis paper's three-layer description assigns "heuristic risk-score calculation" to the application processing layer; that is target-architecture wording, not as-built fact (recorded in `thesis-paper-corrections.md`; PRD-17).
+`backend/index.ts` now mirrors the runtime `backend/index.js` route mounts (`/ndvi`,
+`/weather`, `/ai`) so the TypeScript source no longer describes an NDVI-only backend
+(`backend/index.ts`, CODE; DEC-20).
+
+**As-built processing-location note:** the weather **risk score** — `min(100, max(0, Pavg×4 + H×0.4))`, HYP-07 / DEC-16 — is computed **client-side** in `app/(tabs)/weather.tsx:474-510`, not in the backend. The aligned thesis now states that moving it to a versioned server-side component is planned hardening rather than as-built behavior (`thesis-paper-corrections.md`; PRD-17).
 
 Token handling: `backend/sentinelAuth.js` performs OAuth2 client-credentials against the
 Sentinel Hub token endpoint (`sentinelAuth.js:20`) using `SENTINEL_CLIENT_ID` /
@@ -103,27 +115,33 @@ on RLS** (EVID-020).
 
 ## 2 · Current measurement provenance
 
-> A prototype Sentinel Hub request is connected to the field-list surface, with silent
-> synthetic fallback. Results are not yet a provenance-safe, polygon-based, current,
-> persisted monitoring pipeline. The detail analysis remains synthetic.
+> A prototype Sentinel Hub request is connected to the field-list surface, with a visibly
+> labeled synthetic fixture fallback. Results are not yet a provenance-safe, polygon-based,
+> current, persisted monitoring pipeline. The detail analysis remains synthetic and is
+> visibly labeled as a fixture demonstration.
 
 This is **the canonical measurement-provenance wording**. All other documents link here;
 none may soften or restate it. The verified facts behind it (commit
-`d131c941`, re-checked 2026-07-23):
+`d131c941` plus the 2026-07-27 presentation hardening, re-checked 2026-07-27):
 
 - **Field-list surface seeds synthetic data first.** On load, every saved field without an
-  override is seeded with `createSyntheticNdviRecord(lahan)` (`app/(tabs)/explore.tsx:1146`).
-- **The one live call falls back to synthetic silently.** When a bounding box is available,
-  the code calls `fetchNdviStatistic(bbox)` (`explore.tsx:1416`); if the API result is not
+  override is seeded with `createSyntheticNdviRecord(lahan)` (`app/(tabs)/explore.tsx:1181`).
+- **The one live call still falls back to a synthetic fixture, but the fallback is now labeled.** When a bounding box is available,
+  the code calls `fetchNdviStatistic(bbox)` (`explore.tsx:1451`); if the API result is not
   usable it substitutes `createSyntheticNdviRecord(lahan)`
-  (`explore.tsx:1419-1421`, `recordFromApi ?? createSyntheticNdviRecord(lahan)`), and on a
-  thrown error it does the same (`explore.tsx:1423-1426`). A missing bbox also yields a
-  synthetic record (`explore.tsx:1411-1413`). **The UI does not distinguish a fetched
-  value from a synthesized one.**
+  (`explore.tsx:1454-1456`, `recordFromApi ?? createSyntheticNdviRecord(lahan)`), and on a
+  thrown error it does the same (`explore.tsx:1458-1462`). A missing bbox also yields a
+  synthetic record (`explore.tsx:1445-1448`). The record is tagged `fixture`
+  (`explore.tsx:320-343`) and the card displays “Simulasi demo” plus “Bukan pengukuran
+  satelit” (`explore.tsx:2050-2072`). This fixes silent presentation, not the fallback or
+  measurement pipeline.
 - **The detail screen is fully synthetic.** NDVI history on the detail page is generated
   by `buildNdviSeries(…)` from `utils/ndvi-simulator.ts`
   (`app/detail-lahan-page.tsx:166`, imported at `detail-lahan-page.tsx:30-35`). No live
-  request runs on this screen at all.
+  request runs on this screen at all. A fixture banner now states that the graph, dates,
+  harvest estimate, risks, and recommendations are synthetic and not measurements,
+  observations, diagnoses, or validated agronomic advice
+  (`detail-lahan-page.tsx:710-723`).
 - **The backend request is not polygon-based or current.** `backend/api/ndvi/utils.js`
   uses a **fixed 2025-09-01 → 2025-09-05 time range** in both the data filter and
   aggregation (`utils.js:65-77`), queries a **bounding box rather than the field polygon**
@@ -136,9 +154,10 @@ none may soften or restate it. The verified facts behind it (commit
   back to `lahan_health` with provenance.
 
 **Data-state vocabulary** (per [`../AGENTS.md`](../AGENTS.md) § Vocabulary): today's
-satellite path is **prototype** (partially wired, non-provenance-safe); the detail history
-is **fixture-grade synthetic presented as real — the core defect** the thesis work must
-close; **nothing is `measured`** yet (no persisted, provenance-complete value exists).
+satellite path is **prototype** (partially wired, non-provenance-safe); its fallback and
+detail history are **fixture-grade synthetic values now labeled as demonstrations**. The
+labels close the silent-presentation defect only; M2 must still remove production fixture
+substitution. **Nothing is `measured`** yet (no persisted, provenance-complete value exists).
 
 ---
 
@@ -317,6 +336,23 @@ Each ADR aligns to a `DEC-*` in [`context-dump.md`](context-dump.md) and carries
   being narrated as measured; requires maintained fixtures per adapter.
 - **Revisit trigger:** A behavior can only be validated against a live provider — handled as
   a scoped, out-of-band run, never wired into default CI.
+
+### ADR-10 · Provider data requests stay behind the backend boundary
+- **Status:** Accepted and applied for weather on 2026-07-27 (DEC-20).
+- **Context:** The home and weather screens duplicated a direct Open-Meteo fallback even
+  though the backend `/weather` route already owns the AccuWeather→Open-Meteo provider
+  order. That bypass contradicted the documented integration boundary and duplicated
+  provider semantics in the client.
+- **Decision:** Satellite, weather, and Gemini data requests use the Matani backend.
+  When the backend is unavailable, the client renders an unavailable/error state rather
+  than contacting a data provider directly. Client-side mapping, place-search, avatar,
+  and display-media integrations remain presentation-only and outside the measurement
+  boundary.
+- **Consequences:** One weather contract and one provider-attribution location; backend
+  outages are visible rather than masked by a second client implementation. Backend
+  authentication/rate limiting remains an unfinished M0 requirement (§ 5.1).
+- **Revisit trigger:** An explicit offline/field-resilience design is approved with a
+  documented privacy, attribution, caching, and research-boundary contract.
 
 ---
 

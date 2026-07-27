@@ -15,7 +15,6 @@ import {
   ScrollView,
   StatusBar,
   StyleSheet,
-  Switch,
   Text,
   TouchableOpacity,
   View,
@@ -46,16 +45,6 @@ const clampPercentage = (value: number): number => {
 
 export default function ProfileScreen() {
   const router = useRouter();
-
-  const [notificationSettings, setNotificationSettings] = useState({
-    whatsapp: true,
-    sms: false,
-    riskAlert: true,
-    weatherAlert: true,
-    ndviAlert: true,
-    dailyReport: false,
-    weeklyReport: true,
-  });
 
   const [selectedTab, setSelectedTab] = useState("Profil");
   const [isSigningOut, setIsSigningOut] = useState(false);
@@ -102,13 +91,6 @@ export default function ProfileScreen() {
     } finally {
       setIsSigningOut(false);
     }
-  };
-
-  const toggleNotification = (key: keyof typeof notificationSettings) => {
-    setNotificationSettings((prev) => ({
-      ...prev,
-      [key]: !prev[key],
-    }));
   };
 
   useEffect(() => {
@@ -248,28 +230,16 @@ export default function ProfileScreen() {
     );
   }, [userMetadata]);
 
-  const locationLabel = useMemo(() => {
-    return (
-      sanitizeString(userMetadata?.location) ||
-      sanitizeString(userMetadata?.city) ||
-      sanitizeString(userMetadata?.address) ||
-      "Lokasi belum diatur"
-    );
-  }, [userMetadata]);
-
-  const joinedDays = useMemo(() => {
-    if (!profile?.created_at) return 0;
+  const joinedDateLabel = useMemo(() => {
+    if (!profile?.created_at) return "Belum tersedia";
     const createdDate = new Date(profile.created_at);
-    if (Number.isNaN(createdDate.getTime())) return 0;
-    const diffMs = Date.now() - createdDate.getTime();
-    if (diffMs <= 0) return 0;
-    return Math.max(1, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
+    if (Number.isNaN(createdDate.getTime())) return "Belum tersedia";
+    return createdDate.toLocaleDateString("id-ID", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
   }, [profile]);
-
-  const joinedDaysLabel =
-    joinedDays > 0
-      ? `${formatInteger.format(joinedDays)} hari`
-      : "Baru bergabung";
 
   const totalLahan = useMemo(() => lahanList.length, [lahanList]);
 
@@ -281,97 +251,6 @@ export default function ProfileScreen() {
   }, [lahanList]);
 
   const totalAreaLabel = `${formatDecimal.format(totalAreaHa)} hektar`;
-
-  const rawAverageNdvi =
-    userMetadata?.average_ndvi ??
-    userMetadata?.avg_ndvi ??
-    userMetadata?.ndvi_average ??
-    userMetadata?.ndviAvg;
-
-  const averageNdviLabel = useMemo(() => {
-    if (
-      rawAverageNdvi === undefined ||
-      rawAverageNdvi === null ||
-      rawAverageNdvi === ""
-    ) {
-      return "Belum tersedia";
-    }
-    const numeric = Number(rawAverageNdvi);
-    if (Number.isFinite(numeric)) {
-      return numeric.toFixed(3);
-    }
-    const asString = sanitizeString(String(rawAverageNdvi));
-    return asString || "Belum tersedia";
-  }, [rawAverageNdvi]);
-
-  const ndviChecks = useMemo(
-    () =>
-      toNumber(
-        userMetadata?.ndvi_checks ?? userMetadata?.ndviMonitoringCount,
-        0
-      ),
-    [userMetadata]
-  );
-
-  const weatherChecks = useMemo(
-    () =>
-      toNumber(
-        userMetadata?.weather_checks ?? userMetadata?.weatherCheckCount,
-        0
-      ),
-    [userMetadata]
-  );
-
-  const alertsReceived = useMemo(
-    () =>
-      toNumber(userMetadata?.alerts_received ?? userMetadata?.alertCount, 0),
-    [userMetadata]
-  );
-
-  const educationRead = useMemo(
-    () =>
-      toNumber(userMetadata?.education_read ?? userMetadata?.educationCount, 0),
-    [userMetadata]
-  );
-
-  const landHealthScore = useMemo(
-    () =>
-      clampPercentage(
-        toNumber(
-          userMetadata?.land_health_score ??
-            userMetadata?.landHealthScore ??
-            userMetadata?.land_health,
-          0
-        )
-      ),
-    [userMetadata]
-  );
-
-  const monitoringEfficiencyScore = useMemo(
-    () =>
-      clampPercentage(
-        toNumber(
-          userMetadata?.monitoring_efficiency ??
-            userMetadata?.monitoringEfficiency ??
-            (totalLahan > 0 ? 60 : 0),
-          0
-        )
-      ),
-    [totalLahan, userMetadata]
-  );
-
-  const alertResponseScore = useMemo(
-    () =>
-      clampPercentage(
-        toNumber(
-          userMetadata?.alert_response ??
-            userMetadata?.alertResponse ??
-            userMetadata?.alert_response_score,
-          0
-        )
-      ),
-    [userMetadata]
-  );
 
   const expertProgress = useMemo(() => {
     if (totalLahan <= 0) return 0;
@@ -455,148 +334,15 @@ export default function ProfileScreen() {
 
   const renderNotificationTab = () => (
     <View style={styles.tabContent}>
-      <View style={styles.notificationSection}>
-        <Text style={styles.sectionTitle}>Metode Notifikasi</Text>
-
-        <View style={styles.notificationItem}>
-          <View style={styles.notificationIcon}>
-            <Text style={styles.iconText}>💬</Text>
-          </View>
-          <View style={styles.notificationContent}>
-            <Text style={styles.notificationTitle}>WhatsApp</Text>
-            <Text style={styles.notificationDescription}>
-              Terima notifikasi via WhatsApp
-            </Text>
-          </View>
-          <Switch
-            value={notificationSettings.whatsapp}
-            onValueChange={() => toggleNotification("whatsapp")}
-            trackColor={{ false: "#767577", true: "#C8E6C9" }}
-            thumbColor={notificationSettings.whatsapp ? "#4CAF50" : "#f4f3f4"}
-          />
-        </View>
-
-        <View style={styles.notificationItem}>
-          <View style={styles.notificationIcon}>
-            <Text style={styles.iconText}>📱</Text>
-          </View>
-          <View style={styles.notificationContent}>
-            <Text style={styles.notificationTitle}>SMS</Text>
-            <Text style={styles.notificationDescription}>
-              Terima notifikasi via SMS
-            </Text>
-          </View>
-          <Switch
-            value={notificationSettings.sms}
-            onValueChange={() => toggleNotification("sms")}
-            trackColor={{ false: "#767577", true: "#C8E6C9" }}
-            thumbColor={notificationSettings.sms ? "#4CAF50" : "#f4f3f4"}
-          />
-        </View>
-      </View>
-
-      <View style={styles.notificationSection}>
-        <Text style={styles.sectionTitle}>Metode Notifikasi</Text>
-
-        <View style={styles.notificationItem}>
-          <View style={styles.notificationIcon}>
-            <Text style={styles.iconText}>⚠️</Text>
-          </View>
-          <View style={styles.notificationContent}>
-            <Text style={styles.notificationTitle}>Peringatan Risiko</Text>
-            <Text style={styles.notificationDescription}>
-              Alert saat risiko tinggi terdeteksi
-            </Text>
-          </View>
-          <Switch
-            value={notificationSettings.riskAlert}
-            onValueChange={() => toggleNotification("riskAlert")}
-            trackColor={{ false: "#767577", true: "#C8E6C9" }}
-            thumbColor={notificationSettings.riskAlert ? "#4CAF50" : "#f4f3f4"}
-          />
-        </View>
-
-        <View style={styles.notificationItem}>
-          <View style={styles.notificationIcon}>
-            <Text style={styles.iconText}>🌤️</Text>
-          </View>
-          <View style={styles.notificationContent}>
-            <Text style={styles.notificationTitle}>Peringatan Cuaca</Text>
-            <Text style={styles.notificationDescription}>
-              Alert cuaca ekstrem dan rekomendasi
-            </Text>
-          </View>
-          <Switch
-            value={notificationSettings.weatherAlert}
-            onValueChange={() => toggleNotification("weatherAlert")}
-            trackColor={{ false: "#767577", true: "#C8E6C9" }}
-            thumbColor={
-              notificationSettings.weatherAlert ? "#4CAF50" : "#f4f3f4"
-            }
-          />
-        </View>
-
-        <View style={styles.notificationItem}>
-          <View style={styles.notificationIcon}>
-            <Text style={styles.iconText}>🌱</Text>
-          </View>
-          <View style={styles.notificationContent}>
-            <Text style={styles.notificationTitle}>Peringatan NDVI</Text>
-            <Text style={styles.notificationDescription}>
-              Alert perubahan kesehatan tanaman
-            </Text>
-          </View>
-          <Switch
-            value={notificationSettings.ndviAlert}
-            onValueChange={() => toggleNotification("ndviAlert")}
-            trackColor={{ false: "#767577", true: "#C8E6C9" }}
-            thumbColor={notificationSettings.ndviAlert ? "#4CAF50" : "#f4f3f4"}
-          />
-        </View>
-      </View>
-
-      <View style={styles.notificationSection}>
-        <Text style={styles.sectionTitle}>Laporan Berkala</Text>
-
-        <View style={styles.notificationItem}>
-          <View style={styles.notificationIcon}>
-            <Text style={styles.iconText}>📊</Text>
-          </View>
-          <View style={styles.notificationContent}>
-            <Text style={styles.notificationTitle}>Laporan Harian</Text>
-            <Text style={styles.notificationDescription}>
-              Ringkasan kondisi lahan setiap hari
-            </Text>
-          </View>
-          <Switch
-            value={notificationSettings.dailyReport}
-            onValueChange={() => toggleNotification("dailyReport")}
-            trackColor={{ false: "#767577", true: "#C8E6C9" }}
-            thumbColor={
-              notificationSettings.dailyReport ? "#4CAF50" : "#f4f3f4"
-            }
-          />
-        </View>
-
-        <View style={styles.notificationItem}>
-          <View style={styles.notificationIcon}>
-            <Text style={styles.iconText}>📈</Text>
-          </View>
-          <View style={styles.notificationContent}>
-            <Text style={styles.notificationTitle}>Laporan Mingguan</Text>
-            <Text style={styles.notificationDescription}>
-              Analisis tren dan rekomendasi mingguan
-            </Text>
-          </View>
-          <Switch
-            value={notificationSettings.weeklyReport}
-            onValueChange={() => toggleNotification("weeklyReport")}
-            trackColor={{ false: "#767577", true: "#C8E6C9" }}
-            thumbColor={
-              notificationSettings.weeklyReport ? "#4CAF50" : "#f4f3f4"
-            }
-          />
-        </View>
+      <View style={styles.guestBanner}>
+        <Text style={styles.guestBannerTitle}>
+          Sistem notifikasi belum tersedia
+        </Text>
+        <Text style={styles.guestBannerText}>
+          Prototipe saat ini belum menghasilkan, menyimpan, atau mengirim
+          peringatan melalui aplikasi, WhatsApp, maupun SMS. Preferensi dan
+          laporan berkala akan dirancang sebagai pekerjaan pasca-skripsi.
+        </Text>
       </View>
     </View>
   );
@@ -606,8 +352,8 @@ export default function ProfileScreen() {
       <View style={styles.statsContainer}>
         <View style={styles.statsGrid}>
           <View style={styles.statCard}>
-            <Text style={styles.statNumber}>{joinedDaysLabel}</Text>
-            <Text style={styles.statLabel}>Hari Bergabung</Text>
+            <Text style={styles.statNumber}>{joinedDateLabel}</Text>
+            <Text style={styles.statLabel}>Tanggal Bergabung</Text>
           </View>
           <View style={styles.statCard}>
             <Text style={styles.statNumber}>
@@ -620,80 +366,29 @@ export default function ProfileScreen() {
             <Text style={styles.statLabel}>Luas Total</Text>
           </View>
           <View style={styles.statCard}>
-            <Text style={styles.statNumber}>{averageNdviLabel}</Text>
-            <Text style={styles.statLabel}>Rata-rata NDVI</Text>
+            <Text style={styles.statNumber}>--</Text>
+            <Text style={styles.statLabel}>NDVI Terukur</Text>
           </View>
         </View>
 
         <View style={styles.analysisSection}>
-          <Text style={styles.sectionTitle}>Analisis Penggunaan</Text>
-          <View style={styles.analysisItem}>
-            <Text style={styles.analysisLabel}>Pemantauan NDVI</Text>
-            <Text style={styles.analysisValue}>{`${formatInteger.format(
-              ndviChecks
-            )} kali`}</Text>
-          </View>
-          <View style={styles.analysisItem}>
-            <Text style={styles.analysisLabel}>Cek Prakiraan Cuaca</Text>
-            <Text style={styles.analysisValue}>{`${formatInteger.format(
-              weatherChecks
-            )} kali`}</Text>
-          </View>
-          <View style={styles.analysisItem}>
-            <Text style={styles.analysisLabel}>Alert Diterima</Text>
-            <Text style={styles.analysisValue}>{`${formatInteger.format(
-              alertsReceived
-            )} kali`}</Text>
-          </View>
-          <View style={styles.analysisItem}>
-            <Text style={styles.analysisLabel}>Edukasi Dibaca</Text>
-            <Text style={styles.analysisValue}>{`${formatInteger.format(
-              educationRead
-            )} artikel`}</Text>
-          </View>
+          <Text style={styles.sectionTitle}>Statistik Penggunaan</Text>
+          <Text style={styles.guestBannerText}>
+            Event pemantauan, pembacaan artikel, dan penerimaan alert belum
+            dicatat oleh implementasi saat ini. Angka aktivitas tidak
+            ditampilkan sampai sumber datanya benar-benar tersedia.
+          </Text>
         </View>
 
         <View style={styles.metricsSection}>
-          <Text style={styles.sectionTitle}>Metrik Produktivitas</Text>
-          <View style={styles.metricItem}>
-            <Text style={styles.metricLabel}>Kesehatan Lahan</Text>
-            <View style={styles.progressBar}>
-              <View
-                style={[styles.progressFill, { width: `${landHealthScore}%` }]}
-              />
-            </View>
-            <Text style={styles.metricValue}>{`${formatInteger.format(
-              landHealthScore
-            )}%`}</Text>
-          </View>
-          <View style={styles.metricItem}>
-            <Text style={styles.metricLabel}>Efisiensi Monitoring</Text>
-            <View style={styles.progressBar}>
-              <View
-                style={[
-                  styles.progressFill,
-                  { width: `${monitoringEfficiencyScore}%` },
-                ]}
-              />
-            </View>
-            <Text style={styles.metricValue}>{`${formatInteger.format(
-              monitoringEfficiencyScore
-            )}%`}</Text>
-          </View>
-          <View style={styles.metricItem}>
-            <Text style={styles.metricLabel}>Response Time Alert</Text>
-            <View style={styles.progressBar}>
-              <View
-                style={[
-                  styles.progressFill,
-                  { width: `${alertResponseScore}%` },
-                ]}
-              />
-            </View>
-            <Text style={styles.metricValue}>{`${formatInteger.format(
-              alertResponseScore
-            )}%`}</Text>
-          </View>
+          <Text style={styles.sectionTitle}>
+            Metrik Agronomis Tidak Tersedia
+          </Text>
+          <Text style={styles.guestBannerText}>
+            Matani belum memiliki pengukuran provenance-complete untuk
+            menghitung kesehatan lahan, efisiensi monitoring, produktivitas,
+            atau respons terhadap alert.
+          </Text>
         </View>
       </View>
     </View>
@@ -702,7 +397,12 @@ export default function ProfileScreen() {
   const renderPencapaianTab = () => (
     <View style={styles.tabContent}>
       <View style={styles.achievementSection}>
-        <Text style={styles.sectionTitle}>Pencapaian Saya</Text>
+        <Text style={styles.sectionTitle}>Pencapaian Produk (Preview)</Text>
+        <Text style={styles.guestBannerText}>
+          Badge ini hanya preview antarmuka berdasarkan usia akun dan jumlah
+          lahan. Badge belum dipersistenkan dan bukan penilaian keahlian,
+          produktivitas, atau kondisi agronomis.
+        </Text>
 
         <View style={styles.achievementCard}>
           <View style={styles.achievementIcon}>
@@ -711,7 +411,7 @@ export default function ProfileScreen() {
           <View style={styles.achievementContent}>
             <Text style={styles.achievementTitle}>Petani Digital</Text>
             <Text style={styles.achievementDescription}>
-              Bergabung pada Matani selama {joinedDaysLabel}
+              Akun Matani dibuat pada {joinedDateLabel}
             </Text>
           </View>
           <View style={styles.achievementBadge}>
@@ -724,23 +424,9 @@ export default function ProfileScreen() {
             <Text style={styles.achievementEmoji}>📍</Text>
           </View>
           <View style={styles.achievementContent}>
-            <Text style={styles.achievementTitle}>Pemetaan Ahli</Text>
+            <Text style={styles.achievementTitle}>Pembuat Lahan</Text>
             <Text style={styles.achievementDescription}>
               {`Sudah membuat ${formatInteger.format(totalLahan)} peta lahan`}
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.achievementCard}>
-          <View style={styles.achievementIcon}>
-            <Text style={styles.achievementEmoji}>🌤️</Text>
-          </View>
-          <View style={styles.achievementContent}>
-            <Text style={styles.achievementTitle}>Cuaca Master</Text>
-            <Text style={styles.achievementDescription}>
-              {`Telah mengecek cuaca ${formatInteger.format(
-                weatherChecks
-              )} kali`}
             </Text>
           </View>
         </View>
@@ -749,7 +435,7 @@ export default function ProfileScreen() {
           <View style={styles.targetHeader}>
             <Text style={styles.targetTitle}>Target Berikutnya</Text>
             <Text style={styles.targetDescription}>
-              Buat 5 lahan untuk mendapatkan badge &quot;Pemetaan Ahli&quot;
+              Buat 5 lahan untuk melihat badge preview &quot;Pembuat Lahan&quot;
             </Text>
           </View>
           <View style={styles.progressContainer}>

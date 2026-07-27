@@ -47,7 +47,7 @@ const buildLahanSummaryPrompt = (cards, totals) => {
       const ndmi = card.ndmiScore === null || card.ndmiScore === undefined ? "-" : card.ndmiScore;
       const area = card.areaHa === null || card.areaHa === undefined ? "-" : card.areaHa;
       const location = card.locationLabel ? ` | Lokasi: ${card.locationLabel}` : "";
-      return `${index + 1}. ${card.name} | Status NDVI: ${card.ndviStatus} | Nilai NDVI: ${ndvi} | Nilai NDMI: ${ndmi} | Luas: ${area} ha | Titik: ${card.coordinateCount}${location}`;
+      return `${index + 1}. ${card.name} | Status data: ${card.dataState} | Interpretasi NDVI: ${card.ndviStatus} | Nilai NDVI: ${ndvi} | Nilai NDMI: ${ndmi} | Luas: ${area} ha | Titik: ${card.coordinateCount}${location}`;
     })
     .join("\n");
 
@@ -57,19 +57,19 @@ const buildLahanSummaryPrompt = (cards, totals) => {
 
   const recencyLabel = totals.latestDataTimestamp
     ? new Date(totals.latestDataTimestamp).toISOString().split("T")[0]
-    : "Tidak ada tanggal terbaru";
+    : "Tidak ada timestamp input";
 
   return `Data ringkasan lahan Matani:
 Jumlah lahan: ${totals.lahanCount}
 Total luas: ${totals.totalAreaHa ?? "-"} ha
-Rata-rata NDVI: ${totals.averageNdvi ?? "-"}
+Rata-rata nilai NDVI input: ${totals.averageNdvi ?? "-"}
 Distribusi status: ${distributionEntries.join(", ") || "-"}
-Tanggal data terbaru: ${recencyLabel}
+Timestamp input terbaru (bukan otomatis tanggal akuisisi satelit): ${recencyLabel}
 
 Detail setiap lahan:
 ${lines}
 
-Buat ringkasan maksimal 3 poin dengan format "Prioritas X:" (mulai dari Prioritas 1 sebagai tindakan paling mendesak) untuk menjelaskan kondisi keseluruhan dan saran tindak lanjut. Gunakan bahasa Indonesia yang ramah petani.`;
+Buat ringkasan maksimal 3 poin dengan format "Prioritas X:" (mulai dari Prioritas 1 sebagai tindakan paling mendesak) untuk menjelaskan input yang tersedia dan saran verifikasi lapangan. Gunakan bahasa Indonesia yang ramah petani.`;
 };
 
 router.post("/summary", async (req, res) => {
@@ -99,6 +99,11 @@ router.post("/summary", async (req, res) => {
       ndviScore: normaliseNumber(card?.ndviScore),
       ndmiScore: normaliseNumber(card?.ndmiScore),
       ndviStatus: card?.ndviStatus ?? "Belum Ada Status",
+      dataState: ["fixture", "prototype", "measured", "unavailable"].includes(
+        card?.dataState
+      )
+        ? card.dataState
+        : "unavailable",
       coordinateCount: Number.isFinite(card?.coordinateCount) ? card.coordinateCount : null,
       capturedAt: card?.capturedAt ?? null,
       locationLabel: card?.locationLabel ?? null,
@@ -126,13 +131,17 @@ router.post("/summary", async (req, res) => {
       .filter(Boolean)
       .map((model) => model.replace(/^models\//i, ""));
 
-  const systemInstruction = `Kamu adalah Asisten Agronomi Matani, spesialis analisis data lahan dengan pengalaman 30 tahun. Tugasmu adalah memberikan wawasan praktis, akurat, dan mudah diterapkan oleh petani maupun pemilik lahan.
+  const systemInstruction = `Kamu adalah layanan ringkasan informasi prototipe Matani. Tugasmu adalah merangkum input yang diberikan tanpa mengubah fixture atau data prototipe menjadi pengukuran, diagnosis, atau ground truth.
 Jawab selalu dalam bahasa Indonesia yang ramah.
 Berikan ringkasan dalam persis 3 poin yang sudah diurutkan dari prioritas tertinggi ke terendah.
 Setiap poin WAJIB diawali dengan "Prioritas X:" (contoh: "Prioritas 1:") dan jelaskan alasan singkat serta tindak lanjut yang disarankan.
 Masukkan langkah yang paling berdampak di poin pertama, kemudian dukung dengan tindak lanjut penting lainnya.
 Jangan menyertakan kode, tabel, atau format selain daftar poin.
 **perhatian**:
+- Sebutkan secara jelas jika input berstatus fixture, prototype, atau unavailable.
+- Jangan menyebut fixture/prototype sebagai pengukuran satelit atau observasi lapangan.
+- Jangan mendiagnosis hama, penyakit, stres, hasil panen, atau kondisi agronomis.
+- Jangan memberi instruksi aplikasi pestisida, fungisida, atau pupuk; arahkan pengguna untuk verifikasi lapangan dan konsultasi ahli.
 - minimal 3-4 kalimat pada device mobile!.
 - singkat & jelas.
 - pastikan jawaban tiap prioritas singkat dan sangat memberikan rekomendasi bagi para petani maupun pemilik lahan

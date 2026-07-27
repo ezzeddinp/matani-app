@@ -3,11 +3,11 @@
 **Document type:** Product requirements document
 **Audience:** The developer, thesis advisor, reviewers, and AI agents working in this repo
 **Status:** Active
-**Updated:** 2026-07-23
+**Updated:** 2026-07-27
 **Canonical for:** Feature behavior, scope tags, and product invariants
 **Companion documents:** [`product-brief.md`](product-brief.md), [`project-architecture.md`](project-architecture.md), [`design-guidelines.md`](design-guidelines.md), [`research-protocol.md`](research-protocol.md), [`data-evaluation-plan.md`](data-evaluation-plan.md), [`implementation-plan.md`](implementation-plan.md)
 
-> Some companion documents (`design-guidelines.md`, `data-evaluation-plan.md`, `implementation-plan.md`) are named as canonical homes in [`../AGENTS.md`](../AGENTS.md) § Document precedence but are not yet written. Links to them are forward references to their planned canonical location; behavior owned by them is described here only by contract, never duplicated.
+> Companion documents named in [`../AGENTS.md`](../AGENTS.md) exist and remain canonical for their assigned topics. This PRD links to those homes and does not duplicate their canonical claims.
 
 ---
 
@@ -44,18 +44,18 @@ The invariants below are **product-wide constraints** that no feature may violat
 - **INV-08 — Cadence claims require the feasibility study.** No monitoring-cadence promise (weekly/biweekly/monthly/etc.) is made anywhere in the product until the Indonesia feasibility study supports it, per site and season. Nominal 5-day revisit (EVID-006) is an acquisition cadence, not a usable one ([`research-protocol.md`](research-protocol.md) § 4; DEC-12).
 - **INV-09 — Severity labels are HYP-04 heuristics until calibrated.** The NDVI severity bands and cutoffs in `constants/ndvi.ts:12-45,64-100` (0.60 / 0.20 / 0.00 boundaries) are an as-built UI heuristic, not calibrated science, and remain **HYP-04-tagged** until validated against field observations. They may not be presented as a crop-health diagnosis (HYP-04 / DEC-11).
 
-### Invariants the as-built app currently VIOLATES
+### Invariants the as-built app currently does not satisfy
 
-The shipped app violates **INV-01, INV-02, and INV-06** on the satellite path. The single source of truth for exactly how is [`project-architecture.md`](project-architecture.md) § 2 (Current measurement provenance) — the canonical, non-softened wording. One-line summary: *a prototype Sentinel Hub request is wired to the ladang field-list surface with a silent synthetic fallback the UI does not distinguish from a measured value, and the field-detail history is fully synthetic.*
+The 2026-07-27 presentation hardening closes the prior **INV-01/INV-02** presentation defect: fixture and prototype values are now explicitly labeled, and the detail screen carries a persistent fixture disclaimer. The satellite path still does not satisfy **INV-03, INV-04, INV-05, or INV-06** because it has no provenance-complete persistence, quality accounting, true acquisition history, or pass/reject/unavailable outcome. The single source of truth is [`project-architecture.md`](project-architecture.md) § 2.
 
 Concretely (cited, not restated from § 2):
-- The ladang field cards seed `createSyntheticNdviRecord(...)` on load (`app/(tabs)/explore.tsx:1146`) and fall back to it silently on empty result, missing bbox, or thrown error (`explore.tsx:1412,1420,1426`) — **violates INV-01, INV-02, INV-06**.
-- The field-detail screen generates its entire NDVI history and derived analysis from `utils/ndvi-simulator.ts` with no live request (`app/detail-lahan-page.tsx:166`) — **violates INV-01, INV-05** (dates are synthesized, not acquisition dates).
-- Nothing is persisted as a `measured` value with provenance — fetched results are transient UI overrides (`explore.tsx:1143-1150,1421,1426`) — so **INV-03 cannot yet be satisfied** on the satellite path.
+- Ladang cards still substitute `createSyntheticNdviRecord(...)` on load/failure (`app/(tabs)/explore.tsx:1181,1445-1462`) but tag it `fixture` and render “Simulasi demo” / “Bukan pengukuran satelit” (`explore.tsx:320-343,2050-2072`) — **INV-01/02 presentation now satisfied; INV-06 still not satisfied**.
+- The field-detail screen still generates its entire history and derived analysis from `utils/ndvi-simulator.ts` with no live request (`app/detail-lahan-page.tsx:166`) but labels the entire surface as fixture data (`detail-lahan-page.tsx:710-723`) — it is no longer presented as measurement, yet **INV-05 remains unsatisfied** because no true acquisition history exists.
+- Nothing is persisted as a `measured` value with provenance — fetched results are transient UI overrides (`explore.tsx:1455,1461`) — so **INV-03/04 cannot yet be satisfied** on the satellite path.
 
-These violations are **scheduled for removal in M2** — the provenance-complete pipeline that replaces the silent synthetic fallback with measured values and honest unavailable states (see [`implementation-plan.md`](implementation-plan.md); phased scope in [`product-brief.md`](product-brief.md) § 4).
+These gaps are **scheduled for removal in M2** — the provenance-complete pipeline that removes the labeled fixture fallback and yields measured values or honest unavailable states (see [`implementation-plan.md`](implementation-plan.md); phased scope in [`product-brief.md`](product-brief.md) § 4).
 
-**Where the app is already honest:** the **home dashboard** field cards read persisted `lahan_health` rows and fall back to an explicit "Belum Ada Data" (no-data) state rather than synthesizing (`app/(tabs)/index.tsx:782-824`, unknown config `constants/ndvi.ts:47-54`) — the synthetic-fallback violation is localized to the ladang tab and the detail screen, not app-wide.
+**Home-dashboard hardening:** home cards no longer hard-code “Sangat Sehat” or `NDVI: 0.65`. Persisted `lahan_health` values, if present, are visibly labeled “Prototipe”; absence renders `Data Tidak Tersedia` / `NDVI: --` (`app/(tabs)/index.tsx:288-300,1360-1410`; `constants/ndvi.ts:47-54`).
 
 ---
 
@@ -97,7 +97,7 @@ Full positioning lives in [`product-brief.md`](product-brief.md) § 5; the opera
 
 ### PRD-04 · Home dashboard — weather card · [As-built]
 
-**Behavior.** The home tab (`app/(tabs)/index.tsx`) renders a weather summary card (`index.tsx:205-233`) from live weather fetched for the user's location (`fetchWeatherData`, `index.tsx:488`). Provider order is AccuWeather-if-key-set → Open-Meteo fallback (`index.tsx:500-582`), matching the weather screen (PRD-12).
+**Behavior.** The home tab (`app/(tabs)/index.tsx`) renders a weather summary card from data fetched for the user's location through the Matani backend `/weather` route (`fetchWeatherData`, `index.tsx:490-538`). Provider order is owned by the backend: AccuWeather-if-key-set → Open-Meteo fallback (`backend/api/weather/route.js`), matching the weather screen (PRD-12; ADR-10 / DEC-20).
 
 **Acceptance criteria.** The card shows current conditions for the resolved location; on total provider failure it shows an error/empty state (`weatherError`, `index.tsx:381`), never fabricated weather.
 
@@ -105,14 +105,14 @@ Full positioning lives in [`product-brief.md`](product-brief.md) § 5; the opera
 
 ### PRD-05 · Home dashboard — field status cards (NDVI) · [As-built]
 
-**Behavior.** Home field cards read persisted health rows from `lahan_health` (`index.tsx:782-783`, selecting `ndvi_score,ndmi_score,status,captured_at,…`) and classify via `classifyNdviStatus` (`constants/ndvi.ts:64`). When no row exists, the card shows the explicit "Belum Ada Data" unknown state (`constants/ndvi.ts:47-54`).
+**Behavior.** Home field cards read persisted health rows from `lahan_health` (`index.tsx:782-783`, selecting `ndvi_score,ndmi_score,status,captured_at,…`) and classify via `classifyNdviStatus` (`constants/ndvi.ts:64`). Any value is visibly labeled “Prototipe”; when no row exists, the card shows the explicit "Data Tidak Tersedia" unknown state (`constants/ndvi.ts:47-54`).
 
 **Acceptance criteria.**
 - A field with a persisted health row shows its classified status.
 - A field without one shows the honest no-data state — **not** a synthesized value.
 - Severity labels are treated as HYP-04 heuristics (INV-09), not diagnoses.
 
-**Current-fidelity note.** This surface is **honest by construction** (reads persisted data, falls back to unavailable). However, **no code writes measurement rows to `lahan_health`** — the table is only read (`index.tsx:782`, `explore.tsx:594`) and deleted-on-field-delete (`explore.tsx:1555`); nothing persists a fetched measurement. In practice the home cards therefore show "Belum Ada Data" until the M2 pipeline persists real measurements. The `status`/`ndvi_score` classification remains HYP-04 (INV-09).
+**Current-fidelity note.** This surface is honest about state: it no longer hard-codes a healthy label/value and never calls a stored row `measured`. However, **no code writes measurement rows to `lahan_health`** — the table is only read and deleted-on-field-delete; nothing persists a fetched measurement. In practice the home cards show `Data Tidak Tersedia` unless legacy/prototype rows exist. The `status`/`ndvi_score` classification remains HYP-04 (INV-09).
 
 ### PRD-06 · Field management — map, polygon drawing, search, geocode · [As-built]
 
@@ -133,21 +133,22 @@ Full positioning lives in [`product-brief.md`](product-brief.md) § 5; the opera
 - Save requires a valid polygon, a name, and a crop category.
 - The displayed area is the authoritative PostGIS geography-based hectare value when available.
 - The crop category is one of the five supported values.
+- Crop-filter focus and fallback thumbnails use the persisted `category`, not a field-name guess (`app/(tabs)/explore.tsx`, CODE; corrected 2026-07-27).
 
 **Current-fidelity note.** Earlier project descriptions referred to "Turf area computation," but Turf was never used for area and its unused packages have now been removed from the root dependency set (`package.json:13-43`). The client estimate remains the hand-rolled planar shoelace formula (`explore.tsx:814-823`), which is **not equal-area** and is only a pre-save estimate; the authoritative value is the PostGIS geography column. Equal-area handling is a [Thesis] requirement ([`research-protocol.md`](research-protocol.md) § 7 — "area-in-hectares derived on an equal-area basis").
 
-### PRD-08 · Ladang field cards — NDVI status · [As-built] · **INV-01/02/06 VIOLATION**
+### PRD-08 · Ladang field cards — NDVI status · [As-built] · **INV-06 GAP**
 
-**Behavior.** Each saved field on the ladang tab shows an NDVI status card. On load, every field without an override is seeded with `createSyntheticNdviRecord(...)` (`explore.tsx:1146`). When a bounding box is available the code calls `fetchNdviStatistic(bbox)` (`explore.tsx:1416`) against the backend `/ndvi` endpoint, but substitutes a synthetic record on empty/unusable result, missing bbox, or thrown error (`explore.tsx:1412,1420,1426`). The UI does not distinguish a fetched value from a synthesized one.
+**Behavior.** Each saved field on the ladang tab shows an NDVI status card. On load, every field without an override is seeded with `createSyntheticNdviRecord(...)` (`explore.tsx:1181`). When a bounding box is available the code calls `fetchNdviStatistic(bbox)` against the backend `/ndvi` endpoint, but still substitutes a synthetic record on empty/unusable result, missing bbox, or thrown error (`explore.tsx:1445-1462`). The synthetic record is tagged `fixture`, while live API output is tagged `prototype`; cards visibly render the corresponding state and state explanation (`explore.tsx:303-343,2050-2072`).
 
-**Acceptance criteria (as-built — describes the defect).** Card renders a classified NDVI status for every field, always populated.
+**Acceptance criteria (as-built — describes the remaining gap).** Card renders a classified NDVI interpretation for every field, always populated, and never calls fixture/prototype output measured.
 
 **Acceptance criteria ([Thesis], M2 target).**
 - A field shows a `measured` value only when a provenance-complete observation exists; otherwise it shows an honest `unavailable` state (INV-01/02/06).
 - The displayed date is the acquisition date (INV-05).
 - Valid-pixel/quality state is visible (INV-04).
 
-**Current-fidelity note.** This is the primary INV-01/02/06 violation. Canonical wording: [`project-architecture.md`](project-architecture.md) § 2. Removal is M2 ([`implementation-plan.md`](implementation-plan.md)).
+**Current-fidelity note.** The state-labeling hardening satisfies INV-01/02 presentation requirements, but fixture substitution still fails the M2 pass/reject/unavailable contract and leaves INV-03/04/05/06 unsatisfied. Canonical wording: [`project-architecture.md`](project-architecture.md) § 2. Removal is M2 ([`implementation-plan.md`](implementation-plan.md)).
 
 ### PRD-09 · Field edit / delete / notes · [As-built]
 
@@ -161,19 +162,21 @@ Full positioning lives in [`product-brief.md`](product-brief.md) § 5; the opera
 
 ### PRD-10 · AI advisory — priority summary · [As-built]
 
-**Behavior.** On the **ladang tab** (not the home dashboard), tapping "Analisis Sekarang" requests an advisory from the backend `/ai/summary` endpoint (`explore.tsx:1330-1333`), which builds an Indonesian agronomy prompt and calls Gemini via an env-configured model ([`project-architecture.md`](project-architecture.md) § 1.2; `backend/api/ai/route.js:117-127`). The returned text is parsed into numbered priority items (`explore.tsx:520-531`) and rendered as a priority list (`explore.tsx:2185-2211`); the empty state prompts the user to run an analysis (`explore.tsx:2211`).
+**Behavior.** On the **ladang tab** (not the home dashboard), tapping "Analisis Sekarang" requests an optional summary from the backend `/ai/summary` endpoint (`explore.tsx`). Each card payload includes an explicit `fixture`, `prototype`, `measured`, or `unavailable` state; the backend prompt forbids converting fixture/prototype input into a measurement or diagnosis and forbids pesticide/fungicide/fertilizer instructions (`backend/api/ai/route.js`, CODE). The returned text is parsed into numbered priority items and rendered as a priority list; neutral “Tindak Lanjut” wording replaces the prior generated “Kondisi Baik” badge.
 
 **Acceptance criteria.**
 - [As-built] The summary runs whenever the backend Gemini key is present; its absence yields an empty/error state, and the rest of the app is unaffected (INV-07).
 - The AI output is never treated as measurement, ground truth, or a research label (ADR-05 / DEC-08).
+- The UI states that Gemini is an optional summary over prototype/fixture inputs and is not a measurement or diagnosis (`explore.tsx:2110-2120,2230-2236`).
+- The backend receives the input data state and requires field verification; it may not issue a crop diagnosis or chemical-application instruction (DEC-20).
 
 **Current-fidelity note.** Earlier project descriptions placed the AI priority summary on the home dashboard; in code it lives on the ladang tab (CODE: `explore.tsx:1330`). [Thesis] requirement: an explicit **disable-by-default config flag** — as-built there is **no disable flag**, the route runs whenever `GOOGLE_GENERATIVE_AI_API_KEY` is set (`backend/api/ai/route.js:87`); adding the flag is target work (ADR-05).
 
-### PRD-11 · Field detail — NDVI history chart & analysis · [As-built] · **INV-01/05 VIOLATION**
+### PRD-11 · Field detail — NDVI history chart & analysis · [As-built] · **INV-05/06 GAP**
 
 **Behavior.** The field-detail screen (`app/detail-lahan-page.tsx`) shows an NDVI history mini-chart (`MiniAreaChart`, `detail-lahan-page.tsx:346`) plus a derived analysis panel: current NDVI, trend %, pest pressure, disease risk, stress index, days-to-harvest, and harvest progress (`detail-lahan-page.tsx:537-586`).
 
-**Current-fidelity note (the core defect).** The **entire screen is synthetic**. The NDVI history is generated by `buildNdviSeries(lat,lon,areaHa,today)` from `utils/ndvi-simulator.ts` (`detail-lahan-page.tsx:166`, imported `:30-35`); the harvest and risk figures are all deterministic functions of coordinates/area/date (`detail-lahan-page.tsx:150-186`). **No live request runs on this screen, and no `lahan_health` read occurs.** Dates on the chart are synthesized, not acquisition dates. This violates INV-01 and INV-05 and is fixture-grade synthetic presented as real — the core defect the thesis work must close ([`project-architecture.md`](project-architecture.md) § 2).
+**Current-fidelity note.** The **entire screen remains synthetic**. The NDVI history is generated by `buildNdviSeries(lat,lon,areaHa,today)` from `utils/ndvi-simulator.ts` (`detail-lahan-page.tsx:166`, imported `:30-35`); harvest and risk figures are deterministic functions of coordinates/area/date. **No live request runs on this screen, and no `lahan_health` read occurs.** The 2026-07-27 revision adds a persistent fixture banner, renames metrics as demo/simulation output, and removes unqualified pesticide/fungicide/fertilizer directives (`detail-lahan-page.tsx:710-723,780-806,940-1130`). INV-01/02 presentation is now satisfied; INV-05/06 remain unsatisfied until M2 replaces the screen with measured history or an unavailable state.
 
 **Acceptance criteria ([Thesis], M2 target).**
 - History renders only persisted `measured` observations, each on its true acquisition date (INV-03, INV-05).
@@ -182,7 +185,7 @@ Full positioning lives in [`product-brief.md`](product-brief.md) § 5; the opera
 
 ### PRD-12 · Weather · [As-built]
 
-**Behavior.** The weather tab (`app/(tabs)/weather.tsx`) shows current conditions and a multi-day forecast for the user location or a selected location. Provider order: AccuWeather (if `ACCUWEATHER_API_KEY` set) via the backend `/weather` endpoint → Open-Meteo fallback (`weather.tsx:226-306`; `OPEN_METEO_URL` `weather.tsx:23`; backend order [`project-architecture.md`](project-architecture.md) § 1.2). Weather is never synthesized — on total failure it surfaces an error.
+**Behavior.** The weather tab (`app/(tabs)/weather.tsx`) shows current conditions and a multi-day forecast for the user location or a selected location. The mobile app calls the backend `/weather` endpoint only; the backend owns the as-built AccuWeather→Open-Meteo fallback order (`backend/api/weather/route.js`). The duplicate direct mobile Open-Meteo fallbacks were removed on 2026-07-27 (ADR-10 / DEC-20). Weather is never synthesized—when the backend/provider path fails, the UI surfaces an error/unavailable state.
 
 **Acceptance criteria.** Current + forecast render for the resolved location; total provider failure yields an honest error state (INV-06), never fabricated weather.
 
@@ -196,7 +199,7 @@ Full positioning lives in [`product-brief.md`](product-brief.md) § 5; the opera
 
 ### PRD-14 · Notifications · [As-built]
 
-**Behavior.** `app/notifications.tsx` renders a header and a static **empty state** ("Notifikasi", empty-state icon) — there is no notification generation, storage, or delivery system.
+**Behavior.** `app/notifications.tsx` renders a header and a static **empty state** that explicitly says notification generation, storage, and delivery are unavailable. The Profile notification tab likewise shows an unavailable explanation rather than functional-looking WhatsApp/SMS/alert/report switches (`app/(tabs)/profile.tsx`, DEC-20).
 
 **Acceptance criteria.** Screen renders an honest empty state; it makes no claim of alerts that do not exist.
 
@@ -204,17 +207,17 @@ Full positioning lives in [`product-brief.md`](product-brief.md) § 5; the opera
 
 ### PRD-15 · Profile · [As-built]
 
-**Behavior.** The profile tab (`app/(tabs)/profile.tsx`) shows the authenticated user's profile (from `profileService.getProfile` + Supabase user metadata, `profile.tsx:134-151`) and their fields (`lahanService.getLahanByUser`, `profile.tsx:136`), and offers sign-out (`authService.signOut`, `profile.tsx:90`).
+**Behavior.** The profile tab (`app/(tabs)/profile.tsx`) shows the authenticated user's profile and their actual saved-field count/area, and offers sign-out. Notification capability is explicitly unavailable. The statistics tab does not display metadata-derived NDVI, alert, health, productivity, or monitoring-efficiency figures because no verified event/measurement writer exists. Achievement cards are labeled product previews based only on account age and saved-field count; they are not persisted credentials or agronomic assessments (DEC-20).
 
-**Acceptance criteria.** Profile reflects the current session's user; sign-out clears the session and returns to the auth flow; a signed-out user cannot read another user's profile or fields (RLS; EVID-020).
+**Acceptance criteria.** Profile reflects the current session's user; sign-out clears the session and returns to the auth flow; a signed-out user cannot read another user's profile or fields (RLS; EVID-020). Unsupported notifications, usage events, measurement averages, productivity metrics, and expertise badges are unavailable or explicitly preview-only.
 
 ### PRD-16 · Measurement pipeline · [Thesis]
 
-**Behavior (contract only — engineering detail in [`data-evaluation-plan.md`](data-evaluation-plan.md)).** The target replaces the silent-fallback prototype (PRD-08, PRD-11) with a controlled, persisted, provenance-safe pipeline. Product-level behavior contract:
+**Behavior (contract only — engineering detail in [`data-evaluation-plan.md`](data-evaluation-plan.md)).** The target replaces the labeled-fixture-fallback prototype (PRD-08, PRD-11) with a controlled, persisted, provenance-safe pipeline. Product-level behavior contract:
 
 - **Request/refresh, not render-triggered.** Opening a screen never triggers satellite processing; measurement is an explicit request served by an idempotent controlled worker, and screens **read the persisted result** (ADR-06; [`project-architecture.md`](project-architecture.md) § 3 governing principle).
 - **Provenance-complete persistence.** Every stored measurement carries acquisition window, polygon geometry, provider, quality flags, valid-pixel counts per index, and masking rule-set version (INV-03; [`project-architecture.md`](project-architecture.md) § 3 provenance contract).
-- **Honest unavailable states.** When no quality-passing polygon-level observation exists for a field/window, the product shows an explicit `unavailable` state — replacing the silent synthetic fallback (INV-01/02/06; [`research-protocol.md`](research-protocol.md) § 8).
+- **Honest unavailable states.** When no quality-passing polygon-level observation exists for a field/window, the product shows an explicit `unavailable` state — replacing the labeled synthetic fixture fallback (INV-01/02/06; [`research-protocol.md`](research-protocol.md) § 8).
 - **Valid-pixel visibility.** The user can see per-index valid-pixel sufficiency and polygon-level cloud/shadow state (INV-04; [`research-protocol.md`](research-protocol.md) §§ 8–9); NDVI (10 m, B04/B08) and NDMI (SWIR B11 at 20 m) valid-pixel counts are surfaced independently (EVID-009).
 - **True acquisition dates only.** The displayed date is always the satellite observation date (INV-05).
 
@@ -234,7 +237,7 @@ Full positioning lives in [`product-brief.md`](product-brief.md) § 5; the opera
 - The score renders only when forecast data exists; absence yields the unavailable state, never a fabricated score (INV-06).
 - The card is presented as a heuristic weather-risk indicator, never as a validated agronomic risk model or a crop-damage prediction (HYP-07 / DEC-16).
 
-**Current-fidelity note.** The thesis paper describes heuristic risk-score calculation as a **backend** responsibility (three-layer architecture, application processing layer); in code it is computed **in the presentation layer** (`weather.tsx:541`). This discrepancy is recorded in [`thesis-paper-corrections.md`](thesis-paper-corrections.md) — either the paper's architecture description is corrected or the computation moves server-side; until then this PRD documents the code as-built. The formula's weights/bands are uncalibrated (HYP-07); calibration against local agronomic data is [Post-thesis] unless the advisor pulls it into scope.
+**Current-fidelity note.** The code computes the score in the **presentation layer** (`weather.tsx:541-576`). The 2026-07-27 UI now labels it “Indikator Risiko Cuaca (Prototipe),” “skor heuristik,” and HYP-07 with an explicit uncalibrated notice (`weather.tsx:694-730`). The point-21 revised thesis corrects the architecture description to match this placement. Calibration against local agronomic data is [Post-thesis] unless the advisor pulls it into scope.
 
 ---
 
@@ -242,7 +245,7 @@ Full positioning lives in [`product-brief.md`](product-brief.md) § 5; the opera
 
 These are hard boundaries. Building or claiming any of them is a defect, regardless of stated purpose.
 
-- **[OUT-01] No silent synthetic substitution — ever again.** Synthesized values are never presented as measured, and a measured surface never silently degrades into a synthetic one (INV-01/02; DEC-10). The as-built violations (PRD-08, PRD-11) are the *only* permitted instances, and only until M2 removes them.
+- **[OUT-01] No silent synthetic substitution — ever again.** Synthesized values are never presented as measured, and a measured surface never silently degrades into a synthetic one (INV-01/02; DEC-10). The 2026-07-27 UI labeling satisfies this presentation rule; M2 still removes the labeled production fixture fallback.
 - **[OUT-02] No cadence promises before the feasibility study.** No weekly/biweekly/monthly (or any) monitoring-cadence claim in UI, copy, or docs until the Indonesia feasibility study supports it per site and season. Nominal revisit (EVID-006) is never the answer (INV-08; DEC-12; [`research-protocol.md`](research-protocol.md) § 4).
 - **[OUT-03] No crop-health diagnosis from HYP thresholds.** The `constants/ndvi.ts` severity bands (HYP-04) may not be presented as a validated crop-health diagnosis; the field-detail pest/disease/stress figures (PRD-11) are not measurements and must not be shown as such (INV-09; DEC-11).
 - **[OUT-04] No Gemini as ground truth or research label.** LLM output never enters the measurement or labeling path, and is never a research label or ground truth (INV-07; ADR-05 / DEC-08).
@@ -261,19 +264,19 @@ Milestones (from [`product-brief.md`](product-brief.md) § 4; roadmap in [`imple
 | PRD-01 Auth | [As-built] | INV-07 | DEC-03; EVID-020 | M0 (authz hardening) | `app/auth/login.tsx`, `app/auth/signup.tsx`, `hooks/supabase`, `supabase_setup.sql:268-295` |
 | PRD-02 Splash/routing | [As-built] | — | DEC-03 | M0 | `app/index.tsx`, `app/splash.tsx:111-121` |
 | PRD-03 Onboarding | [As-built] | — | — | M4 (wire or remove) | `app/onboarding.tsx` |
-| PRD-04 Home weather card | [As-built] | INV-06 | ADR-04 / DEC-07 | M4 (Open-Meteo default) | `app/(tabs)/index.tsx:205-233,488-582` |
+| PRD-04 Home weather card | [As-built] | INV-06 | ADR-04 / DEC-07; ADR-10 / DEC-20 | M4 (Open-Meteo default) | `app/(tabs)/index.tsx:490-538`, `backend/api/weather/route.js` |
 | PRD-05 Home field cards | [As-built] | INV-01, INV-03, INV-05, INV-09 | DEC-11; HYP-04 | M2 | `app/(tabs)/index.tsx:782-824`, `constants/ndvi.ts` |
 | PRD-06 Field map/draw/search | [As-built] | — | ADR-01 / DEC-03; EVID-019 | M0 (geometry limits) | `app/(tabs)/explore.tsx` (map, `:720` Nominatim, `:662,778` geocode) |
 | PRD-07 Field creation/area | [As-built] | INV-03 | DEC-03 | M2 (equal-area) | `app/(tabs)/explore.tsx:814-823,1057-1094`, `supabase_setup.sql:10` |
-| PRD-08 Ladang NDVI cards | [As-built] | **INV-01, INV-02, INV-04, INV-05, INV-06** | ADR-02/04-06; DEC-04/DEC-10/DEC-12 | **M2 (removes violation)** | `app/(tabs)/explore.tsx:1146,1412,1416,1420,1426`; arch § 2 |
+| PRD-08 Ladang NDVI cards | [As-built] | **INV-03, INV-04, INV-05, INV-06** | ADR-02/04-06; DEC-04/DEC-10/DEC-12 | **M2 (removes fixture fallback)** | `app/(tabs)/explore.tsx:320-343,1445-1462,2050-2072`; arch § 2 |
 | PRD-09 Edit/delete/notes | [As-built] | — | ADR-07; EVID-020 | M0 (RLS tests) | `app/(tabs)/explore.tsx:1463,1475,1508,1555`, `supabase_setup.sql` |
-| PRD-10 AI advisory | [As-built] | INV-07 | ADR-05 / DEC-08 | M2 (disable-by-default flag) | `app/(tabs)/explore.tsx:520-531,1330,2185-2211`, `backend/api/ai/route.js:87` |
-| PRD-11 Field detail | [As-built] | **INV-01, INV-05, INV-09** | HYP-04 / DEC-11; ADR-06 | **M2 (removes violation)** | `app/detail-lahan-page.tsx:166,346,537-586`, `utils/ndvi-simulator.ts` |
-| PRD-12 Weather | [As-built] | INV-06 | ADR-04 / DEC-07; EVID-021 | M4 (Open-Meteo default) | `app/(tabs)/weather.tsx:23,226-306` |
+| PRD-10 AI advisory | [As-built] | INV-07 | ADR-05 / DEC-08; DEC-20 | M2 (disable-by-default flag) | `app/(tabs)/explore.tsx:1280-1323,1358-1408`, `backend/api/ai/route.js:96-148` |
+| PRD-11 Field detail | [As-built] | **INV-03, INV-05, INV-06** | HYP-04 / DEC-11; ADR-06 | **M2 (replaces fixture surface)** | `app/detail-lahan-page.tsx:166,710-723`, `utils/ndvi-simulator.ts` |
+| PRD-12 Weather | [As-built] | INV-06 | ADR-04 / DEC-07; ADR-10 / DEC-20; EVID-021 | M4 (Open-Meteo default) | `app/(tabs)/weather.tsx:215-338`, `backend/api/weather/route.js` |
 | PRD-13 Education | [As-built] | — | — | — | `app/(tabs)/education.tsx`, `constants/education.ts:24`, `app/detail-education-page.tsx` |
 | PRD-14 Notifications | [As-built] | INV-08 | DEC-12 | M4 (post-thesis) | `app/notifications.tsx` |
-| PRD-15 Profile | [As-built] | — | EVID-020 | M0 | `app/(tabs)/profile.tsx:90,134-151` |
+| PRD-15 Profile | [As-built] | — | DEC-20; EVID-020 | M0 | `app/(tabs)/profile.tsx` |
 | PRD-16 Measurement pipeline | [Thesis] | **INV-01–INV-06, INV-08** | ADR-02/06/08/09; DEC-04/05/09/12 | **M1→M2→M3** | target — `research/`, backend worker; [`data-evaluation-plan.md`](data-evaluation-plan.md) |
-| PRD-17 Weather risk score | [As-built] | INV-06 | DEC-16; HYP-07 | M4 (calibration post-thesis) | `app/(tabs)/weather.tsx:541-576` |
+| PRD-17 Weather risk score | [As-built] | INV-06 | DEC-16; HYP-07 | M4 (calibration post-thesis) | `app/(tabs)/weather.tsx:474-510` |
 
-**Invariant coverage.** INV-01/02/06 are actively violated by PRD-08 and PRD-11 today and are the load-bearing acceptance gate for M2. INV-03/04/05 are unsatisfiable until PRD-16 persists provenance-complete measurements. INV-07 holds today (Gemini is non-blocking) but the disable-by-default flag (PRD-10) is outstanding. INV-08 holds (no cadence claim is made anywhere) and must continue to hold until M1. INV-09 holds as a documented constraint and governs every surface that renders `constants/ndvi.ts` classifications.
+**Invariant coverage.** INV-01/02 presentation now holds because every prototype/fixture surface is explicitly labeled. INV-03/04/05/06 remain unsatisfied on PRD-08/11 until PRD-16 persists provenance-complete measurements and replaces fixture fallback with pass/reject/unavailable outcomes. INV-07 holds today (Gemini is non-blocking) but the disable-by-default flag (PRD-10) is outstanding. INV-08 holds (no cadence claim is made anywhere) and must continue to hold until M1. INV-09 holds through greenness—not health—labels, the HYP-04 copy, and the fixture disclaimer.

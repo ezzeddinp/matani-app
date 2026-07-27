@@ -135,6 +135,26 @@ type NdviStatistic = {
   ndmi_stdev?: number | null;
 };
 
+type NdviDataState = "fixture" | "prototype" | "unavailable";
+
+const NDVI_DATA_STATE_META: Record<
+  NdviDataState,
+  { label: string; description: string }
+> = {
+  fixture: {
+    label: "Simulasi demo",
+    description: "Bukan pengukuran satelit",
+  },
+  prototype: {
+    label: "Data prototipe",
+    description: "Belum provenance-safe",
+  },
+  unavailable: {
+    label: "Tidak tersedia",
+    description: "Tidak ada nilai yang dapat ditampilkan",
+  },
+};
+
 const { width, height } = Dimensions.get("window");
 const SCREEN_HEIGHT = Dimensions.get("window").height;
 const COLLAPSED_MAP_HEIGHT = Math.max(SCREEN_HEIGHT * 0.5, 320);
@@ -291,7 +311,7 @@ const createNdviRecordFromStatistic = (
       typeof stat.ndmi_mean === "number" && Number.isFinite(stat.ndmi_mean)
         ? stat.ndmi_mean
         : null,
-    status: null,
+    status: "prototype",
     captured_at: capturedDateIso,
     created_at: new Date().toISOString(),
   };
@@ -313,7 +333,7 @@ const createSyntheticNdviRecord = (
     id: `ndvi-synthetic-${lahan.id}`,
     lahan_id: lahan.id,
     ndvi_score: ndviScore,
-    status: "synthetic",
+    status: "fixture",
     captured_at: latestHistory?.date?.toISOString() ?? new Date().toISOString(),
     created_at: new Date().toISOString(),
   };
@@ -323,6 +343,21 @@ const parseDateToTime = (value?: string | null) => {
   if (!value) return 0;
   const time = Date.parse(value);
   return Number.isNaN(time) ? 0 : time;
+};
+
+const getNdviDataState = (
+  record: LahanHealthRecord | null | undefined
+): NdviDataState => {
+  if (!record) return "unavailable";
+  const status = record.status?.trim().toLowerCase();
+  if (
+    status === "fixture" ||
+    status === "synthetic" ||
+    record.id.startsWith("ndvi-synthetic-")
+  ) {
+    return "fixture";
+  }
+  return "prototype";
 };
 
 const applyAlphaToHex = (hex: string, alpha: number) => {
@@ -1191,7 +1226,7 @@ export default function ExploreScreen() {
 
   const resolveLahanThumbnailSource = useCallback(
     (card: LahanCard): ImageSourcePropType => {
-      const cropKey = normaliseCropKey(card.name);
+      const cropKey = normaliseCropKey(card.category);
       const asset = CROP_IMAGE_MAP[cropKey];
       if (asset) return asset;
       if (card.thumbnailUrl) return { uri: card.thumbnailUrl };
@@ -1204,9 +1239,14 @@ export default function ExploreScreen() {
     (categoryLabel: string) => {
       const categoryKey = normaliseCropKey(categoryLabel);
       if (!categoryKey) return;
-      const matches = lahanCards.filter((card) => normaliseCropKey(card.name) === categoryKey);
+      const matches = lahanCards.filter(
+        (card) => normaliseCropKey(card.category) === categoryKey
+      );
       if (matches.length === 0) {
-        Alert.alert("Lahan belum tersedia", `Belum ada lahan dengan nama "${categoryLabel}".`);
+        Alert.alert(
+          "Lahan belum tersedia",
+          `Belum ada lahan dengan kategori "${categoryLabel}".`
+        );
         return;
       }
       const coordinatesToFit = matches.flatMap((card) => card.coordinates ?? []);
@@ -1259,6 +1299,7 @@ export default function ExploreScreen() {
       return {
         id: card.id,
         name: card.name,
+        dataState: getNdviDataState(card.latestHealth),
         areaHa: typeof card.areaHa === "number" && Number.isFinite(card.areaHa) ? Number(card.areaHa.toFixed(2)) : null,
         ndviScore,
         ndmiScore,
@@ -1940,7 +1981,7 @@ export default function ExploreScreen() {
                   <Ionicons name="map-outline" size={32} color="#166534" />
                 </View>
                 <Text style={styles.emptyLahanTitle}>Belum Ada Lahan</Text>
-                <Text style={styles.sectionEmptyText}>Gunakan tombol "Gambar Lahan Baru" di atas untuk mulai menandai lahan Anda.</Text>
+                <Text style={styles.sectionEmptyText}>Gunakan tombol “Gambar Lahan Baru” di atas untuk mulai menandai lahan Anda.</Text>
               </View>
             ) : (
               <>
@@ -2011,8 +2052,10 @@ export default function ExploreScreen() {
                           <View style={[styles.lahanCardNdviContainer, { backgroundColor: card.classification.background || "rgba(16,185,129,0.08)", borderColor: `${card.classification.color}30` }]}>
                             <View style={styles.lahanCardNdviHeader}>
                               <View style={[styles.lahanCardNdviDot, { backgroundColor: card.classification.color }]} />
-                              <Text style={[styles.lahanCardNdviLabel, { color: card.classification.color }]}>NDVI</Text>
-                              {card.latestHealth?.captured_at && (
+                              <Text style={[styles.lahanCardNdviLabel, { color: card.classification.color }]}>
+                                NDVI · {NDVI_DATA_STATE_META[getNdviDataState(card.latestHealth)].label}
+                              </Text>
+                              {getNdviDataState(card.latestHealth) === "prototype" && card.latestHealth?.captured_at && (
                                 <Text style={[styles.lahanCardNdviDate, { color: card.classification.color }]}>
                                   · {formatDisplayDate(card.latestHealth.captured_at)}
                                 </Text>
@@ -2031,11 +2074,14 @@ export default function ExploreScreen() {
                                 </View>
                               )}
                             </View>
+                            <Text style={styles.lahanCardNdviState}>
+                              {NDVI_DATA_STATE_META[getNdviDataState(card.latestHealth)].description}
+                            </Text>
                           </View>
                         ) : (
                           <View style={styles.lahanCardNdviEmptyContainer}>
-                            <ActivityIndicator size="small" color="#D1D5DB" />
-                            <Text style={styles.lahanCardNdviEmptyText}>Memuat data NDVI…</Text>
+                            <Ionicons name="cloud-offline-outline" size={16} color="#9CA3AF" />
+                            <Text style={styles.lahanCardNdviEmptyText}>NDVI tidak tersedia</Text>
                           </View>
                         )}
 
@@ -2095,7 +2141,9 @@ export default function ExploreScreen() {
                     <View style={styles.aiHeaderBadge}>
                       <Text style={styles.aiHeaderBadgeText}>MATANI AI</Text>
                     </View>
-                    <Text style={styles.aiHeaderHeadline}>Prioritas terbaik untuk lahanmu</Text>
+                    <Text style={styles.aiHeaderHeadline}>
+                      Ringkasan opsional dari input demo
+                    </Text>
                   </View>
                 </View>
                 <View style={styles.aiHeaderActions}>
@@ -2151,14 +2199,14 @@ export default function ExploreScreen() {
               {savedLahan.length === 0 ? (
                 <View style={styles.aiEmptyState}>
                   <Ionicons name="leaf-outline" size={28} color="#166534" />
-                  <Text style={styles.aiEmptyText}>Tambahkan lahan untuk mendapatkan rekomendasi cerdas dari Matani AI.</Text>
+                  <Text style={styles.aiEmptyText}>Tambahkan lahan untuk membuat ringkasan demo opsional dari Matani AI.</Text>
                 </View>
               ) : isLahanSummaryLoading ? (
                 <View style={styles.aiLoadingRow}>
                   <View style={styles.aiLoadingDots}>
                     <ActivityIndicator size="small" color="#4ADE80" />
                   </View>
-                  <Text style={styles.aiLoadingText}>Matani AI sedang menganalisis kondisi lahanmu…</Text>
+                  <Text style={styles.aiLoadingText}>Matani AI sedang merangkum input demo…</Text>
                 </View>
               ) : lahanSummaryError ? (
                 <View style={styles.aiErrorBox}>
@@ -2183,7 +2231,7 @@ export default function ExploreScreen() {
                             ? { bg: "rgba(239,68,68,0.12)", border: "rgba(239,68,68,0.3)", icon: "flame" as const, iconColor: "#F87171", badgeBg: "rgba(239,68,68,0.2)", badgeText: "#FCA5A5", label: "Prioritas Utama" }
                             : item.priorityNumber === 2
                             ? { bg: "rgba(249,115,22,0.12)", border: "rgba(249,115,22,0.3)", icon: "alert-circle" as const, iconColor: "#FB923C", badgeBg: "rgba(249,115,22,0.2)", badgeText: "#FDBA74", label: "Perlu Perhatian" }
-                            : { bg: "rgba(74,222,128,0.08)", border: "rgba(74,222,128,0.2)", icon: "checkmark-circle" as const, iconColor: "#4ADE80", badgeBg: "rgba(74,222,128,0.15)", badgeText: "#86EFAC", label: "Kondisi Baik" };
+                            : { bg: "rgba(74,222,128,0.08)", border: "rgba(74,222,128,0.2)", icon: "information-circle" as const, iconColor: "#4ADE80", badgeBg: "rgba(74,222,128,0.15)", badgeText: "#86EFAC", label: "Tindak Lanjut" };
 
                         return (
                           <View key={item.id} style={[styles.aiPriorityCard, { backgroundColor: cfg.bg, borderColor: cfg.border }]}>
@@ -2205,7 +2253,10 @@ export default function ExploreScreen() {
               ) : (
                 <View style={styles.aiEmptyState}>
                   <Ionicons name="analytics-outline" size={28} color="#166534" />
-                  <Text style={styles.aiEmptyText}>Ketuk "Analisis Sekarang" untuk mendapatkan rekomendasi prioritas dari Matani AI.</Text>
+                  <Text style={styles.aiEmptyText}>
+                    Ringkasan AI bersifat opsional. Input NDVI/NDMI saat ini masih
+                    prototipe atau simulasi, bukan pengukuran maupun diagnosis.
+                  </Text>
                 </View>
               )}
             </LinearGradient>
@@ -2217,7 +2268,9 @@ export default function ExploreScreen() {
               <View style={styles.sectionTitleIcon}>
                 <Ionicons name="pulse-outline" size={18} color="#166534" />
               </View>
-              <Text style={styles.sectionTitle}>Status Kesehatan Tanaman</Text>
+              <Text style={styles.sectionTitle}>
+                Interpretasi NDVI Prototipe (HYP-04)
+              </Text>
             </View>
             <View style={styles.healthLegendGrid}>
               {NDVI_SEVERITY_CONFIG.map((item) => (
@@ -3171,6 +3224,12 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: "800",
     letterSpacing: -0.5,
+  },
+  lahanCardNdviState: {
+    fontSize: 10,
+    color: "#6B7280",
+    fontWeight: "600",
+    marginTop: 4,
   },
   lahanCardNdmiChip: {
     flexDirection: "row",

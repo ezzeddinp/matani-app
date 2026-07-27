@@ -3,7 +3,7 @@
 **Document type:** Product brief
 **Audience:** The developer, thesis advisor, reviewers, and AI agents working in this repo
 **Status:** Active
-**Updated:** 2026-07-23
+**Updated:** 2026-07-27
 **Canonical for:** The product thesis, positioning, target user, and phased scope
 **Companion documents:** [`product-requirements.md`](product-requirements.md), [`project-architecture.md`](project-architecture.md), [`research-protocol.md`](research-protocol.md), [`evidence-register.md`](evidence-register.md), [`context-dump.md`](context-dump.md), [`implementation-plan.md`](implementation-plan.md)
 
@@ -25,7 +25,7 @@ Where this brief and a more canonical companion disagree, the companion wins (se
 
 Matani is a mobile decision support application for Indonesian smallholder **rice** farming — the thesis deliverable (DEC-14) — that lets farmers map their fields and, once the measurement pipeline is built, receive provenance-safe Sentinel-2 NDVI/NDMI observations, weather-based risk classification, and optional advisory support, structured by the thesis paper's GROW workflow (Gather → Recognize → Offer → Warn). Thesis scope is rice; the app's five crop categories remain product scope (DEC-15).
 
-The qualifier is load-bearing. Today the satellite path is a **prototype**, not a working measurement pipeline; its exact behavior is described only by the canonical wording in [`project-architecture.md`](project-architecture.md) § Current measurement provenance. One-line summary: a prototype Sentinel Hub request with a silent synthetic fallback that the UI does not distinguish from a measured value — see that section for the precise, non-softened statement.
+The qualifier is load-bearing. Today the satellite path is a **prototype**, not a working measurement pipeline; its exact behavior is described only by the canonical wording in [`project-architecture.md`](project-architecture.md) § Current measurement provenance. One-line summary: a prototype Sentinel Hub request still substitutes a visibly labeled synthetic fixture, and the detail analysis is also labeled synthetic — see that section for the precise, non-softened statement.
 
 ---
 
@@ -50,7 +50,7 @@ Matani is a field-first mobile app. The core loop, as built:
 2. **Pick the crop** from the five supported categories: padi (rice), jagung (maize), kedelai (soybean), teh (tea), kopi (coffee).
 3. **View the field**: status card, local weather, education content, and an optional AI advisory surface.
 
-What the loop captures today is real: polygon geometry is persisted to Supabase (PostGIS), area is computed, weather and education surfaces work. What it does **not** yet have is a trustworthy satellite measurement — the status card is a **prototype** with a silent synthetic fallback (§ 1).
+What the loop captures today is real: polygon geometry is persisted to Supabase (PostGIS), area is computed, weather and education surfaces work. What it does **not** yet have is a trustworthy satellite measurement — the status card is a **prototype** with a labeled synthetic fixture fallback (§ 1).
 
 The target adds two things the prototype lacks: **persisted, provenance-complete measurements** — every NDVI/NDMI value carrying its acquisition date, valid-pixel accounting, and masking rule-set version — and **honest unavailable states** that admit absence rather than papering over it with synthesized data.
 
@@ -67,8 +67,8 @@ Throughout, the app distinguishes four data states (per [`../AGENTS.md`](../AGEN
 
 | Phase | In scope | Provenance / references |
 |-------|----------|-------------------------|
-| **[As-built hackathon]** | Interactive polygon field drawing persisted to Supabase; Supabase auth with Row Level Security; a **prototype** Sentinel Hub satellite request with a **silent synthetic fallback** (one-line summary in § 1; canonical wording in architecture § Current measurement provenance); weather; education articles; optional AI advisory. The synthetic-fallback history — seeded synthetic records, bbox-not-polygon queries, a fixed date window — is recorded historically. | DEC-03; RLS client-safety conditional on EVID-020; history in [`context-dump.md`](context-dump.md) § 2 |
-| **[Thesis]** | The rice-focused DSS as described in the thesis paper (DEC-14, DEC-15) — GROW workflow, NDVI/NDMI condition display, weather risk classification (HYP-07), advisory surfaces — plus the M0–M3 outcomes that make it defensible: **M0** verification & security foundation (secrets hygiene, RLS, fixture-first testing); **M1** the Indonesia feasibility study (12-month retrospective availability analysis that determines defensible cadence); **M2** a real, persisted, **provenance-complete** measurement pipeline replacing the silent synthetic fallback with measured values and honest unavailable states; **M3** research validation against the protocol's metrics and the paper's system-evaluation track ([`research-protocol.md`](research-protocol.md) § 16). | DEC-14/DEC-15; DEC-12 (feasibility precedes pipeline); DEC-09; roadmap in [`implementation-plan.md`](implementation-plan.md); methodology in [`research-protocol.md`](research-protocol.md) |
+| **[As-built hackathon]** | Interactive polygon field drawing persisted to Supabase; Supabase auth with Row Level Security; a **prototype** Sentinel Hub satellite request with a **labeled synthetic fixture fallback** (one-line summary in § 1; canonical wording in architecture § Current measurement provenance); weather; education articles; optional AI advisory. The fixture-fallback history — seeded synthetic records, bbox-not-polygon queries, a fixed date window — is recorded historically. | DEC-03; RLS client-safety conditional on EVID-020; history in [`context-dump.md`](context-dump.md) § 2 |
+| **[Thesis]** | The rice-focused DSS as described in the thesis paper (DEC-14, DEC-15, DEC-19) — GROW workflow, NDVI/NDMI condition display, weather risk classification (HYP-07), advisory surfaces — plus the M0–M3 outcomes that make it defensible: **M0** verification & security foundation (secrets hygiene, RLS, fixture-first testing); **M1** the Indonesia feasibility study (12-month retrospective availability analysis that determines defensible cadence); **M2** a real, persisted, **provenance-complete** measurement pipeline replacing the labeled fixture fallback with measured values and honest unavailable states; **M3** research validation against the protocol's metrics and the paper's system-evaluation track ([`research-protocol.md`](research-protocol.md) § 16). | DEC-14/DEC-15/DEC-19; DEC-12 (feasibility precedes pipeline); DEC-09; roadmap in [`implementation-plan.md`](implementation-plan.md); methodology in [`research-protocol.md`](research-protocol.md) |
 | **[Post-thesis]** | Product hardening (**M4**); Sentinel-1 (SAR) as a cloud-independent contingency **only via a separate scope decision** (SAR measures backscatter, not the NDVI/NDMI reflectance this thesis evaluates — EVID-017); programme / partner exploration. | [`context-dump.md`](context-dump.md) § 6; EVID-017 |
 | **[OUT]** | **No silent synthetic data, ever again** — synthesized values are never presented as measured. **No cadence promises** ahead of the feasibility study (nominal revisit EVID-006 ≠ usable cadence). **No crop-health "diagnosis"** claims from the unvalidated as-built severity thresholds (HYP-04). **No Gemini as ground truth** or research label. **No paid-provider dependence** in the default architecture. **No claim of thesis-readiness today.** | DEC-10; DEC-12; HYP-04 / DEC-11; DEC-08; DEC-04 & DEC-07; [`../AGENTS.md`](../AGENTS.md) honesty constraints |
 
@@ -101,7 +101,7 @@ Competitor comparison lives in the thesis paper (Table V — Open-Meteo, Sentine
 **For the thesis:**
 
 - The Indonesia feasibility study (DEC-12) yields a **defensible cadence answer**, stated per site and season — and this is the criterion even if the answer is negative. A finding that satellite monitoring is **not viable at a useful cadence for <0.5 ha fields** is a valid, successful thesis outcome; a false promise of viability would be a failure. The nominal 5-day revisit (EVID-006) is never the answer; the study is.
-- The measurement pipeline produces **provenance-complete measured observations** — every value carrying acquisition date, valid-pixel accounting, and masking rule-set version — with the silent synthetic fallback removed.
+- The measurement pipeline produces **provenance-complete measured observations** — every value carrying acquisition date, valid-pixel accounting, and masking rule-set version — with the labeled synthetic fixture fallback removed.
 - The work **validates against the research protocol's metrics** ([`research-protocol.md`](research-protocol.md) § 12): usable-observation cadence (RQ1), API-vs-independent agreement (RQ2), and field-size vs valid-pixel sufficiency (RQ3), with uncertainty that respects clustering.
 
 **For the product:**

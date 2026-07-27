@@ -3,7 +3,7 @@
 **Document type:** Research protocol
 **Audience:** The developer, thesis advisor, reviewers, and AI agents working in this repo
 **Status:** Active — draft pending advisor review
-**Updated:** 2026-07-23
+**Updated:** 2026-07-27
 **Canonical for:** Research questions, hypotheses, methodology, and validity of the Sentinel-2 NDVI/NDMI monitoring evaluation, and the thesis paper's system-evaluation track (§ 16)
 **Companion documents:** [`evidence-register.md`](evidence-register.md), [`data-evaluation-plan.md`](data-evaluation-plan.md), [`project-architecture.md`](project-architecture.md), [`implementation-plan.md`](implementation-plan.md), [`product-requirements.md`](product-requirements.md)
 
@@ -17,7 +17,7 @@ This protocol is the single canonical home for **what the thesis is trying to le
 - **External facts are cited, never restated.** Every externally sourced figure or claim carries an `EVID-*` / `OBS-*` ID from [`evidence-register.md`](evidence-register.md). This document does not re-copy the number or the canonical wording; it cites the ID and adds a short role-specific gloss. If a fact you need has no EVID entry yet, it must be added to the register first (see the register's "Adding new evidence").
 - **Decisions are cited by `DEC-*`.** Product and thesis decisions live in [`context-dump.md`](context-dump.md) § 5. This protocol implements and elaborates them; it does not re-decide them.
 - **Hypotheses are typed `HYP-*` and defined here.** Every falsifiable claim this thesis intends to test is registered in § 1 with an ID, a directional statement, and an explicit falsification criterion (§ 12). A `HYP-*` is a *question the data will answer*, never a finding — do not cite a HYP as if it were established.
-- **Nothing here claims the current code is thesis-ready.** Per [`../AGENTS.md`](../AGENTS.md) honesty constraints, the satellite pipeline is a prototype with a silent synthetic fallback; this protocol defines the standard the work must reach, and the gap to it is real and open.
+- **Nothing here claims the current code is thesis-ready.** Per [`../AGENTS.md`](../AGENTS.md) honesty constraints, the satellite pipeline is a prototype with a visibly labeled synthetic fixture fallback; this protocol defines the standard the work must reach, and the gap to it is real and open.
 - **The RQ set is provisional.** The research questions in § 1 are candidate framings consistent with the thesis focus (DEC-01). The **final RQ set requires advisor approval** — treat § 1 as a proposal to that conversation, not a settled contract.
 
 ---
@@ -191,7 +191,7 @@ Using the Level-2A Scene Classification Layer (SCL), which classifies cloud shad
 - **Mask** clouds at **medium and high** probability, **cirrus**, **cloud shadows**, and **invalid / saturated / defective** pixels, via SCL classes. SCL is a per-pixel heuristic classification, not ground truth (EVID-008) — treat it as a quality gate, not a guarantee.
 - **Persist the rejection reason** for every masked pixel category and every rejected acquisition (§ 11); rejections are data, not silent gaps.
 - **Display the actual acquisition date** of the observation shown, never a "current" or synthesized date.
-- **State unavailability honestly** — when no quality-passing observation exists for a field/window, the product shows an honest *unavailable* state (the honesty constraint from `../AGENTS.md`; replaces the prototype's silent synthetic fallback, roadmap M2).
+- **State unavailability honestly** — when no quality-passing observation exists for a field/window, the product shows an honest *unavailable* state (the honesty constraint from `../AGENTS.md`; replaces the prototype's labeled synthetic fixture fallback, roadmap M2).
 
 ### Rice-water rule (HYP-05)
 
@@ -306,7 +306,12 @@ Security implementation (RLS policies, secrets hygiene per DEC-13, trust boundar
 
 ## 16 · System-evaluation track (from the thesis paper; DEC-14)
 
-The thesis paper defines a prototype evaluation framework for the DSS itself. It is recorded here so the two tracks — **system evaluation** (does the DSS work and is it usable?) and **measurement evaluation** (are the numbers it shows defensible? §§ 1–15) — are one protocol, not two competing ones.
+The thesis paper defines a **planned** prototype evaluation framework for the DSS itself.
+At the 2026-07-27 repository baseline there is no automated test suite, CI workflow, or
+completed UAT dataset (`package.json`, `.github/workflows/`, CODE); none of the procedures
+below is a completed result yet. They are recorded here so the two tracks—**system
+evaluation** (does the DSS work and is it usable?) and **measurement evaluation** (are
+the numbers it shows defensible? §§ 1–15)—are one protocol, not two competing ones.
 
 1. **Functional testing** — core app features (registration, polygon drawing, NDVI/NDMI display, weather retrieval, recommendation viewing) verified against the functional requirements ([`product-requirements.md`](product-requirements.md)). **Constraint:** functional tests of the satellite surfaces must state which data state they exercised (fixture / prototype / measured / unavailable); passing a display test on synthetic data is a UI test, never evidence the measurement works (INV-01/02).
 2. **API response testing** — Sentinel Hub responses validated for correct band arithmetic and index ranges (−1…1); weather fallback (AccuWeather → Open-Meteo) verified under normal and simulated failure. Fixture-first in CI (DEC-09); live checks are bounded, out-of-band runs.

@@ -103,9 +103,9 @@ const heroGradientPalette: Record<SeverityLevel, [string, string]> = {
 };
 
 const NDVI_TIPS = [
-  "Nilai NDVI sangat sehat berada di kisaran 0.6–1.0 dan menunjukkan kanopi hijau pekat.",
-  "Rentang 0.2–0.6 menandakan pertumbuhan wajar, 0.0–0.2 vegetasi rendah, sedangkan -1.0–0.0 berarti tanpa vegetasi.",
-  "Gunakan tren NDVI untuk memantau stres tanaman, menjadwalkan pemupukan, serta menentukan waktu panen.",
+  "Rentang NDVI pada layar ini adalah kategori prototipe HYP-04 yang belum dikalibrasi untuk lahan padi Indonesia.",
+  "NDVI membantu menggambarkan kehijauan kanopi, tetapi tidak mendiagnosis kesehatan, hama, penyakit, atau hasil panen.",
+  "Gunakan pengamatan lapangan dan konsultasi agronomi sebelum mengambil tindakan.",
 ];
 
 const DEFAULT_LAHAN_THUMBNAIL = {
@@ -236,8 +236,8 @@ const computeAnalysis = (
 
   const pestAlert =
     pestPressure > 0.6
-      ? "Pantau aktivitas hama, lakukan inspeksi visual dan pasang perangkap feromon."
-      : "Risiko hama terkendali, lanjutkan monitoring rutin.";
+      ? "Skenario demo memerlukan verifikasi melalui inspeksi visual; jangan menyimpulkan keberadaan hama dari skor ini."
+      : "Skor demo rendah tetap bukan bukti bahwa hama tidak ada; lakukan inspeksi lapangan.";
 
   const stressSeverity = evaluateRiskSeverity(stressIndex);
   const stressCategory = riskSeverityLabels[stressSeverity];
@@ -250,25 +250,24 @@ const computeAnalysis = (
       : "Menjelang Panen";
 
   const recommendations = [
-    "Lanjutkan perawatan rutin yang sudah berjalan dan catat setiap perubahan pertumbuhan.",
-    "Monitor perkembangan secara berkala dengan citra satelit atau drone jika tersedia.",
-    "Siapkan rencana panen sesuai jadwal untuk menjaga kualitas hasil.",
-    "Dokumentasikan praktik terbaik untuk referensi musim tanam berikutnya.",
+    "Verifikasi seluruh indikator demo dengan inspeksi lapangan.",
+    "Catat fase pertumbuhan, kondisi air, dan perubahan kanopi yang benar-benar diamati.",
+    "Konsultasikan tindakan agronomis dengan penyuluh atau tenaga ahli setempat.",
   ];
 
   if (soilMoisture < 0.45) {
     recommendations.unshift(
-      "Tingkatkan irigasi tetes atau sprinkler untuk menjaga kelembaban tanah."
+      "Ukur kelembapan tanah secara langsung sebelum mengubah jadwal irigasi."
     );
   }
   if (pestPressure > 0.6) {
     recommendations.unshift(
-      "Lakukan monitoring hama intensif dan pertimbangkan insektisida ramah lingkungan."
+      "Lakukan inspeksi visual untuk memastikan ada atau tidaknya hama."
     );
   }
   if (diseaseRisk > 0.55) {
     recommendations.unshift(
-      "Periksa gejala penyakit jamur, lakukan sanitasi area dan gunakan fungisida preventif."
+      "Periksa gejala penyakit secara langsung; skor demo bukan diagnosis."
     );
   }
 
@@ -543,14 +542,14 @@ export default function DetailLahanPage() {
     return [
       {
         key: "ndvi",
-        title: "Nilai NDVI",
+        title: "NDVI Simulasi",
         value: formatNdviValue(analysis.ndviCurrent),
         caption: healthSeverityLabels[ndviSeverity],
         palette: severityPalette[ndviSeverity],
       },
       {
         key: "trend",
-        title: "Tren 7 Hari",
+        title: "Tren Demo 7 Hari",
         value: `${
           analysis.ndviTrendPercent >= 0 ? "+" : ""
         }${analysis.ndviTrendPercent.toFixed(1)}%`,
@@ -564,7 +563,7 @@ export default function DetailLahanPage() {
       },
       {
         key: "pest",
-        title: "Serangan Hama",
+        title: "Skor Hama Demo",
         value: formatPercent(analysis.pestPressure),
         caption: riskSeverityLabels[pestSeverity],
         palette: severityPalette[pestSeverity],
@@ -582,21 +581,21 @@ export default function DetailLahanPage() {
     return [
       {
         key: "pest",
-        title: "Serangan Hama",
+        title: "Skor Hama Demo",
         value: formatPercent(analysis.pestPressure),
         caption: riskSeverityLabels[pestSeverity],
         palette: severityPalette[pestSeverity],
       },
       {
         key: "disease",
-        title: "Risiko Penyakit",
+        title: "Skor Penyakit Demo",
         value: formatPercent(analysis.diseaseRisk),
         caption: riskSeverityLabels[diseaseSeverity],
         palette: severityPalette[diseaseSeverity],
       },
       {
         key: "stress",
-        title: "Stres Tanaman",
+        title: "Skor Stres Demo",
         value: formatPercent(analysis.stressIndex),
         caption: riskSeverityLabels[stressSeverity],
         palette: severityPalette[stressSeverity],
@@ -686,7 +685,7 @@ export default function DetailLahanPage() {
                   activeTab === "health" && styles.tabSwitchTextActive,
                 ]}
               >
-                Kesehatan
+                NDVI Demo
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -702,9 +701,24 @@ export default function DetailLahanPage() {
                   activeTab === "risk" && styles.tabSwitchTextActive,
                 ]}
               >
-                Risiko
+                Risiko Demo
               </Text>
             </TouchableOpacity>
+          </View>
+
+          <View style={styles.prototypeBanner}>
+            <Ionicons name="flask-outline" size={22} color="#8A4B08" />
+            <View style={styles.prototypeBannerCopy}>
+              <Text style={styles.prototypeBannerTitle}>
+                Mode simulasi (fixture)
+              </Text>
+              <Text style={styles.prototypeBannerText}>
+                Seluruh grafik, tanggal, estimasi panen, skor risiko, dan
+                rekomendasi pada halaman ini dibuat secara deterministik dari
+                koordinat/luas. Ini bukan pengukuran satelit, observasi lapangan,
+                diagnosis, atau rekomendasi agronomis tervalidasi.
+              </Text>
+            </View>
           </View>
 
           {isLoading ? (
@@ -765,10 +779,11 @@ export default function DetailLahanPage() {
               {activeTab === "health" ? (
                 <View style={styles.sectionCard}>
                   <Text style={styles.sectionTitle}>
-                    Grafik Kesehatan (1 Bulan)
+                    Grafik Simulasi NDVI (1 Bulan)
                   </Text>
                   <Text style={styles.sectionSubtitle}>
-                    Nilai NDVI mingguan berdasarkan koordinat lahan
+                    Data demo sintetis berdasarkan koordinat lahan; bukan tanggal
+                    akuisisi Sentinel-2
                   </Text>
                   <View style={styles.chartContainer}>
                     <MiniAreaChart data={analysis.ndviHistory} />
@@ -793,9 +808,9 @@ export default function DetailLahanPage() {
                     </Text>
                   </View>
                   <View style={styles.chartAxisRow}>
-                    <Text style={styles.axisLabel}>Bahaya (&lt; 0.6)</Text>
-                    <Text style={styles.axisLabel}>Stres (0.6-0.8)</Text>
-                    <Text style={styles.axisLabel}>Sehat (&gt; 0.8)</Text>
+                    <Text style={styles.axisLabel}>Rendah (&lt; 0.20)</Text>
+                    <Text style={styles.axisLabel}>Sedang (0.20-0.59)</Text>
+                    <Text style={styles.axisLabel}>Tinggi (≥ 0.60)</Text>
                   </View>
                 </View>
               ) : (
@@ -811,7 +826,7 @@ export default function DetailLahanPage() {
                       styles.sectionSubtitleCentered,
                     ]}
                   >
-                    Evaluasi berbasis lokasi untuk risiko utama
+                    Skor sintetis untuk demonstrasi UI; bukan observasi risiko
                   </Text>
                   <View style={styles.metricsRow}>
                     {riskMetrics.map((metric) => (
@@ -859,7 +874,7 @@ export default function DetailLahanPage() {
                 <>
                   <View style={styles.statusCard}>
                     <Text style={styles.statusTitle}>
-                      Status Kesehatan Tanaman
+                      Ringkasan Simulasi (bukan pengukuran)
                     </Text>
                     <View style={styles.statusMetricsRow}>
                       {healthMetrics.map((metric, index) => (
@@ -906,12 +921,14 @@ export default function DetailLahanPage() {
                     <View style={styles.noticeCard}>
                       <View style={styles.noticeHeader}>
                         <Ionicons name="warning" size={20} color="#C62828" />
-                        <Text style={styles.noticeTitle}>Deteksi Anomali</Text>
+                        <Text style={styles.noticeTitle}>
+                          Skenario Anomali Demo
+                        </Text>
                       </View>
                       <Text style={styles.noticeDescription}>
                         {analysis.anomalyDetected
-                          ? `Perubahan NDVI signifikan: ${analysis.anomalySummary}`
-                          : "Tidak ada anomali signifikan terdeteksi."}
+                          ? `Skenario perubahan NDVI: ${analysis.anomalySummary}`
+                          : "Skenario demo tidak menghasilkan perubahan besar."}
                       </Text>
 
                       <View style={styles.tipCard}>
@@ -972,10 +989,10 @@ export default function DetailLahanPage() {
                       </View>
                       <View style={styles.recommendationTitleWrapper}>
                         <Text style={styles.recommendationTitle}>
-                          Rekomendasi Tindakan
+                          Contoh Tindakan — Wajib Verifikasi
                         </Text>
                         <Text style={styles.recommendationSubtitle}>
-                          NDVI = Indikator Hijau Tanaman
+                          Bukan rekomendasi agronomis tervalidasi
                         </Text>
                       </View>
                     </View>
@@ -994,21 +1011,22 @@ export default function DetailLahanPage() {
                       <View style={styles.noticeHeader}>
                         <Ionicons name="analytics" size={20} color="#2E7D32" />
                         <Text style={styles.noticeTitle}>
-                          Analisis Risiko Detail
+                          Simulasi Risiko Detail
                         </Text>
                       </View>
                       <Text style={styles.noticeDescription}>
-                        Evaluasi risiko dihitung dari koordinat lahan (
+                        Skor demo dihitung dari koordinat lahan (
                         {analysis.centroid.latitude.toFixed(4)}° LS,
                         {analysis.centroid.longitude.toFixed(4)}° BT)
                         menggunakan fungsi logistik kelembaban tanah, NDVI dan
-                        pola sinyal vegetasi harian.
+                        pola sinyal vegetasi harian. Angka ini bukan diagnosis
+                        hama, penyakit, stres, atau kelembapan tanah.
                       </Text>
 
                       <View style={styles.extendedMetricsRow}>
                         <View style={styles.extendedMetricBox}>
                           <Text style={styles.extendedMetricLabel}>
-                            Indeks Kelembaban
+                            Indeks Kelembapan Demo
                           </Text>
                           <Text style={styles.extendedMetricValue}>
                             {formatPercent(analysis.moistureIndex)}
@@ -1019,7 +1037,7 @@ export default function DetailLahanPage() {
                         </View>
                         <View style={styles.extendedMetricBox}>
                           <Text style={styles.extendedMetricLabel}>
-                            Risiko Penyakit
+                            Skor Penyakit Demo
                           </Text>
                           <Text style={styles.extendedMetricValue}>
                             {formatPercent(analysis.diseaseRisk)}
@@ -1030,7 +1048,7 @@ export default function DetailLahanPage() {
                         </View>
                         <View style={styles.extendedMetricBox}>
                           <Text style={styles.extendedMetricLabel}>
-                            Kelembaban Tanah
+                            Kelembapan Tanah Demo
                           </Text>
                           <Text style={styles.extendedMetricValue}>
                             {formatPercent(analysis.soilMoisture)}
@@ -1044,7 +1062,9 @@ export default function DetailLahanPage() {
                       <View style={styles.tipCard}>
                         <Ionicons name="shield" size={20} color="#2E7D32" />
                         <View style={styles.tipTextContainer}>
-                          <Text style={styles.tipTitle}>Pencegahan</Text>
+                          <Text style={styles.tipTitle}>
+                            Contoh Pencegahan — Verifikasi Lapangan
+                          </Text>
                           <Text style={styles.tipDescription}>
                             {analysis.pestAlert}
                           </Text>
@@ -1065,10 +1085,10 @@ export default function DetailLahanPage() {
                       </View>
                       <View style={styles.recommendationTitleWrapper}>
                         <Text style={styles.recommendationTitle}>
-                          Langkah Mitigasi Risiko
+                          Contoh Mitigasi — Belum Tervalidasi
                         </Text>
                         <Text style={styles.recommendationSubtitle}>
-                          Prioritaskan tindakan berbasis data
+                          Jangan digunakan tanpa inspeksi lapangan
                         </Text>
                       </View>
                     </View>
@@ -1076,32 +1096,32 @@ export default function DetailLahanPage() {
                       <Text style={styles.recommendationBullet}>•</Text>
                       <Text style={styles.recommendationText}>
                         {analysis.moistureIndex < 0.5
-                          ? "Tambahkan jadwal irigasi tambahan dan gunakan mulsa organik untuk menahan kelembaban."
-                          : "Pertahankan jadwal irigasi dan pantau kelembaban dengan sensor tanah."}
+                          ? "Ukur kelembapan tanah secara langsung sebelum menyesuaikan irigasi."
+                          : "Pantau kelembapan dengan observasi atau sensor tanah yang sesuai."}
                       </Text>
                     </View>
                     <View style={styles.recommendationItem}>
                       <Text style={styles.recommendationBullet}>•</Text>
                       <Text style={styles.recommendationText}>
                         {analysis.diseaseRisk > 0.55
-                          ? "Lakukan rotasi fungisida preventif dan jaga sirkulasi udara antar tanaman."
-                          : "Jaga sanitasi lahan dan lakukan inspeksi mingguan untuk deteksi dini penyakit."}
+                          ? "Lakukan inspeksi gejala dan konsultasikan temuan dengan tenaga ahli."
+                          : "Jaga catatan inspeksi lapangan; skor demo tidak menyatakan penyakit."}
                       </Text>
                     </View>
                     <View style={styles.recommendationItem}>
                       <Text style={styles.recommendationBullet}>•</Text>
                       <Text style={styles.recommendationText}>
                         {analysis.pestPressure > 0.6
-                          ? "Pasang perangkap feromon dan kombinasikan dengan agen hayati (Trichogramma)."
-                          : "Lanjutkan monitoring rutin dan catat populasi hama setiap pekan."}
+                          ? "Periksa populasi hama secara langsung sebelum menentukan tindakan."
+                          : "Catat hasil inspeksi hama; jangan menyimpulkan dari skor demo."}
                       </Text>
                     </View>
                     <View style={styles.recommendationItem}>
                       <Text style={styles.recommendationBullet}>•</Text>
                       <Text style={styles.recommendationText}>
                         {analysis.stressIndex > 0.6
-                          ? "Tambahkan pemupukan daun berunsur mikro untuk membantu pemulihan cepat."
-                          : "Pertahankan pola pemupukan seimbang dan cek pH tanah tiap bulan."}
+                          ? "Verifikasi air, tanah, cuaca, dan fase tumbuh sebelum menyimpulkan stres."
+                          : "Gunakan pengamatan lapangan sebagai dasar keputusan perawatan."}
                       </Text>
                     </View>
                   </View>
@@ -1255,6 +1275,32 @@ const styles = StyleSheet.create({
   },
   tabSwitchTextActive: {
     color: "#fff",
+  },
+  prototypeBanner: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+    marginHorizontal: 16,
+    marginTop: 14,
+    padding: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#F3C77B",
+    backgroundColor: "#FFF8E8",
+  },
+  prototypeBannerCopy: {
+    flex: 1,
+  },
+  prototypeBannerTitle: {
+    color: "#8A4B08",
+    fontSize: 14,
+    fontWeight: "800",
+    marginBottom: 4,
+  },
+  prototypeBannerText: {
+    color: "#6B4A1E",
+    fontSize: 12,
+    lineHeight: 18,
   },
   loadingContainer: {
     marginTop: 40,
