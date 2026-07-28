@@ -1,0 +1,36 @@
+{
+  "contractVersion": "measurement-v1",
+  "status": "M1-ready-for-M2-migration",
+  "physicalSchema": {
+    "strategy": "typed measurement table plus typed per-index child rows",
+    "legacyTable": "lahan_health remains read-only legacy until M2 migration and backfill",
+    "provenanceExtension": "jsonb for provider-specific non-canonical metadata only"
+  },
+  "workerRuntime": {
+    "strategy": "external Node worker using the shared provider adapter",
+    "reason": "acquisition must be explicit, bounded, idempotent, and independent of UI rendering"
+  },
+  "geometryHash": {
+    "algorithm": "sha256",
+    "crs": "EPSG:4326",
+    "coordinatePrecisionDecimals": 7,
+    "normalization": "close ring, round coordinates, canonicalize orientation and start vertex",
+    "bufferIncluded": false
+  },
+  "processingVersions": {
+    "algorithm": "ndvi-ndmi-v1",
+    "evalscript": "s2l2a-statistics-v1",
+    "masking": "s2l2a-scl-rice-v1",
+    "versionBumpRule": "bump when formula, SCL inclusion, rice-water handling, resolution, resampling, or aggregation semantics change"
+  },
+  "qualityStatus": ["passed", "rejected", "unavailable"],
+  "rejectionReasons": [
+    "clouded",
+    "too-few-valid-pixels",
+    "no-acquisition-in-window",
+    "no-valid-pixels",
+    "geometry-unusable",
+    "provider-unavailable"
+  ],
+  "hypothesesRemainUnvalidated": ["HYP-03", "HYP-04", "HYP-05", "HYP-07"]
+}

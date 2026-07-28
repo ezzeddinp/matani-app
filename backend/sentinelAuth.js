@@ -17,7 +17,10 @@ export async function getSentinelToken() {
     console.log("🔐 Requesting new Sentinel Hub token...");
     
     // request token baru
-    const response = await fetch("https://services.sentinel-hub.com/oauth/token", {
+    const response = await fetch(
+      process.env.SENTINEL_TOKEN_URL ||
+        "https://services.sentinel-hub.com/oauth/token",
+      {
       method: "POST",
       headers: { 
         "Content-Type": "application/x-www-form-urlencoded"
@@ -27,7 +30,8 @@ export async function getSentinelToken() {
         client_id: process.env.SENTINEL_CLIENT_ID || "",
         client_secret: process.env.SENTINEL_CLIENT_SECRET || ""
       })
-    });
+      }
+    );
 
     console.log("🔐 Token request status:", response.status);
 

@@ -37,6 +37,7 @@ import {
   type LahanThumbnail,
   type LahanWithInfo,
 } from "@/hooks/supabase";
+import { authenticatedBackendFetch } from "@/utils/backend-api";
 
 interface WeatherCardProps {
   location: string;
@@ -264,10 +265,6 @@ const WeatherCard = ({
 
 const { width } = Dimensions.get("window");
 
-const DEFAULT_FIELD_IMAGE = {
-  uri: "https://images.unsplash.com/photo-1582719478181-2cf4e9b123c9?auto=format&fit=crop&w=900&q=80",
-} as const;
-
 // Category images mapping
 const CATEGORY_IMAGES: Record<string, any> = {
   Jagung: require("@/assets/foto-ladang/jagung.png"),
@@ -367,8 +364,8 @@ const LahanCard = ({
 
 export default function HomeScreen() {
   const router = useRouter();
-  const [userName, setUserName] = useState<string>("Petani");
-  const [profileImageUri, setProfileImageUri] = useState<string | null>(null);
+  const [, setUserName] = useState<string>("Petani");
+  const [, setProfileImageUri] = useState<string | null>(null);
   const [weatherData, setWeatherData] = useState<WeatherData>({
     location: "Memuat lokasi...",
     temperature: null,
@@ -384,14 +381,14 @@ export default function HomeScreen() {
   const fallbackUserId = process.env.EXPO_PUBLIC_SUPABASE_DEFAULT_USER_ID;
 
   const [savedLahan, setSavedLahan] = useState<SavedLahan[]>([]);
-  const [lahanError, setLahanError] = useState<string | null>(null);
+  const [, setLahanError] = useState<string | null>(null);
   const [lahanLoading, setLahanLoading] = useState(false);
   const [lahanHealthMap, setLahanHealthMap] = useState<
     Record<string, LahanHealthSummary>
   >({});
   const [notes, setNotes] = useState<LahanNoteRecord[]>([]);
   const [notesLoading, setNotesLoading] = useState(false);
-  const [notesError, setNotesError] = useState<string | null>(null);
+  const [, setNotesError] = useState<string | null>(null);
   const [showNoteModal, setShowNoteModal] = useState(false);
   const [noteTitle, setNoteTitle] = useState("");
   const [noteContent, setNoteContent] = useState("");
@@ -402,11 +399,6 @@ export default function HomeScreen() {
   const [isSavingNote, setIsSavingNote] = useState(false);
   const [selectedLahanId, setSelectedLahanId] = useState<string | null>(null);
   const [showLahanPicker, setShowLahanPicker] = useState(false);
-  const userNameDisplay = useMemo(
-    () => (userName ? userName.toUpperCase() : "PETANI"),
-    [userName]
-  );
-
   const lahanNameLookup = useMemo(() => {
     const map = new Map<string, string>();
     savedLahan.forEach((item) => {
@@ -507,7 +499,7 @@ export default function HomeScreen() {
 
         for (const url of candidateUrls) {
           try {
-            const response = await fetch(url);
+            const response = await authenticatedBackendFetch(url);
             if (!response.ok) {
               lastErrorMessage = await response.text();
               console.warn(
@@ -947,14 +939,15 @@ export default function HomeScreen() {
 
   useEffect(() => {
     const ids = savedLahan.map((item) => item.id);
-    loadLahanHealth(ids);
+    const timeoutId = setTimeout(() => void loadLahanHealth(ids), 0);
+    return () => clearTimeout(timeoutId);
   }, [savedLahan, loadLahanHealth]);
 
   // Auto-assign first lahan if only one exists
   useEffect(() => {
-    if (savedLahan.length === 1 && !selectedLahanId) {
-      setSelectedLahanId(savedLahan[0].id);
-    }
+    if (savedLahan.length !== 1 || selectedLahanId) return;
+    const timeoutId = setTimeout(() => setSelectedLahanId(savedLahan[0].id), 0);
+    return () => clearTimeout(timeoutId);
   }, [savedLahan, selectedLahanId]);
 
   useEffect(() => {

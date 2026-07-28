@@ -108,10 +108,6 @@ const NDVI_TIPS = [
   "Gunakan pengamatan lapangan dan konsultasi agronomi sebelum mengambil tindakan.",
 ];
 
-const DEFAULT_LAHAN_THUMBNAIL = {
-  uri: "https://images.unsplash.com/photo-1582719478181-2cf4e9b123c9?auto=format&fit=crop&w=1200&q=80",
-} as const;
-
 // Category images mapping
 const CATEGORY_IMAGES: Record<string, any> = {
   Jagung: require("@/assets/foto-ladang/jagung.png"),
@@ -447,15 +443,14 @@ export default function DetailLahanPage() {
   const heroGradientColors = heroGradientPalette[heroSeverity];
 
   useEffect(() => {
-    if (routeNdviValue === null) {
-      return;
-    }
-    setAnalysis((prev) => {
-      if (!prev || prev.ndviCurrent === routeNdviValue) {
-        return prev;
-      }
-      return { ...prev, ndviCurrent: routeNdviValue };
-    });
+    if (routeNdviValue === null) return;
+    const timeoutId = setTimeout(() => {
+      setAnalysis((prev) => {
+        if (!prev || prev.ndviCurrent === routeNdviValue) return prev;
+        return { ...prev, ndviCurrent: routeNdviValue };
+      });
+    }, 0);
+    return () => clearTimeout(timeoutId);
   }, [routeNdviValue]);
 
   useEffect(() => {
@@ -517,7 +512,7 @@ export default function DetailLahanPage() {
       month: "2-digit",
       year: "2-digit",
     })} tanggal ditanam`;
-  }, [detail?.created_at]);
+  }, [detail]);
 
   const harvestCountdownLabel = useMemo(() => {
     if (!analysis) return "--";

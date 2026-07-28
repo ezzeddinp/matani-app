@@ -83,7 +83,8 @@ router.get("/", async (req, res) => {
     console.log("📊 Request body:", JSON.stringify(requestBody, null, 2));
 
     const response = await fetch(
-      "https://services.sentinel-hub.com/api/v1/statistics",
+      process.env.SENTINEL_STATISTICS_URL ||
+        "https://services.sentinel-hub.com/api/v1/statistics",
       {
         method: "POST",
         headers: {
@@ -163,14 +164,11 @@ router.get("/", async (req, res) => {
       res.json({ error: "No data available" });
     }
   } catch (err) {
-    console.error("❌ NDVI API Error occurred:", {
-      message: err.message,
-      stack: err.stack,
-      name: err.name,
+    console.error("NDVI provider request failed", {
+      name: err instanceof Error ? err.name : "UnknownError",
     });
     res.status(500).json({
-      error: err.message,
-      timestamp: new Date().toISOString(),
+      error: "satellite_provider_unavailable",
     });
   }
 });

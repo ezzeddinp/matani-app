@@ -2,8 +2,9 @@
 
 **Document type:** Engineering data pipeline specification
 **Audience:** The developer, thesis advisor, reviewers, and AI agents working in this repo
-**Status:** Active — specifies target behavior; nothing in it is implemented yet unless marked `[As-built]`
-**Updated:** 2026-07-27
+**Status:** Active — target pipeline specification; M1 contract artifacts exist, while
+production measurement behavior remains unimplemented unless marked `[As-built]`
+**Updated:** 2026-07-28
 **Canonical for:** the engineering measurement contract, provider adapter, quality pipeline, persistence/provenance, cache identity, idempotency, fixtures, and Indonesia-specific masking/resolution behavior
 **Companion documents:** [`research-protocol.md`](research-protocol.md), [`project-architecture.md`](project-architecture.md), [`product-requirements.md`](product-requirements.md), [`implementation-plan.md`](implementation-plan.md), [`evidence-register.md`](evidence-register.md)
 
@@ -17,7 +18,10 @@ This is the **engineering realization** of the research standard. Read it this w
 - **`[As-built]` vs `[Thesis]` is load-bearing.** A heading or claim tagged `[As-built]` describes code that exists today (cited to `file:line`). A heading or claim tagged `[Thesis]` describes **target behavior that is not implemented** — it is a specification, not a report. Nothing in a `[Thesis]` section may be read as already built. The only `[As-built]` section is § 1.
 - **External facts are cited, never restated.** Every externally sourced figure carries an `EVID-*` / `OBS-*` ID from [`evidence-register.md`](evidence-register.md); decisions carry `DEC-*` (from [`context-dump.md`](context-dump.md)) and architecture decisions carry `ADR-*` (from [`project-architecture.md`](project-architecture.md)); hypotheses carry `HYP-*` (from [`research-protocol.md`](research-protocol.md)). This document does not re-copy quota numbers, SCL class ids, or band resolutions — it cites the ID.
 - **The canonical provenance paragraph lives elsewhere.** The single source of truth for what the satellite pipeline does today is [`project-architecture.md`](project-architecture.md) § 2 (Current measurement provenance). § 1 below links to it and does not restate it.
-- **Physical design is deferred on purpose.** § 5 specifies a *logical* required-fields list and § 9 flags the physical schema, worker runtime, geometry-hash, and masking-version choices as **open decisions to be made in M1/M2**, not silently resolved here.
+- **Physical design is frozen for M2, not deployed.** § 5 remains the canonical logical
+  fields list. DEC-21 and § 9 close the four M1 engineering choices in a reviewable
+  contract and migration-ready draft; no production measurement table or worker exists
+  until M2 applies and tests them.
 
 ---
 
@@ -231,13 +235,28 @@ The pipeline's **persisted measurements** (§ 5) are the interface to the Python
 - **Availability analysis (HYP-01 / RQ1).** The feasibility study's availability measures (protocol § 4) are computed over persisted per-observation quality outcomes and polygon-level fractions (§ 4, § 5) — usable-observation fraction, gaps, wet/dry split, per-index valid-pixel counts, and PU accounting (EVID-010).
 - **Notebooks call tested package functions.** Notebooks are thin: they call functions in `research/src/matani_rs/` (acquisition, index computation, QA, comparison) rather than embedding algorithms ([`project-architecture.md`](project-architecture.md) § 3). If the same index/QA algorithm must run in both production and research, that is the ADR-03 trigger for a shared runtime — decided separately, not assumed here.
 
+**M1 implementation note (CODE, 2026-07-28).** `research/src/matani_rs/feasibility.py`
+and `research/scripts/run_feasibility.py` implement the deterministic report calculation;
+`research/tests/` verifies cadence withholding for fixture data and canonical
+geometry-hash stability. The committed fixture report demonstrates reproducible report
+shape only. It is not a 12-month provider observation and cannot license cadence.
+
 ---
 
-## 9 · Open engineering decisions
+## 9 · M1 engineering decisions closed; M2 application pending
 
-Each of the following is a decision to be **made in M1/M2** (see [`implementation-plan.md`](implementation-plan.md)), recorded here so it is not silently resolved inside this specification.
+DEC-21 / ADR-12 closes the four choices below. The detailed machine-readable contract is
+`research/contracts/measurement-contract-v1.json`; the SQL beside it is a
+**migration-ready draft**, deliberately not placed in `supabase/migrations/` before M2.
 
-- **Physical schema design** — the concrete table layout for the measurement record (§ 5): single wide table vs measurement + per-index child tables; JSONB provenance blob vs typed columns; how it relates to (extends or supersedes) `lahan_health`; indexes for the cache-identity constraint (§ 6). Logical fields are fixed (§ 5); the physical realization is open, and lands as a versioned migration with DB tests (ADR-07).
-- **Worker runtime** — the ADR-06 idempotent worker's execution mechanism: a **Vercel-compatible job strategy vs an external runner**. This is bounded by **Vercel Hobby** function-execution limits (the free-tier hosting boundary — [`project-architecture.md`](project-architecture.md) § 6 free-tier and reproducibility matrix): a long-running or scheduled acquisition job may not fit Hobby function timeouts, which would force an external runner. Decide against the § 6 matrix; the choice must preserve idempotency and quota accounting (§ 3, § 6, § 7).
-- **Geometry hash definition** — the exact, stable hash of the polygon used as a cache-identity component (§ 6): canonical coordinate normalization, CRS, precision/rounding, and whether an inward buffer (protocol § 9) is inside or outside the hashed geometry. Must be deterministic across runs and provider swaps.
-- **Masking-config versioning scheme** — how the SCL masking + rice-water rule set (§ 4, HYP-05) is versioned and stored per measurement (§ 5): version identifier format, what a version bump covers, and how reprocessing under a new version creates new records without overwriting old provenance (§ 6). The requirement (versioned, stored, non-destructive) is fixed; the scheme is open.
+- **Physical schema:** typed measurement rows plus typed per-index child rows;
+  `lahan_health` remains read-only legacy during M2 migration/backfill.
+- **Worker runtime:** external Node worker behind the explicit ADR-06 job boundary.
+- **Geometry identity:** SHA-256 over the canonical EPSG:4326 exterior ring rounded to
+  seven decimal places, with canonical orientation/start; an analysis buffer is outside
+  the identity.
+- **Processing versions:** separate algorithm, processing, and masking identifiers;
+  semantic changes produce a version bump and non-destructive reprocessing.
+
+These are engineering decisions, not evidence that M2 is implemented or that any stored
+row is `measured`.

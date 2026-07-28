@@ -3,7 +3,7 @@
 **Document type:** Implementation roadmap
 **Audience:** The developer, thesis advisor, reviewers, and AI agents working in this repo
 **Status:** Active
-**Updated:** 2026-07-27
+**Updated:** 2026-07-28
 **Canonical for:** Milestone sequencing, milestone acceptance criteria, and the definition of done for thesis engineering work
 **Companion documents:** [`project-architecture.md`](project-architecture.md), [`data-evaluation-plan.md`](data-evaluation-plan.md), [`research-protocol.md`](research-protocol.md), [`product-requirements.md`](product-requirements.md), [`evidence-register.md`](evidence-register.md), [`context-dump.md`](context-dump.md)
 
@@ -19,6 +19,22 @@ This is the canonical **order of engineering work** for the Matani thesis. Read 
 - **The documentation pass that produced this `.agent/` suite fixed nothing.** Writing these documents changed no code. The starting point for M0 is exactly the recorded debt in [`project-architecture.md`](project-architecture.md) § 7 (verification baseline) and § 5 (security risks) — a snapshot of debt, not a to-do already completed. Nothing in this repo is described as done except by linking that baseline.
 - **No milestone may violate an invariant.** INV-01…INV-09 ([`product-requirements.md`](product-requirements.md) § 1) hold at every milestone boundary. The 2026-07-27 presentation hardening closes the prior INV-01/02 defect; the labeled production fixture fallback remains an explicit **INV-06 deviation** only until M2 removes it. No new violation may be introduced.
 
+**Execution status (2026-07-28).**
+
+- **M0: foundation implemented and applicable local checks pass; milestone not formally
+  complete.** Lint, type-check, fixture-only tests, protected backend routes,
+  disabled-by-default Gemini, two clean DB reset/reapply cycles, 10/10 pgTAP checks,
+  generated types, and placeholder Expo config pass locally. Passing and outstanding
+  criteria are recorded in `docs/m0-m1-build-report-2026-07-28.md`. A workflow file is
+  not evidence that a remote Actions run is green; an unapplied hosted migration is not a
+  hosted security claim; and exact-polygon/acquisition-window route validation cannot be
+  claimed until the M2 measurement request exists.
+- **M1: partial; not complete.** The tested feasibility-report workspace and the DEC-21
+  engineering contract exist. Only labeled fixture input has been run. No CDSE OAuth
+  client, representative padi polygons, 12-month provider acquisition, measured PU
+  consumption, per-site measured report, or cadence determination exists; therefore M1
+  has not passed and M2 may not start.
+
 ---
 
 ## M0 — Reproducible verification + security foundation
@@ -27,24 +43,28 @@ This is the canonical **order of engineering work** for the Matani thesis. Read 
 
 **Why it precedes the next.** Every later milestone runs code, migrations, and (in M1+) real provider calls against this base. Until lint/typecheck/tests are green and runnable, "it works" is unverifiable. Until the backend authenticates and rate-limits, opening the CDSE migration (M1) exposes the developer's quota and credentials to any caller who can reach the deployed proxy ([`project-architecture.md`](project-architecture.md) § 5.1). Security and verification are prerequisites to *any* live provider spend.
 
-**Applied alignment hardening (2026-07-27; does not complete M0).** The duplicate
-client-side Open-Meteo fallback was removed so provider data stays behind `/weather`;
-`backend/index.ts` now mirrors the runtime route mounts; unsupported Profile statistics,
-alert controls, and expertise claims now render as unavailable/preview; and AI summary
-payloads/prompts preserve the input data state and forbid diagnosis/chemical directives
-(DEC-20 / ADR-10). Authentication, rate limits, reproducible migrations, tests, CI, and
-the Gemini disable flag remain open below.
+**Local implementation update (2026-07-28; gate status above remains authoritative).**
+The backend now verifies Supabase access tokens before provider quota admission, applies
+origin/request/rate/idempotency guards, sanitizes failures, and defaults Gemini off.
+Mobile provider calls attach the session token. Versioned Supabase migrations, pgTAP
+isolation tests, test commands, and fixture-only CI replace the previous missing
+foundation (ADR-05/07/10/11; CODE).
 
 **Work items.**
 
-- **Finish the verification baseline** recorded in [`project-architecture.md`](project-architecture.md) § 7. The Expo SDK 57 upgrade resolved TS5098 and `npx tsc --noEmit` now passes; clear the remaining **40 lint errors and 11 warnings** under the current Expo ESLint preset without suppressing valid diagnostics or changing behavior.
-- **Establish runnable checks.** Working `lint`, `typecheck`, and `test` commands plus a minimal test runner — there is currently no test script, no test file, and no CI ([`project-architecture.md`](project-architecture.md) § 7). Tests are fixture-first per ADR-09 / DEC-09.
+- **Finish the verification baseline** recorded historically in
+  [`project-architecture.md`](project-architecture.md) § 7. The 2026-07-28 local run has
+  zero lint errors/warnings and a clean root type-check; keep those gates clean.
+- **Maintain runnable checks.** `lint`, `typecheck`, application artifact tests, backend
+  security tests, research tests, and database tests are fixture-first per ADR-09 /
+  DEC-09.
 - **Basic CI** (GitHub Actions) running install + lint + typecheck + tests, with **no live or paid provider calls** (ADR-09 / DEC-09; [`project-architecture.md`](project-architecture.md) § 6 CI row).
 - **Replace `supabase_setup.sql` with versioned migrations** (ADR-07 / DEC-05): a `supabase/` layout (`config.toml`, `migrations/`, `tests/`, `seed.sql`). This retires the 388-line legacy file with its documented defects — duplicated table/policy/view/function blocks, non-rerunnable (owner-rights) policy statements, and the trigger-before-function ordering bug where `update_lahan_thumbnails_updated_at` (`supabase_setup.sql:76-78`) references `update_updated_at_column()` defined later (`:98-104`), so a clean single-run install fails ([`project-architecture.md`](project-architecture.md) § 7, § 4 ADR-07).
 - **DB + RLS tests proving cross-user isolation** on every table (ADR-07; ethics/access requirement [`research-protocol.md`](research-protocol.md) § 14; EVID-020).
 - **Verify and fix `lahan_with_info`** ([`project-architecture.md`](project-architecture.md) § 5.2): confirm against the live hosted Postgres version and the view's actual owner/definition whether it bypasses `lahan` RLS; recreate as `security_invoker = true` where supported, otherwise revoke `SELECT` / relocate exposed columns behind an RLS-checked path; lock the guarantee with the cross-user isolation tests above. This is a **high-priority authorization risk requiring verification**, not a confirmed breach.
 - **Authenticate and rate-limit every backend route** — the full § 5.1 list ([`project-architecture.md`](project-architecture.md)): Supabase **JWT verification**, **per-user authorization**, **request-schema validation**, **polygon vertex + area limits**, **acquisition-window limits**, **per-user / per-endpoint rate limits**, **quota accounting**, **idempotency** (no concurrent duplicate jobs — foundation for ADR-06), **privacy-conscious structured logging**, and **sanitized client errors** (the NDVI handler currently echoes `err.message`, `backend/api/ndvi/utils.js:171-174`). Replace the current permissive `app.use(cors())` with no options (`backend/index.js:13`) and the auth-less route mounting (`backend/index.js:17-25`).
-- **Gemini disable-by-default flag** (ADR-05 / DEC-08; INV-07): the `/ai/summary` route currently runs whenever `GOOGLE_GENERATIVE_AI_API_KEY` is present (`backend/api/ai/route.js:87`) with no off switch — add the config flag that makes it disabled by default and never load-bearing.
+- **Gemini disable-by-default flag** (ADR-05 / DEC-08; INV-07): retain the applied
+  `AI_SUMMARY_ENABLED=false` default and its regression test.
 - **Provider configuration boundaries and quota observability**: config so provider keys and endpoints are supplied per environment (not inlined), and per-endpoint quota accounting is observable — the accounting hooks the CDSE adapter will consume in M1/M2 ([`data-evaluation-plan.md`](data-evaluation-plan.md) § 3).
 
 **Acceptance criteria.**

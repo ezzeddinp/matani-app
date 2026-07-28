@@ -3,7 +3,7 @@
 **Document type:** Architecture document
 **Audience:** The developer, thesis advisor, reviewers, and AI agents working in this repo
 **Status:** Active
-**Updated:** 2026-07-27
+**Updated:** 2026-07-28
 **Canonical for:** As-built and target architecture, **current measurement provenance (canonical wording — § 2)**, trust boundaries, provider decisions, Architecture Decision Records (ADRs), free-tier constraints, security risks, verification baseline, migration triggers
 **Companion documents:** [`evidence-register.md`](evidence-register.md), [`context-dump.md`](context-dump.md), [`data-evaluation-plan.md`](data-evaluation-plan.md), [`research-protocol.md`](research-protocol.md), [`product-requirements.md`](product-requirements.md), [`implementation-plan.md`](implementation-plan.md)
 
@@ -43,15 +43,18 @@ OpenStreetMap Nominatim for place search (`app/(tabs)/explore.tsx:755-778`), and
 avatar/display-image hosts. Those presentation integrations do not create or label
 research measurements.
 
-### 1.1 Mobile app (Expo SDK 57 / React Native 0.86)
+### 1.1 Mobile app (Expo SDK 54 / React Native 0.81)
 
 - Expo Router with **file-based routes** under `app/` (`app/_layout.tsx`, tab group
   `app/(tabs)/` = `index`, `explore`, `weather`, `education`, `profile`; plus
   `auth/`, `detail-lahan-page.tsx`, `detail-education-page.tsx`, `onboarding`,
   `notifications`, `splash`, `modal`). `typedRoutes` and `reactCompiler` are enabled
   (`app.config.ts:59-62`).
-- Expo UI is installed as an available native/universal component foundation
-  (`package.json:15`); no existing screen has been migrated to it.
+- React 19.1 and the Expo SDK 54 package matrix are pinned through `package.json` /
+  `package-lock.json` (EVID-022). `npm start`, `npm run ios`, and `npm run android`
+  explicitly select Expo Go. Unused `@expo/ui` and `expo-dev-client` are absent so the
+  default thesis-team device workflow does not imply a custom development build
+  (DEC-22).
 - **Google Maps** renders the interactive polygon field-drawing surface (via
   `react-native-maps`). Map SDK keys are **injected at build time from environment** by
   `app.config.ts` — iOS from `GOOGLE_MAPS_API_KEY_IOS` (`app.config.ts:16`), Android from
@@ -276,11 +279,11 @@ Each ADR aligns to a `DEC-*` in [`context-dump.md`](context-dump.md) and carries
   or the free-tier terms (EVID-021, perishable) change.
 
 ### ADR-05 · Gemini is optional UX, disabled by default, never ground truth
-- **Status:** Accepted (DEC-08).
+- **Status:** Accepted and applied on 2026-07-28 (DEC-08).
 - **Context:** The `/ai/summary` route generates an Indonesian advisory via an
-  env-configured Gemini model (`backend/api/ai/route.js:117-127`). **As-built there is no
-  disable flag** — it runs whenever `GOOGLE_GENERATIVE_AI_API_KEY` is present
-  (`route.js:87-93`); adding the flag is target work.
+  env-configured Gemini model (`backend/api/ai/route.js`). The M0 configuration now
+  requires `AI_SUMMARY_ENABLED=true` in addition to a key; its default is false
+  (`backend/config.js`, `backend/.env.example`, CODE).
 - **Decision:** Gemini stays an **optional UX summary, disabled by default via a config
   flag**, and is **never** used as measurement, ground truth, or a research label.
 - **Consequences:** Protects research validity (LLM output cannot enter the measurement or
@@ -289,20 +292,23 @@ Each ADR aligns to a `DEC-*` in [`context-dump.md`](context-dump.md) and carries
   remains outside the measurement/labeling boundary.
 
 ### ADR-06 · Controlled acquisition worker/job boundary
-- **Status:** Accepted (DEC-05).
+- **Status:** Accepted; external Node worker selected in M1, implementation remains M2
+  (DEC-05/DEC-21).
 - **Context:** As-built, rendering the field list triggers the live NDVI call and results
   are transient (§ 2). This couples cost and quota to UI rendering and yields no persisted,
   provenance-safe measurement.
 - **Decision:** Introduce an **idempotent, controlled acquisition worker/job**. Measurement
   requests are explicit; the worker deduplicates concurrent jobs, validates and persists
-  results with provenance, and mobile screens **read the stored result**.
+  results with provenance, and mobile screens **read the stored result**. DEC-21 selects
+  an external Node worker rather than a render-triggered or Vercel request-lifetime job;
+  the concrete contract is `research/contracts/measurement-contract-v1.json`.
 - **Consequences:** Decouples satellite cost from screen rendering; enables quota
   accounting, idempotency, and honest `unavailable` states.
 - **Revisit trigger:** Acquisition volume or latency requirements outgrow the chosen job
   mechanism.
 
 ### ADR-07 · Versioned Supabase migrations + DB tests replace `supabase_setup.sql`
-- **Status:** Accepted (DEC-05).
+- **Status:** Accepted; M0 baseline implemented locally on 2026-07-28 (DEC-05).
 - **Context:** `supabase_setup.sql` is a 388-line file with **duplicated table/policy/view/
   trigger/function blocks** and merge-marker comments; it is **not a reliable clean-install
   migration** (§ 7 — e.g. a thumbnail trigger references a function defined later in the
@@ -310,7 +316,9 @@ Each ADR aligns to a `DEC-*` in [`context-dump.md`](context-dump.md) and carries
 - **Decision:** Replace it with **versioned, ordered migrations** and **DB tests** (via the
   Supabase CLI), including tests that prove cross-user RLS isolation (§ 5.2).
 - **Consequences:** Reproducible schema; regressions caught by tests; the legacy file is
-  retired.
+  retired from the installation path. The baseline lives under `supabase/migrations/`,
+  its pgTAP coverage under `supabase/tests/`, and generated TypeScript schema types under
+  `supabase/types/` (CODE).
 - **Revisit trigger:** N/A (foundational) — but migration ordering is re-audited whenever
   schema changes.
 
@@ -349,45 +357,87 @@ Each ADR aligns to a `DEC-*` in [`context-dump.md`](context-dump.md) and carries
   and display-media integrations remain presentation-only and outside the measurement
   boundary.
 - **Consequences:** One weather contract and one provider-attribution location; backend
-  outages are visible rather than masked by a second client implementation. Backend
-  authentication/rate limiting remains an unfinished M0 requirement (§ 5.1).
+  outages are visible rather than masked by a second client implementation. The M0
+  protected-route boundary was applied on 2026-07-28 (§ 5.1).
 - **Revisit trigger:** An explicit offline/field-resilience design is approved with a
   documented privacy, attribution, caching, and research-boundary contract.
+
+### ADR-11 · Protect every provider route before quota admission
+- **Status:** Accepted and applied locally on 2026-07-28.
+- **Context:** The earlier Express entrypoint exposed provider-backed routes without
+  authentication, origin restriction, request bounds, rate limiting, duplicate-request
+  control, or sanitized failures.
+- **Decision:** Keep `/` public as a health endpoint. Require a Supabase access token for
+  `/ndvi`, `/weather`, and `/ai/**`; apply an origin allowlist, per-user/per-endpoint rate
+  limits, route-specific request bounds, in-flight equivalent-request rejection, and
+  quota admission before the provider handler. Client errors use stable codes and do not
+  contain provider payloads or stack traces (`backend/app.js`, `backend/security.js`,
+  `backend/config.js`, CODE).
+- **Consequences:** An unauthenticated caller cannot spend provider quota. The M0
+  limiter/deduplicator is intentionally single-instance; M2 replaces it with durable
+  worker/cache identity from ADR-06 and DEC-21.
+- **Revisit trigger:** Horizontal backend scaling, distributed quota enforcement, or the
+  M2 measurement-worker deployment.
+
+### ADR-12 · Freeze the M1 measurement-record contract before M2
+- **Status:** Accepted as a reviewed implementation contract on 2026-07-28 (DEC-21);
+  physical migration and worker remain M2.
+- **Context:** M2 could not be implemented reproducibly while physical schema, worker
+  runtime, geometry hashing, and processing-version semantics were open.
+- **Decision:** Use the contract and migration-ready draft in `research/contracts/`.
+  `lahan_health` remains read-only legacy; M2 creates typed measurement and per-index
+  records, uses the selected external Node worker, hashes canonical EPSG:4326 geometry,
+  and performs non-destructive versioned reprocessing.
+- **Consequences:** M2 has a settled input contract without falsely claiming that the
+  draft schema is already installed or that any measurement exists.
+- **Revisit trigger:** Advisor review rejects the physical model, or feasibility evidence
+  requires a material processing/masking change before the M2 migration.
+
+### ADR-13 · Pin Expo SDK 54 and make Expo Go the default device workflow
+- **Status:** Accepted and applied locally on 2026-07-28 (DEC-22).
+- **Context:** The thesis team's installed device clients could not open the prior SDK 57
+  project. SDK packages must move as one compatibility matrix, not as a single `expo`
+  version edit.
+- **Decision:** Pin the SDK 54 matrix (Expo 54, React Native 0.81, React 19.1), use the
+  SDK-compatible Router/navigation imports, remove unused `@expo/ui` and
+  `expo-dev-client`, and run local mobile scripts with `--go` (EVID-022).
+- **Consequences:** iOS and Android Metro exports use the same checked SDK 54 graph.
+  Physical iOS access still depends on whether the installed Expo Go supports SDK 54;
+  the App Store only distributes the latest physical-iOS Expo Go (EVID-023), so a
+  development build remains the fallback when that version no longer matches.
+- **Revisit trigger:** The thesis team standardizes on a newer Expo Go, an OS requirement
+  exceeds SDK 54 support, or a required native module needs a development build.
 
 ---
 
 ## 5 · Trust boundaries and security risks
 
-### 5.1 Backend: unauthenticated, permissively CORS-open provider proxy
-The Express app applies **permissive CORS with no options** (`backend/index.js:13`,
-`app.use(cors())`) and **mounts every route with no authentication or authorization
-middleware** (`backend/index.js:17-25`; the routers in `backend/api/**` contain no auth
-check). Any caller who can reach the deployed backend can spend the developer's Sentinel
-Hub, weather, and Gemini quota, and reach `/ndvi`, `/weather`, and `/ai/summary` directly.
+### 5.1 Backend: protected provider boundary
+The public root endpoint is a health check. `/ndvi`, `/weather`, and `/ai/**` pass through
+Supabase access-token verification, per-user/per-endpoint rate limiting, route-specific
+request bounds, an equivalent-request in-flight guard, and quota-admission accounting
+before a provider router can run (`backend/app.js`, `backend/security.js`, CODE). Browser
+origins use the `CORS_ALLOWED_ORIGINS` allowlist; missing production auth configuration
+fails closed. Provider errors sent to clients are normalized, while structured request
+logs contain request ID, route, status, duration, and authenticated user ID but no bearer
+token or provider payload. Mobile provider calls attach the active Supabase access token
+through `utils/backend-api.ts` (CODE).
 
-**Required (roadmap M0 — see [`implementation-plan.md`](implementation-plan.md)):**
-Supabase **JWT verification**, **per-user authorization**, **request-schema validation**,
-**polygon vertex + area limits**, **acquisition-window limits**, **per-user / per-endpoint
-rate limits**, **quota accounting**, **idempotency** (no concurrent duplicate jobs, tying
-to ADR-06), **privacy-conscious structured logging**, and **sanitized client errors** — no
-raw provider responses or stack traces returned to clients (the NDVI handler currently
-echoes `err.message` to the client, `utils.js:171-174`).
+The M0 guard validates the current bbox prototype's coordinate/area limits. Exact-polygon
+vertex and acquisition-window validation belongs to the explicit M2 measurement request,
+because that request does not exist yet; M0 does not pretend the bbox route is that
+pipeline. The in-memory limiter/accounting/deduplication foundation is single-instance;
+the external worker and durable cache identity selected by DEC-21 replace it for M2.
 
-### 5.2 Supabase view `lahan_with_info` — high-priority authorization risk (requires verification)
-The view is defined `CREATE OR REPLACE VIEW lahan_with_info AS SELECT … FROM lahan`
-(`supabase_setup.sql:111-123`, redefined `:250-262`) **without an explicit
-`security_invoker = true`**. Postgres views may run with the **view owner's** privileges
-and can therefore **bypass the underlying table's RLS** depending on Postgres version,
-view ownership, and configuration. The base table `lahan` has RLS with an owner-scoped
-policy (`:87-91`), but a `SECURITY DEFINER`-style (owner-rights) view over it could expose
-**all users' fields** through `lahan_with_info`.
-
-State this as a **high-priority authorization risk requiring verification** against the
-**live hosted Postgres version and the view's actual owner/definition** — it is **not a
-confirmed breach** until reproduced. **Remedies:** recreate as a `security_invoker = true`
-view where the hosted Postgres version supports it; otherwise revoke `SELECT` /
-relocate the exposed columns behind an RLS-checked path; and add **DB tests proving
-cross-user isolation** (ADR-07) so the guarantee is enforced, not assumed.
+### 5.2 Supabase view `lahan_with_info`
+The M0 versioned baseline migration creates `lahan_with_info` with
+`security_invoker = true`, enables RLS on every exposed operational table, and supplies
+cross-user SQL tests for the base tables and view
+(`supabase/migrations/20260728000100_m0_baseline.sql`,
+`supabase/tests/0001_m0_rls.sql`, CODE). The legacy `supabase_setup.sql` remains only as
+historical input and is not the installation path. Applying the migration and tests to
+the hosted project remains a developer-controlled deployment action; until that happens,
+the hosted legacy view's owner/version is not inferred from repository code.
 
 ### 5.3 Secrets posture
 As of **2026-07-23**, `.env` and `backend/.env` are **untracked** (git-ignored) and only
@@ -421,7 +471,7 @@ checked date and must be rechecked before any decision that depends on them.
 
 | Concern | Constraint | Provenance |
 |---------|-----------|------------|
-| Satellite (CDSE Sentinel Hub) | Bounded live access on the free "General User" tier; monthly + per-minute quota. **Perishable — recheck before deployment.** | EVID-010 (checked 2026-07-23); auth EVID-011; capability EVID-012 |
+| Satellite (CDSE Sentinel Hub) | Bounded live access on the free "General User" tier; monthly + per-minute quota. **Perishable — recheck before deployment.** | EVID-010 (checked 2026-07-28); auth EVID-011; capability EVID-012 |
 | Weather (default) | Open-Meteo free tier: **non-commercial, rate-limited, CC BY 4.0 attribution**, no uptime guarantee. **Perishable.** | EVID-021 (checked 2026-07-23) |
 | Supabase | **Local Supabase via CLI + Docker** for normal development; **hosted Supabase Free only** for shared device testing, demos, and pilots. | DEC-03/DEC-05 |
 | Backend hosting | **Vercel Hobby**, within its personal / non-commercial usage limits. | DEC-03 |
@@ -435,7 +485,7 @@ checked date and must be rechecked before any decision that depends on them.
 
 Recorded **2026-07-23**, commit `d131c941bf0a260626324454825f51bbdc075f63`. Raw logs are
 disposable and live only in the session scratchpad (not tracked). **This documentation pass
-fixes none of these** — the baseline is a snapshot of debt, not a to-do completed.
+fixed none of these** — the table remains a historical baseline, not current status.
 
 | Check | Command | Exit | Counts / result | Representative categories |
 |-------|---------|------|-----------------|----------------------------|
@@ -445,13 +495,10 @@ fixes none of these** — the baseline is a snapshot of debt, not a to-do comple
 | Tests / CI | — | — | **none** | no test scripts (`package.json` scripts: `start`, `reset-project`, `android`, `ios`, `web`, `lint`), no test files, no `.github/workflows/` |
 | Schema install | inspect `supabase_setup.sql` | — | **not a reliable clean-install migration** | 388 lines; **duplicated** table/policy/view/trigger/function blocks with `-- ...existing code...` merge markers; trigger `update_lahan_thumbnails_updated_at` (`:76-78`) references `update_updated_at_column()` which is **defined later** (`:98-104`), so a clean single-run install fails at that trigger; `lahan` table (`:5`, `:168`), `lahan_with_info` view (`:111`, `:250`), and the timestamp function (`:98`, `:234`) are each defined twice |
 
-**Current upgrade verification (2026-07-23).** The developer directed the Expo upgrade
-before M4. Expo SDK 57 / React Native 0.86 / TypeScript 6 and Expo UI are now installed
-(`package.json:15,18,33,35,51`). `npx expo-doctor@latest` passes 20/20 checks,
-`npx tsc --noEmit` exits 0, and Expo exports succeed for web, Android, and iOS. Lint
-remains failing with 40 errors and 11 warnings: the original unescaped-entity debt plus
-stricter React Hooks diagnostics introduced by the current Expo ESLint preset. No device
-or store binary was built in this upgrade pass.
+**Superseded upgrade observation (2026-07-23).** The earlier SDK 57 / React Native 0.86
+upgrade passed its then-current checks but was superseded by ADR-13 / DEC-22 because it
+did not match the thesis team's requested Expo Go baseline. It is historical context,
+not the current installation instruction.
 
 **Dependency modernization verification (2026-07-23).** Unused frontend-only Turf,
 Express, node-fetch, and AI SDK packages were removed from the root package. All
@@ -460,6 +507,26 @@ root endpoint responds locally, and the backend production dependency audit repo
 vulnerabilities. The root production audit retains 11 moderate advisories solely through
 Expo's transitive `xcode` → `uuid` tooling chain; npm's proposed forced resolution would
 downgrade the SDK-pinned `expo-splash-screen`, so it was not applied.
+
+**Current local verification (2026-07-28).** `npm run lint`, `npm run typecheck`,
+`npm test`, and `npm run test:backend` exit 0. The runs contain 0 lint
+errors/warnings, 3 fixture-only M0 artifact tests, and 7 backend security tests covering
+auth rejection, bounds, CORS, rate limiting, Gemini-off-by-default, and concurrent
+equivalent-request rejection (OBS-02). The versioned Supabase baseline,
+reset/reapply result, pgTAP result, generated DB types, and Expo placeholder-config check
+are recorded in `docs/m0-m1-build-report-2026-07-28.md`; this local evidence does not
+stand in for hosted deployment or CI-run evidence.
+
+**SDK 54 compatibility verification (2026-07-28).** `npx expo install --check` reports
+dependencies up to date, `npx expo-doctor@latest` passes 18/18, public config resolves as
+SDK 54, strict lint and type-check pass, and Metro exports complete for both iOS and
+Android (OBS-04). These are local config/bundle observations, not proof that every
+physical iPhone has a matching Expo Go version (EVID-023).
+
+The SDK 54 production-dependency audit has 33 transitive findings and no critical
+finding (OBS-05). npm's broad suggested remediation upgrades the project back to the
+SDK 57 family, so it is not applied under DEC-22. Individual advisory remediation must
+preserve the Expo-validated matrix; `npm audit fix --force` is prohibited for this state.
 
 ---
 
@@ -474,15 +541,21 @@ matani-app/
 │  ├─ detail-lahan-page.tsx # field detail — synthetic NDVI history (§ 2)
 │  ├─ detail-education-page.tsx, onboarding.tsx, notifications.tsx, splash.tsx, modal.tsx
 ├─ backend/                 # colocated Express API (Vercel), port 5001 local
-│  ├─ index.js              # app, CORS, route mounting
+│  ├─ index.js              # process entrypoint
+│  ├─ app.js                # Express factory, protected route mounting, errors/logs
+│  ├─ config.js             # environment configuration and safe defaults
+│  ├─ security.js           # JWT, validation, rate/quota/idempotency guards
 │  ├─ sentinelAuth.js       # Sentinel Hub OAuth token (cached)
 │  └─ api/{ndvi,weather,ai} # provider proxy handlers
 ├─ components/              # shared UI components
 ├─ hooks/                   # React hooks
 ├─ constants/               # ndvi.ts (severity thresholds — HYP, DEC-11), education.ts, theme.ts
-├─ utils/                   # ndvi-simulator.ts (synthetic NDVI), weather-icons.ts
+├─ utils/                   # authenticated backend client; labeled fixture simulator
 ├─ assets/                  # images / fonts
-├─ supabase_setup.sql       # legacy schema (to be replaced — ADR-07)
+├─ supabase/                # versioned migrations, seed, pgTAP tests, generated types
+├─ research/                # tested M1 feasibility package, fixtures, contracts, outputs
+├─ .github/workflows/       # fixture-only verification CI
+├─ supabase_setup.sql       # legacy historical input; not the installation path
 ├─ app.config.ts            # typed Expo config; injects Maps keys from env
 ├─ eas.json, eslint.config.js, tsconfig.json, package.json
 └─ .agent/                  # this documentation suite

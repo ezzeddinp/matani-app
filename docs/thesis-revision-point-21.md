@@ -1,8 +1,8 @@
 # Matani Thesis Revision — Notion Point 21
 
 **Document type:** Revision traceability report  
-**Status:** Applied and cross-checked in `.agent/thesis-revised-aligned.docx`; `.agent/thesis-revised-point-21.docx` superseded  
-**Updated:** 2026-07-27  
+**Status:** Applied and cross-checked in `.agent/thesis-revised-point-21.docx`; a cache-safe duplicate is available as `.agent/thesis-revised-point-21-aligned-2026-07-28.docx`
+**Updated:** 2026-07-28
 **Source paper:** `.agent/thesis.docx` (preserved unchanged)  
 **Coordination source:** [Matani — Centralized Knowledge Base](https://app.notion.com/p/3a9434da822c80e9b8c7ee920b1e94dc), sections 21–22  
 **Canonical project constraints:** `.agent/` documents in the precedence order defined by `AGENTS.md`
@@ -10,6 +10,14 @@
 ## Outcome
 
 The revised paper uses the title **“A Mobile Decision Support Application for Rice Crop Condition and Climate Risk Classification Using NDVI, SWIR-Derived Moisture Indicators, and Weather Data”** (DEC-19). It describes the implemented approach as rule-based classification, HYP-04/HYP-07 prototype heuristics, and optional generative-AI summarization. It does not present the current satellite path as measured or thesis-ready. A second repository-wide cross-check also changed evaluation statements from completed-sounding present tense to planned procedures, separated the five-crop product scope from rice-only thesis scope, corrected the provider boundary, and removed unsupported alert/profile claims (DEC-15 / DEC-20).
+
+The 2026-07-28 recheck found that an older copy of Section E/F described the
+polygon-exact M2 target in present tense and then contradicted it with the current bbox
+prototype limitations. That wording is invalid. The clean document now states the
+as-built bbox behavior first and identifies polygon-exact statistics only as target
+work. Both current deliverables pass DOCX ZIP/XML validation, contain none of the
+contradictory phrases, and have identical SHA-256 content hashes. See
+`docs/thesis-ef-alignment-cross-check-2026-07-28.md`.
 
 The revision script is reproducible:
 

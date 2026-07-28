@@ -3,7 +3,7 @@
 **Document type:** Research protocol
 **Audience:** The developer, thesis advisor, reviewers, and AI agents working in this repo
 **Status:** Active — draft pending advisor review
-**Updated:** 2026-07-27
+**Updated:** 2026-07-28
 **Canonical for:** Research questions, hypotheses, methodology, and validity of the Sentinel-2 NDVI/NDMI monitoring evaluation, and the thesis paper's system-evaluation track (§ 16)
 **Companion documents:** [`evidence-register.md`](evidence-register.md), [`data-evaluation-plan.md`](data-evaluation-plan.md), [`project-architecture.md`](project-architecture.md), [`implementation-plan.md`](implementation-plan.md), [`product-requirements.md`](product-requirements.md)
 
@@ -123,6 +123,13 @@ A **bounded 12-month retrospective availability study** over the representative 
 ### Outcome
 
 The **defensible product monitoring cadence** — weekly / biweekly / monthly / event-based — stated **per location and per season**, possibly differing across sites. This outcome, and only this outcome, licenses any cadence claim elsewhere in the repo (product-requirements.md, product-brief.md). Until it exists, cadence is stated as *unknown / to be determined by the feasibility study*. The mechanics of running the study (queries, batching, PU budgeting, persistence) are specified in [`data-evaluation-plan.md`](data-evaluation-plan.md); this section owns the *research requirement* and its forbidden-until-supported constraint.
+
+**Execution status (2026-07-28).** The tested calculation workspace and input/output
+contract exist under `research/`, and a labeled fixture run proves the report can be
+generated deterministically (CODE; OBS-03). No representative-site
+CDSE acquisition has been executed, so there is no measured feasibility report and
+cadence remains unknown. A fixture row, successful HTTP response, or nominal revisit
+cannot satisfy this section.
 
 ---
 

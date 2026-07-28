@@ -1,5 +1,6 @@
 import { ThemedView } from "@/components/themed-view";
 import { API_BASE_CANDIDATES } from "@/hooks/config";
+import { authenticatedBackendFetch } from "@/utils/backend-api";
 import {
   getWeatherIconSource,
   mapAccuWeatherCodeToIconKey,
@@ -232,7 +233,7 @@ export default function WeatherScreen() {
 
         for (const url of candidateUrls) {
           try {
-            const response = await fetch(url);
+            const response = await authenticatedBackendFetch(url);
             if (!response.ok) {
               const text = await response.text();
               lastStatus = response.status;

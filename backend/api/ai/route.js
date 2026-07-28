@@ -74,6 +74,9 @@ Buat ringkasan maksimal 3 poin dengan format "Prioritas X:" (mulai dari Priorita
 
 router.post("/summary", async (req, res) => {
   try {
+    if (process.env.AI_SUMMARY_ENABLED !== "true") {
+      return res.status(503).json({ error: "ai_summary_disabled" });
+    }
     const { lahanCards, totals } = req.body ?? {};
 
     if (!Array.isArray(lahanCards)) {
@@ -166,7 +169,10 @@ ${userPrompt}`;
 
     for (const candidate of modelCandidates) {
       const modelName = candidate;
-      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+      const baseUrl =
+        process.env.GEMINI_BASE_URL ||
+        "https://generativelanguage.googleapis.com/v1beta";
+      const endpoint = `${baseUrl}/models/${modelName}:generateContent?key=${apiKey}`;
 
       const payload = {
         contents: [
@@ -230,10 +236,7 @@ ${userPrompt}`;
     res.json({ summary: formattedSummary });
   } catch (error) {
     console.error("❌ Gemini summary error:", error);
-    res.status(500).json({
-      error: "Failed to generate lahan summary",
-      details: error instanceof Error ? error.message : "Unknown error",
-    });
+    res.status(500).json({ error: "ai_provider_unavailable" });
   }
 });
 

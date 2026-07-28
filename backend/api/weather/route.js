@@ -3,8 +3,10 @@ import express from "express";
 import fetch from "node-fetch";
 
 const router = express.Router();
-const ACCUWEATHER_BASE = "https://dataservice.accuweather.com";
-const OPEN_METEO_BASE = "https://api.open-meteo.com/v1";
+const ACCUWEATHER_BASE =
+  process.env.ACCUWEATHER_BASE_URL || "https://dataservice.accuweather.com";
+const OPEN_METEO_BASE =
+  process.env.OPEN_METEO_BASE_URL || "https://api.open-meteo.com/v1";
 
 const buildLocationLabel = (locationData) => {
   if (!locationData) return "Lokasi tidak diketahui";

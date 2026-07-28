@@ -1,0 +1,51 @@
+{
+  "dataset_state": "fixture",
+  "claim_allowed": false,
+  "cadence_status": "withheld",
+  "cadence_determination": null,
+  "expected_months": 12,
+  "sites": [
+    {
+      "site_id": "fixture-java",
+      "region": "Java",
+      "field_count": 1,
+      "acquisition_count": 12,
+      "passing_count": 9,
+      "usable_observations_by_month": {
+        "2025-02": 1,
+        "2025-03": 1,
+        "2025-05": 1,
+        "2025-06": 1,
+        "2025-07": 1,
+        "2025-08": 1,
+        "2025-09": 1,
+        "2025-10": 1,
+        "2025-12": 1
+      },
+      "observed_month_count": 12,
+      "median_gap_days": 31.0,
+      "longest_gap_days": 61,
+      "seasonal_availability": {
+        "dry": {
+          "total": 6,
+          "passed": 6,
+          "passing_fraction": 1.0
+        },
+        "wet": {
+          "total": 6,
+          "passed": 3,
+          "passing_fraction": 0.5
+        }
+      },
+      "median_polygon_cloud_shadow_fraction": 0.175,
+      "median_valid_pixel_fraction": 0.825,
+      "median_ndvi_valid_pixel_count": 82.5,
+      "median_ndmi_valid_pixel_count": 19.5,
+      "provider_requests": 12,
+      "processing_units": 6.0
+    }
+  ],
+  "limitations": [
+    "Fixture or incomplete coverage cannot license a monitoring-cadence claim."
+  ]
+}

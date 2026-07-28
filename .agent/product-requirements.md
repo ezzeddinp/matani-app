@@ -3,7 +3,7 @@
 **Document type:** Product requirements document
 **Audience:** The developer, thesis advisor, reviewers, and AI agents working in this repo
 **Status:** Active
-**Updated:** 2026-07-27
+**Updated:** 2026-07-28
 **Canonical for:** Feature behavior, scope tags, and product invariants
 **Companion documents:** [`product-brief.md`](product-brief.md), [`project-architecture.md`](project-architecture.md), [`design-guidelines.md`](design-guidelines.md), [`research-protocol.md`](research-protocol.md), [`data-evaluation-plan.md`](data-evaluation-plan.md), [`implementation-plan.md`](implementation-plan.md)
 
@@ -81,7 +81,10 @@ Full positioning lives in [`product-brief.md`](product-brief.md) § 5; the opera
 - A successful login yields a Supabase session and routes into the tab group.
 - No password or token is logged or surfaced in a client-visible error.
 
-**Current-fidelity note.** Client-side validation only; server-side authorization hardening (JWT verification on the backend, per-user checks) is M0 work ([`project-architecture.md`](project-architecture.md) § 5.1).
+**Current-fidelity note.** Provider-backed mobile requests now attach the active Supabase
+access token and the backend verifies it before quota admission
+(`utils/backend-api.ts`, `backend/security.js`, CODE). Supabase table ownership remains
+enforced separately by RLS.
 
 ### PRD-02 · Splash & session routing · [As-built]
 
@@ -123,7 +126,13 @@ Full positioning lives in [`product-brief.md`](product-brief.md) § 5; the opera
 - Place search returns location suggestions or an empty state; it never blocks field creation.
 - Reverse-geocode rate limiting degrades to a coordinate label, never to a fabricated place name.
 
-**Current-fidelity note.** Google Maps SDK keys are client-visible by design; the control is per-platform + per-API key restriction, not secrecy (EVID-019; [`project-architecture.md`](project-architecture.md) § 5.3). [Thesis] geometry hardening — vertex/area limits, self-intersection rejection — is M0 ([`project-architecture.md`](project-architecture.md) § 5.1; valid-polygon requirement [`research-protocol.md`](research-protocol.md) § 3).
+**Current-fidelity note.** Google Maps SDK keys are client-visible by design; the control
+is per-platform + per-API key restriction, not secrecy (EVID-019;
+[`project-architecture.md`](project-architecture.md) § 5.3). The M0 backend bounds the
+current bbox prototype. Exact-polygon vertex/area/self-intersection validation applies to
+the M2 measurement request, which does not exist yet
+([`project-architecture.md`](project-architecture.md) § 5.1; valid-polygon requirement
+[`research-protocol.md`](research-protocol.md) § 3).
 
 ### PRD-07 · Field creation — crop category, area, thumbnail, save · [As-built]
 
@@ -158,7 +167,11 @@ Full positioning lives in [`product-brief.md`](product-brief.md) § 5; the opera
 - All note and field mutations are owner-scoped (RLS-enforced; [`project-architecture.md`](project-architecture.md) § 1.3, § 5.2).
 - Deleting a field removes its dependent rows without affecting other users' data.
 
-**Current-fidelity note.** The `lahan_with_info` view is a high-priority authorization risk requiring verification (missing `security_invoker`; [`project-architecture.md`](project-architecture.md) § 5.2). Cross-user RLS isolation must be proven by DB tests (ADR-07) — M0.
+**Current-fidelity note.** The versioned M0 baseline recreates `lahan_with_info` with
+`security_invoker = true` and includes cross-user pgTAP coverage
+(`supabase/migrations/20260728000100_m0_baseline.sql`,
+`supabase/tests/0001_m0_rls.sql`, CODE). Hosted deployment remains a separate
+developer-controlled action ([`project-architecture.md`](project-architecture.md) § 5.2).
 
 ### PRD-10 · AI advisory — priority summary · [As-built]
 
@@ -170,7 +183,11 @@ Full positioning lives in [`product-brief.md`](product-brief.md) § 5; the opera
 - The UI states that Gemini is an optional summary over prototype/fixture inputs and is not a measurement or diagnosis (`explore.tsx:2110-2120,2230-2236`).
 - The backend receives the input data state and requires field verification; it may not issue a crop diagnosis or chemical-application instruction (DEC-20).
 
-**Current-fidelity note.** Earlier project descriptions placed the AI priority summary on the home dashboard; in code it lives on the ladang tab (CODE: `explore.tsx:1330`). [Thesis] requirement: an explicit **disable-by-default config flag** — as-built there is **no disable flag**, the route runs whenever `GOOGLE_GENERATIVE_AI_API_KEY` is set (`backend/api/ai/route.js:87`); adding the flag is target work (ADR-05).
+**Current-fidelity note.** Earlier project descriptions placed the AI priority summary on
+the home dashboard; in code it lives on the ladang tab. The backend now requires the
+explicit `AI_SUMMARY_ENABLED=true` flag in addition to the key; false is the default and
+the mobile surface remains non-blocking when the summary is unavailable
+(`backend/config.js`, `backend/api/ai/route.js`, CODE; ADR-05).
 
 ### PRD-11 · Field detail — NDVI history chart & analysis · [As-built] · **INV-05/06 GAP**
 
@@ -270,7 +287,7 @@ Milestones (from [`product-brief.md`](product-brief.md) § 4; roadmap in [`imple
 | PRD-07 Field creation/area | [As-built] | INV-03 | DEC-03 | M2 (equal-area) | `app/(tabs)/explore.tsx:814-823,1057-1094`, `supabase_setup.sql:10` |
 | PRD-08 Ladang NDVI cards | [As-built] | **INV-03, INV-04, INV-05, INV-06** | ADR-02/04-06; DEC-04/DEC-10/DEC-12 | **M2 (removes fixture fallback)** | `app/(tabs)/explore.tsx:320-343,1445-1462,2050-2072`; arch § 2 |
 | PRD-09 Edit/delete/notes | [As-built] | — | ADR-07; EVID-020 | M0 (RLS tests) | `app/(tabs)/explore.tsx:1463,1475,1508,1555`, `supabase_setup.sql` |
-| PRD-10 AI advisory | [As-built] | INV-07 | ADR-05 / DEC-08; DEC-20 | M2 (disable-by-default flag) | `app/(tabs)/explore.tsx:1280-1323,1358-1408`, `backend/api/ai/route.js:96-148` |
+| PRD-10 AI advisory | [As-built] | INV-07 | ADR-05 / DEC-08; DEC-20 | M0 flag applied; M2 keeps it outside measurement | `app/(tabs)/explore.tsx`, `backend/config.js`, `backend/api/ai/route.js` |
 | PRD-11 Field detail | [As-built] | **INV-03, INV-05, INV-06** | HYP-04 / DEC-11; ADR-06 | **M2 (replaces fixture surface)** | `app/detail-lahan-page.tsx:166,710-723`, `utils/ndvi-simulator.ts` |
 | PRD-12 Weather | [As-built] | INV-06 | ADR-04 / DEC-07; ADR-10 / DEC-20; EVID-021 | M4 (Open-Meteo default) | `app/(tabs)/weather.tsx:215-338`, `backend/api/weather/route.js` |
 | PRD-13 Education | [As-built] | — | — | — | `app/(tabs)/education.tsx`, `constants/education.ts:24`, `app/detail-education-page.tsx` |
@@ -279,4 +296,10 @@ Milestones (from [`product-brief.md`](product-brief.md) § 4; roadmap in [`imple
 | PRD-16 Measurement pipeline | [Thesis] | **INV-01–INV-06, INV-08** | ADR-02/06/08/09; DEC-04/05/09/12 | **M1→M2→M3** | target — `research/`, backend worker; [`data-evaluation-plan.md`](data-evaluation-plan.md) |
 | PRD-17 Weather risk score | [As-built] | INV-06 | DEC-16; HYP-07 | M4 (calibration post-thesis) | `app/(tabs)/weather.tsx:474-510` |
 
-**Invariant coverage.** INV-01/02 presentation now holds because every prototype/fixture surface is explicitly labeled. INV-03/04/05/06 remain unsatisfied on PRD-08/11 until PRD-16 persists provenance-complete measurements and replaces fixture fallback with pass/reject/unavailable outcomes. INV-07 holds today (Gemini is non-blocking) but the disable-by-default flag (PRD-10) is outstanding. INV-08 holds (no cadence claim is made anywhere) and must continue to hold until M1. INV-09 holds through greenness—not health—labels, the HYP-04 copy, and the fixture disclaimer.
+**Invariant coverage.** INV-01/02 presentation now holds because every prototype/fixture
+surface is explicitly labeled. INV-03/04/05/06 remain unsatisfied on PRD-08/11 until
+PRD-16 persists provenance-complete measurements and replaces fixture fallback with
+pass/reject/unavailable outcomes. INV-07 holds: Gemini is non-blocking and disabled by
+default. INV-08 holds because no cadence claim is made; the fixture-only M1 run does not
+license one. INV-09 holds through greenness—not health—labels, the HYP-04 copy, and the
+fixture disclaimer.

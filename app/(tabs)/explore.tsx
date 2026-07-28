@@ -10,6 +10,7 @@ import {
 } from "@/constants/ndvi";
 import { API_BASE_CANDIDATES } from "@/hooks/config";
 import { LahanWithInfo, lahanService, supabase } from "@/hooks/supabase";
+import { authenticatedBackendFetch } from "@/utils/backend-api";
 import { computeSyntheticNdviForPolygon } from "@/utils/ndvi-simulator";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -193,9 +194,6 @@ const FILTER_FIT_PADDING: EdgePadding = {
 const normaliseCropKey = (value: string | null | undefined) =>
   value ? value.trim().toLowerCase() : "";
 
-const sleep = (ms: number) =>
-  new Promise<void>((resolve) => setTimeout(resolve, ms));
-
 const ndviStatisticCache = new Map<string, NdviStatistic | null>();
 const ndviStatisticInflight = new Map<string, Promise<NdviStatistic | null>>();
 const ndviStatisticErrorCount = new Map<string, number>();
@@ -219,11 +217,6 @@ const computePolygonCentroid = (points: LatLng[]): LatLng | null => {
     latitude: sum.latitude / validPoints.length,
     longitude: sum.longitude / validPoints.length,
   };
-};
-
-const formatCoordinateValue = (value: number | null | undefined) => {
-  if (typeof value !== "number" || !Number.isFinite(value)) return "--";
-  return value.toFixed(4);
 };
 
 const LAHAN_COLOR_PALETTE = [
@@ -386,12 +379,6 @@ const formatHa = (value?: number | null) => {
   return `${value.toFixed(2)} ha`;
 };
 
-const formatYearLabel = (value?: string | null) => {
-  const time = parseDateToTime(value ?? undefined);
-  if (!time) return "Lahan baru";
-  return `Sejak ${new Date(time).getFullYear()}`;
-};
-
 const formatGeocodedLocation = (
   place?: Location.LocationGeocodedAddress | null
 ) => {
@@ -506,16 +493,19 @@ export default function ExploreScreen() {
 
   const scheduleScrollLockReset = useCallback(() => {
     if (mapScrollResetTimeoutRef.current) clearTimeout(mapScrollResetTimeoutRef.current);
-    mapScrollResetTimeoutRef.current = setTimeout(() => {
-      const idleDuration = Date.now() - mapTouchLastActiveRef.current;
-      if (!mapTouchActiveRef.current || idleDuration >= 1000) {
-        mapTouchActiveRef.current = false;
-        releaseScrollLock();
-        mapScrollResetTimeoutRef.current = null;
-        return;
-      }
-      scheduleScrollLockReset();
-    }, 1600);
+    const schedule = () => {
+      mapScrollResetTimeoutRef.current = setTimeout(() => {
+        const idleDuration = Date.now() - mapTouchLastActiveRef.current;
+        if (!mapTouchActiveRef.current || idleDuration >= 1000) {
+          mapTouchActiveRef.current = false;
+          releaseScrollLock();
+          mapScrollResetTimeoutRef.current = null;
+          return;
+        }
+        schedule();
+      }, 1600);
+    };
+    schedule();
   }, [releaseScrollLock]);
 
   const isGeocodeRateLimited = useCallback(() => {
@@ -712,8 +702,17 @@ export default function ExploreScreen() {
     }
   }, [isGeocodeRateLimited, markGeocodeRateLimited]);
 
-  useEffect(() => { getCurrentLocation(); loadSavedLahan(); }, [getCurrentLocation, loadSavedLahan]);
-  useEffect(() => { loadNotes(); }, [loadNotes]);
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      void getCurrentLocation();
+      void loadSavedLahan();
+    }, 0);
+    return () => clearTimeout(timeoutId);
+  }, [getCurrentLocation, loadSavedLahan]);
+  useEffect(() => {
+    const timeoutId = setTimeout(() => void loadNotes(), 0);
+    return () => clearTimeout(timeoutId);
+  }, [loadNotes]);
 
   useEffect(() => {
     return () => {
@@ -723,34 +722,41 @@ export default function ExploreScreen() {
   }, []);
 
   useEffect(() => {
-    if (savedLahan.length === 0) {
-      setLahanHealth([]); setSelectedNoteLahanId(null); setLahanLocationLabels({});
-      return;
-    }
-    const lahanIds = savedLahan.map((item) => item.id).filter(Boolean);
-    setSelectedNoteLahanId((prev) => prev ?? lahanIds[0] ?? null);
-    setLahanLocationLabels((prev) => {
-      const next: Record<string, string | null> = {};
-      let changed = false;
-      savedLahan.forEach((item) => {
-        if (prev[item.id] !== undefined) next[item.id] = prev[item.id] ?? null;
-        else changed = true;
+    const timeoutId = setTimeout(() => {
+      if (savedLahan.length === 0) {
+        setLahanHealth([]); setSelectedNoteLahanId(null); setLahanLocationLabels({});
+        return;
+      }
+      const lahanIds = savedLahan.map((item) => item.id).filter(Boolean);
+      setSelectedNoteLahanId((prev) => prev ?? lahanIds[0] ?? null);
+      setLahanLocationLabels((prev) => {
+        const next: Record<string, string | null> = {};
+        let changed = false;
+        savedLahan.forEach((item) => {
+          if (prev[item.id] !== undefined) next[item.id] = prev[item.id] ?? null;
+          else changed = true;
+        });
+        if (!changed && Object.keys(prev).length === savedLahan.length) return prev;
+        return next;
       });
-      if (!changed && Object.keys(prev).length === savedLahan.length) return prev;
-      return next;
-    });
-    if (lahanIds.length > 0) loadLahanHealth(lahanIds);
+      if (lahanIds.length > 0) void loadLahanHealth(lahanIds);
+    }, 0);
+    return () => clearTimeout(timeoutId);
   }, [loadLahanHealth, savedLahan]);
 
   useEffect(() => {
     const query = searchQuery.trim();
-    if (query.length === 0) { setSearchResults([]); setShowSearchResults(false); setIsSearching(false); return; }
-    if (query.length < 3) { setSearchResults([]); setShowSearchResults(false); setIsSearching(false); return; }
     let isActive = true;
     const controller = new AbortController();
-    setIsSearching(true);
-    setShowSearchResults(true);
     const timeoutId = setTimeout(async () => {
+      if (query.length < 3) {
+        setSearchResults([]);
+        setShowSearchResults(false);
+        setIsSearching(false);
+        return;
+      }
+      setIsSearching(true);
+      setShowSearchResults(true);
       try {
         const endpoint = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=6&q=${encodeURIComponent(query)}`;
         const response = await fetch(endpoint, {
@@ -786,7 +792,7 @@ export default function ExploreScreen() {
       } finally {
         if (isActive) setIsSearching(false);
       }
-    }, 400);
+    }, query.length < 3 ? 0 : 400);
     return () => { isActive = false; controller.abort(); clearTimeout(timeoutId); };
   }, [searchQuery]);
 
@@ -917,7 +923,7 @@ export default function ExploreScreen() {
           let lastErrorMessage = "";
           for (const url of candidateUrls) {
             try {
-              const candidateResponse = await fetch(url);
+              const candidateResponse = await authenticatedBackendFetch(url);
               if (!candidateResponse.ok) {
                 const message = await candidateResponse.text();
                 lastErrorMessage = message || `NDVI request failed with status ${candidateResponse.status}`;
@@ -1054,38 +1060,6 @@ export default function ExploreScreen() {
     });
   };
 
-  const capturePolygonSnapshot = useCallback(
-    async (coordinates: LatLng[]): Promise<string | null> => {
-      if (!mapRef.current || coordinates.length < 3) return null;
-      try {
-        const previousRegion = currentRegionRef.current ?? null;
-        const edgePadding: EdgePadding = { top: 120, right: 120, bottom: 120, left: 120 };
-        try {
-          mapRef.current.fitToCoordinates(coordinates, { edgePadding, animated: false });
-        } catch (fitError) {
-          console.warn("❌ fitToCoordinates gagal sebelum snapshot:", fitError);
-        }
-        await sleep(200);
-        const snapshotPath = await mapRef.current.takeSnapshot({
-          width: Math.round(width * 1.15),
-          height: Math.round(width * 0.75),
-          format: "png",
-          quality: 0.9,
-          result: "file",
-        });
-        if (previousRegion) {
-          try { mapRef.current.animateToRegion(previousRegion, 0); currentRegionRef.current = previousRegion; }
-          catch (restoreError) { console.warn("❌ Gagal mengembalikan region peta setelah snapshot:", restoreError); }
-        }
-        if (snapshotPath && typeof snapshotPath === "string") return snapshotPath;
-      } catch (error) {
-        console.warn("❌ Gagal mengambil snapshot lahan:", error);
-      }
-      return null;
-    },
-    []
-  );
-
   const saveLahan = async () => {
     const trimmedName = lahanName.trim();
     if (!trimmedName) { Alert.alert("Error", "Nama lahan tidak boleh kosong"); return; }
@@ -1175,14 +1149,17 @@ export default function ExploreScreen() {
 
   useEffect(() => {
     if (savedLahan.length === 0) return;
-    setNdviOverrides((prev) => {
-      const updates: Record<string, LahanHealthRecord | null | undefined> = {};
-      savedLahan.forEach((lahan) => {
-        if (prev[lahan.id] === undefined) updates[lahan.id] = createSyntheticNdviRecord(lahan) ?? null;
+    const timeoutId = setTimeout(() => {
+      setNdviOverrides((prev) => {
+        const updates: Record<string, LahanHealthRecord | null | undefined> = {};
+        savedLahan.forEach((lahan) => {
+          if (prev[lahan.id] === undefined) updates[lahan.id] = createSyntheticNdviRecord(lahan) ?? null;
+        });
+        if (Object.keys(updates).length === 0) return prev;
+        return { ...prev, ...updates };
       });
-      if (Object.keys(updates).length === 0) return prev;
-      return { ...prev, ...updates };
-    });
+    }, 0);
+    return () => clearTimeout(timeoutId);
   }, [savedLahan]);
 
   const lahanCards = useMemo<LahanCard[]>(() => {
@@ -1328,8 +1305,11 @@ export default function ExploreScreen() {
   }, [lahanCards.length]);
 
   useEffect(() => {
-    if (totalLahanPages === 0) { setLahanPage(0); return; }
-    setLahanPage((prev) => Math.min(prev, Math.max(totalLahanPages - 1, 0)));
+    const timeoutId = setTimeout(() => {
+      if (totalLahanPages === 0) { setLahanPage(0); return; }
+      setLahanPage((prev) => Math.min(prev, Math.max(totalLahanPages - 1, 0)));
+    }, 0);
+    return () => clearTimeout(timeoutId);
   }, [totalLahanPages]);
 
   const paginatedLahanCards = useMemo(() => {
@@ -1379,7 +1359,7 @@ export default function ExploreScreen() {
         let response: Response | null = null;
         let lastErrorMessage = "";
         for (const url of candidateUrls) {
-          try { response = await fetch(url, requestOptions); }
+          try { response = await authenticatedBackendFetch(url, requestOptions); }
           catch (networkError) {
             lastErrorMessage = networkError instanceof Error ? networkError.message : String(networkError);
             continue;
@@ -1408,18 +1388,23 @@ export default function ExploreScreen() {
   const handleRefreshSummary = useCallback(() => fetchLahanSummary(true), [fetchLahanSummary]);
 
   useEffect(() => {
-    if (!lahanSummaryPayload || lahanSummaryPayload.lahanCards.length === 0) {
-      setLahanSummaryText(""); setLahanSummaryError(null); lahanSummarySignatureRef.current = null;
-      return;
-    }
-    const signature = JSON.stringify(lahanSummaryPayload);
-    if (lahanSummarySignatureRef.current && lahanSummarySignatureRef.current !== signature) {
-      lahanSummarySignatureRef.current = null; setLahanSummaryText(""); setLahanSummaryError(null);
-    }
+    const timeoutId = setTimeout(() => {
+      if (!lahanSummaryPayload || lahanSummaryPayload.lahanCards.length === 0) {
+        setLahanSummaryText(""); setLahanSummaryError(null); lahanSummarySignatureRef.current = null;
+        return;
+      }
+      const signature = JSON.stringify(lahanSummaryPayload);
+      if (lahanSummarySignatureRef.current && lahanSummarySignatureRef.current !== signature) {
+        lahanSummarySignatureRef.current = null; setLahanSummaryText(""); setLahanSummaryError(null);
+      }
+    }, 0);
+    return () => clearTimeout(timeoutId);
   }, [lahanSummaryPayload]);
 
   useEffect(() => {
-    if (lahanSummaryText) setIsLahanSummaryCollapsed(false);
+    if (!lahanSummaryText) return;
+    const timeoutId = setTimeout(() => setIsLahanSummaryCollapsed(false), 0);
+    return () => clearTimeout(timeoutId);
   }, [lahanSummaryText]);
 
   const notesWithMetadata = useMemo(() => {

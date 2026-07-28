@@ -14,10 +14,10 @@ export default function SplashScreen() {
   const [interactionReady, setInteractionReady] = useState(false);
   const [isNavigating, setIsNavigating] = useState(false);
 
-  const logoScale = useRef(new Animated.Value(3.6)).current;
-  const logoTranslateX = useRef(new Animated.Value(0)).current;
-  const textOpacity = useRef(new Animated.Value(0)).current;
-  const textTranslateX = useRef(new Animated.Value(24)).current;
+  const [logoScale] = useState(() => new Animated.Value(3.6));
+  const [logoTranslateX] = useState(() => new Animated.Value(0));
+  const [textOpacity] = useState(() => new Animated.Value(0));
+  const [textTranslateX] = useState(() => new Animated.Value(24));
   const autoNavigateRef = useRef(false);
 
   useEffect(() => {
@@ -189,7 +189,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
   },
   shapeLayer: {
-    ...StyleSheet.absoluteFill,
+    ...StyleSheet.absoluteFillObject,
     overflow: "hidden",
   },
   // topArc: {

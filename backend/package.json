@@ -7,7 +7,9 @@
   "scripts": {
     "start": "node index.js",
     "dev": "node index.js",
-    "build": "tsc"
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test test/**/*.test.js"
   },
   "dependencies": {
     "cors": "^2.8.6",

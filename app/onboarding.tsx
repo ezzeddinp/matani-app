@@ -92,7 +92,7 @@ const styles = StyleSheet.create({
     height: height * 0.45,
   },
   heroOverlay: {
-    ...StyleSheet.absoluteFill,
+    ...StyleSheet.absoluteFillObject,
     justifyContent: 'flex-end',
     paddingHorizontal: 20,
     paddingVertical: 24,
