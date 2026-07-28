@@ -15,8 +15,9 @@ feat(matani): align thesis, harden M0/M1 foundation, and target Expo SDK 54
   and keep generative summaries disabled by default
 - add ordered Supabase migrations, RLS policies, pgTAP coverage, generated
   database types, fixture-first tests, and CI verification
-- add the M1 feasibility workspace and versioned measurement-contract draft
-  while withholding measured cadence until the representative-site study
+- add the M1 feasibility workspace, versioned measurement-contract draft, and
+  bounded exact-polygon CDSE pilot runner while withholding measured cadence
+  until the representative-site study
 - downgrade Expo 57 to Expo SDK 54 with React Native 0.81 and React 19.1,
   switch to SDK-compatible navigation imports, remove unused @expo/ui and
   expo-dev-client, and make Expo Go the default start workflow

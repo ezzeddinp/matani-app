@@ -29,11 +29,14 @@ This is the canonical **order of engineering work** for the Matani thesis. Read 
   not evidence that a remote Actions run is green; an unapplied hosted migration is not a
   hosted security claim; and exact-polygon/acquisition-window route validation cannot be
   claimed until the M2 measurement request exists.
-- **M1: partial; not complete.** The tested feasibility-report workspace and the DEC-21
-  engineering contract exist. Only labeled fixture input has been run. No CDSE OAuth
-  client, representative padi polygons, 12-month provider acquisition, measured PU
-  consumption, per-site measured report, or cadence determination exists; therefore M1
-  has not passed and M2 may not start.
+- **M1: partial; not complete.** The tested feasibility-report workspace, DEC-21
+  engineering contract, and bounded exact-polygon CDSE pilot runner exist. Two
+  developer-supplied padi-labeled polygons pass structural validation, but remain private
+  and unverified for crop identity, boundary fidelity, consent, and representativeness.
+  The live preflight correctly refused to run because no CDSE OAuth client was configured.
+  No 12-month provider acquisition, measured PU consumption, per-site measured report, or
+  cadence determination exists; therefore M1 has not passed and M2 may not start
+  (OBS-06).
 
 ---
 

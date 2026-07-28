@@ -241,6 +241,22 @@ and `research/scripts/run_feasibility.py` implement the deterministic report cal
 geometry-hash stability. The committed fixture report demonstrates reproducible report
 shape only. It is not a 12-month provider observation and cannot license cadence.
 
+`research/lib/cdse-pilot.mjs` and `research/scripts/run-cdse-pilot.mjs` additionally
+implement the explicitly enabled, out-of-band pilot boundary from § 7. The runner accepts
+at most two padi polygons and a 31-day window, sends exact CRS84 polygon geometry, makes
+separate quality/NDVI/NDMI requests at 20 m/10 m/20 m, applies versioned SCL exclusions,
+keeps water for HYP-05, reuses one OAuth token, records request/PU accounting where the
+provider returns it, and omits geometry and direct identifiers from its output. Its
+provisional `NEAREST` resampling is recorded and does not settle the final scientific
+resampling decision. Contract tests pass; no live result existed at the 2026-07-28
+preflight because CDSE credentials were absent. Pilot output is `prototype`, never a
+persisted measurement (OBS-06).
+
+The two-field no-network preflight also confirms exact-polygon/no-bbox request construction
+and records theoretical area-to-pixel-footprint capacity without relabeling it as provider
+or valid-pixel accounting (OBS-07). Actual NDVI/NDMI count divergence remains a live-data
+question.
+
 ---
 
 ## 9 · M1 engineering decisions closed; M2 application pending

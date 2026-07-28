@@ -199,12 +199,14 @@ never confused with synthetic. The engineering contract for this lives in
 [`data-evaluation-plan.md`](data-evaluation-plan.md); this document owns only the boundary
 that produces it.
 
-**Planned Python research workspace** (`research/`, added per DEC-05):
+**Research workspace** (`research/`, added per DEC-05):
 
 ```text
 research/
   pyproject.toml           # packaged, dependency-pinned workspace
   src/matani_rs/           # tested core: acquisition, index computation, QA, comparison
+  lib/cdse-pilot.mjs       # bounded external-Node exact-polygon pilot contract
+  scripts/                 # fixture analysis + explicitly enabled live pilot entrypoint
   notebooks/               # analysis narratives that CALL tested package functions
   tests/                   # unit/integration tests over src/matani_rs
   data-manifests/          # declarative descriptions of inputs (sites, dates, products)
@@ -214,6 +216,14 @@ research/
 Notebooks are **thin** — they call functions in `src/matani_rs/`, they do not embed the
 algorithms. This keeps the analysis reproducible and lets the same tested code back both
 research outputs and (if ADR-03 triggers) production processing.
+
+The 2026-07-28 pilot implementation is deliberately narrower than the M2 worker:
+`research/scripts/run-cdse-pilot.mjs` permits at most two padi fields and 31 days,
+requires `--allow-live`, keeps sensitive inputs and live artifacts out of Git, sends the
+exact polygon, and separates quality/10 m NDVI/20 m NDMI calls. Ordinary tests remain
+network-free under ADR-09. A missing CDSE OAuth client stops the runner before network
+access; the first local preflight did so, hence no live or measured result is claimed.
+(OBS-06.)
 
 ---
 

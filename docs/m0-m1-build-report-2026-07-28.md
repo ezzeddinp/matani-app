@@ -13,9 +13,10 @@ and the M1 research workspace are included.
   plus hosted Supabase state cannot be inferred; and the literal exact-polygon/
   acquisition-window acceptance check belongs to the not-yet-existing M2 measurement
   request. The current M0 route honestly validates only its bbox prototype contract.
-- **M1 is partial and is not complete.** The tested calculation workspace and engineering
-  contract are built. No live CDSE representative-site study has been run, so no measured
-  feasibility result or monitoring cadence exists.
+- **M1 is partial and is not complete.** The tested calculation workspace, engineering
+  contract, and bounded exact-polygon CDSE pilot runner are built. Two private candidate
+  polygons pass structural checks, but no live request ran because CDSE OAuth credentials
+  are absent. No measured feasibility result or monitoring cadence exists (OBS-06).
 - **M2 must not start yet.** M1's measured study/cadence gate remains open.
 
 ## What changed
@@ -28,7 +29,7 @@ and the M1 research workspace are included.
 | Gemini | A key was enough to activate the route. | `AI_SUMMARY_ENABLED` is false by default and tested. |
 | Provider configuration | Several provider endpoints were fixed in source. | Endpoint and security limits are environment-configurable; the example lists only consumed variables. |
 | Database install | `supabase_setup.sql` was duplicated and not a reliable clean migration. | Ordered migration, seed, local config, pgTAP tests, `security_invoker` view, RLS policies, triggers, geometry column, and generated TypeScript types exist under `supabase/`. The legacy file is historical input only. |
-| Verification | No complete fixture-first test/CI surface; lint had debt. | Root artifact tests, seven backend security tests, three research tests, strict zero-warning lint, type-check scripts, DB scripts, and a fixture-only GitHub Actions workflow exist. |
+| Verification | No complete fixture-first test/CI surface; lint had debt. | Root artifact tests, eleven backend security/provider-contract tests, three research tests, strict zero-warning lint, type-check scripts, DB scripts, and a fixture-only GitHub Actions workflow exist. |
 | M1 analysis | No executable retrospective report calculator. | `research/src/matani_rs/feasibility.py`, CLI, manifest, fixture input/output, and unit tests calculate the protocol's per-site metrics while withholding cadence for non-measured input. |
 | M1 contract | Physical schema, worker, geometry hash, and processing versions were open. | DEC-21/ADR-12 plus `research/contracts/measurement-contract-v1.json` and a migration-ready M2 draft close the design choices without applying M2 early. |
 
@@ -48,7 +49,7 @@ and the M1 research workspace are included.
 | Lint | PASS — 0 errors, 0 warnings |
 | TypeScript | PASS |
 | Root fixture-only tests | PASS — 3/3 |
-| Backend security tests | PASS — 7/7 |
+| Backend security/provider-contract tests | PASS — 11/11 |
 | Research tests | PASS — 3/3 |
 | Empty DB migration + reset/reapply | PASS — two consecutive `supabase db reset` runs |
 | RLS/view/geometry/trigger pgTAP | PASS — 10/10 |
@@ -88,6 +89,8 @@ versions, so no forced audit rewrite was applied.
 | Engineering contract decisions closed | PASS | DEC-21, ADR-12, `research/contracts/` |
 | Fresh quota-source check | PASS for published limits only | EVID-010 rechecked 2026-07-28 |
 | Twelve-month representative padi-site acquisition | OPEN | Requires approved sites/polygons and live CDSE OAuth credentials |
+| Two-field bounded exact-polygon pilot preflight | READY / NOT RUN LIVE | `hi` and `sszs` passed structural checks; runner refused before network because CDSE credentials are absent (OBS-06) |
+| Privacy-minimized request preflight | PASS | Exact polygon, no bbox substitution; theoretical capacity recorded separately from valid-pixel observations (OBS-07) |
 | Polygon-level measured quality metrics per site/season | OPEN | No live acquisition dataset |
 | Measured request/PU use checked against quota | OPEN | Fixture accounting is not provider consumption |
 | Defensible cadence per location and season | OPEN | Explicitly withheld until measured study passes |

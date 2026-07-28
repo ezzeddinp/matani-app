@@ -48,3 +48,7 @@ app-example
 # generated native folders
 /ios
 /android
+
+# sensitive research inputs and bounded live-run artifacts
+research/private/
+research/outputs/live-*.json

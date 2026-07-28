@@ -126,10 +126,16 @@ The **defensible product monitoring cadence** — weekly / biweekly / monthly / 
 
 **Execution status (2026-07-28).** The tested calculation workspace and input/output
 contract exist under `research/`, and a labeled fixture run proves the report can be
-generated deterministically (CODE; OBS-03). No representative-site
-CDSE acquisition has been executed, so there is no measured feasibility report and
-cadence remains unknown. A fixture row, successful HTTP response, or nominal revisit
-cannot satisfy this section.
+generated deterministically (CODE; OBS-03). A separately enabled Node pilot runner now
+constructs bounded exact-polygon CDSE Statistical API requests for polygon quality,
+10 m NDVI, and 20 m NDMI, and its contract tests pass. Two developer-supplied,
+padi-labeled polygons passed structural validation and are retained only in a gitignored
+private input. Their crop identity, boundary fidelity, consent, and representativeness
+remain unverified. The 2026-07-28 live preflight stopped before network access because
+no CDSE OAuth credentials were configured; therefore no representative-site acquisition,
+measured feasibility report, or cadence determination exists. A fixture row, dry-run
+request, successful HTTP response, or nominal revisit cannot satisfy this section.
+(OBS-06.)
 
 ---
 
