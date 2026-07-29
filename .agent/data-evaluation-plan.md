@@ -4,7 +4,7 @@
 **Audience:** The developer, thesis advisor, reviewers, and AI agents working in this repo
 **Status:** Active — target pipeline specification; M1 contract artifacts exist, while
 production measurement behavior remains unimplemented unless marked `[As-built]`
-**Updated:** 2026-07-28
+**Updated:** 2026-07-29
 **Canonical for:** the engineering measurement contract, provider adapter, quality pipeline, persistence/provenance, cache identity, idempotency, fixtures, and Indonesia-specific masking/resolution behavior
 **Companion documents:** [`research-protocol.md`](research-protocol.md), [`project-architecture.md`](project-architecture.md), [`product-requirements.md`](product-requirements.md), [`implementation-plan.md`](implementation-plan.md), [`evidence-register.md`](evidence-register.md)
 
@@ -27,7 +27,7 @@ This is the **engineering realization** of the research standard. Read it this w
 
 ## 1 · As-built summary `[As-built]`
 
-The satellite path today is a prototype request wired to the field-list surface with a visibly labeled synthetic fixture fallback, computing over a bounding box on a fixed date window against a commercial endpoint, and persisting nothing as a measurement. The **canonical wording and the `file:line` evidence** for this live in [`project-architecture.md`](project-architecture.md) § 2 (Current measurement provenance) — it is not restated here; this document defers to it and specifies the target that replaces it.
+The satellite path today is a prototype request wired to the field-list surface with a visibly labeled synthetic fixture fallback, computing over a bounding box on a fixed date window through the CDSE-configured provider route, and persisting nothing as a measurement. The **canonical wording and the `file:line` evidence** for this live in [`project-architecture.md`](project-architecture.md) § 2 (Current measurement provenance) — it is not restated here; this document defers to it and specifies the target that replaces it.
 
 ### As-built gaps this plan closes
 
@@ -38,7 +38,7 @@ The satellite path today is a prototype request wired to the field-list surface 
 | **No cloud masking beyond `dataMask`** — evalscript passes `dataMask` through but never consults the Scene Classification Layer; no cloud/cirrus/shadow exclusion | `backend/api/ndvi/utils.js:12,15,22` | SCL-driven masking at the polygon level (§ 4), contrast EVID-008 / EVID-012 | ADR-06 |
 | **No persistence** — fetched results become transient UI overrides (`ndviOverrides` state), never rows | `app/(tabs)/explore.tsx:1143-1150,1421,1426` | Provenance-complete measurement records written by the worker (§ 5) | ADR-06, ADR-07 |
 | **Labeled synthetic fixture fallback remains in production** — on missing bbox / unusable result / thrown error the UI substitutes a fixture record; the 2026-07-27 hardening labels it “Simulasi demo” and “Bukan pengukuran satelit,” but it still substitutes rather than returning `unavailable` | `app/(tabs)/explore.tsx:320-343,1445-1462,2050-2072` | A measurement passes quality and is persisted, or is recorded as rejected with a reason; fixture substitution is removed (§ 2, § 4); honest `unavailable` state (DEC-10, protocol § 8, § 11) | ADR-06 |
-| **Commercial provider endpoint** — token and statistics calls target `services.sentinel-hub.com`, not CDSE | `backend/sentinelAuth.js:20`, `backend/api/ndvi/utils.js:86` | CDSE Sentinel Hub free tier behind a provider adapter (§ 3); a real credential + endpoint migration, not a URL swap | ADR-02, ADR-08 |
+| **Provider migration is not a production measurement adapter** — CDSE endpoint defaults are applied, but the bbox prototype still calls the provider directly and lacks the stable M2 adapter/persistence contract | `backend/sentinelAuth.js`, `backend/api/ndvi/utils.js`; OBS-11 is out-of-band research evidence | CDSE Sentinel Hub behind the stable provider adapter (§ 3), with the measurement semantics unchanged above it | ADR-02, ADR-08 |
 
 ---
 
@@ -235,7 +235,7 @@ The pipeline's **persisted measurements** (§ 5) are the interface to the Python
 - **Availability analysis (HYP-01 / RQ1).** The feasibility study's availability measures (protocol § 4) are computed over persisted per-observation quality outcomes and polygon-level fractions (§ 4, § 5) — usable-observation fraction, gaps, wet/dry split, per-index valid-pixel counts, and PU accounting (EVID-010).
 - **Notebooks call tested package functions.** Notebooks are thin: they call functions in `research/src/matani_rs/` (acquisition, index computation, QA, comparison) rather than embedding algorithms ([`project-architecture.md`](project-architecture.md) § 3). If the same index/QA algorithm must run in both production and research, that is the ADR-03 trigger for a shared runtime — decided separately, not assumed here.
 
-**M1 implementation note (CODE, 2026-07-28).** `research/src/matani_rs/feasibility.py`
+**M1 implementation note (CODE, updated 2026-07-29).** `research/src/matani_rs/feasibility.py`
 and `research/scripts/run_feasibility.py` implement the deterministic report calculation;
 `research/tests/` verifies cadence withholding for fixture data and canonical
 geometry-hash stability. The committed fixture report demonstrates reproducible report
@@ -243,19 +243,31 @@ shape only. It is not a 12-month provider observation and cannot license cadence
 
 `research/lib/cdse-pilot.mjs` and `research/scripts/run-cdse-pilot.mjs` additionally
 implement the explicitly enabled, out-of-band pilot boundary from § 7. The runner accepts
-at most two padi polygons and a 31-day window, sends exact CRS84 polygon geometry, makes
-separate quality/NDVI/NDMI requests at 20 m/10 m/20 m, applies versioned SCL exclusions,
-keeps water for HYP-05, reuses one OAuth token, records request/PU accounting where the
-provider returns it, and omits geometry and direct identifiers from its output. Its
+at most two padi polygons and a 31-day window. It validates the stored CRS84 polygon,
+projects the exact boundary to the local UTM zone, and submits that projected polygon
+with a metre-based 20 m/10 m/20 m quality/NDVI/NDMI grid. No bbox is substituted. It
+applies versioned SCL exclusions, keeps water for HYP-05, reuses one OAuth token, records
+request/PU accounting, and omits geometry and direct identifiers from output. Its
 provisional `NEAREST` resampling is recorded and does not settle the final scientific
-resampling decision. Contract tests pass; no live result existed at the 2026-07-28
-preflight because CDSE credentials were absent. Pilot output is `prototype`, never a
-persisted measurement (OBS-06).
+resampling decision.
 
 The two-field no-network preflight also confirms exact-polygon/no-bbox request construction
 and records theoretical area-to-pixel-footprint capacity without relabeling it as provider
-or valid-pixel accounting (OBS-07). Actual NDVI/NDMI count divergence remains a live-data
-question.
+or valid-pixel accounting (OBS-07). The live pilot established actual, separate
+NDVI/NDMI source and valid counts for both polygons. Because the CDSE deployment returned
+no `geometryPixelCount`, the evalscript emits a separate coverage output to derive the
+polygon-source denominator; this derived value is never mislabeled as a provider
+`geometryPixelCount` (OBS-11).
+
+`research/lib/cdse-study.mjs` and
+`research/scripts/run-cdse-availability-study.mjs` add the checkpointed, explicitly
+enabled 12-calendar-month acquisition path. It enforces exactly two padi inputs, a
+72-request ceiling, per-request throttling, bounded 429/5xx retry, resume identity, and a
+privacy-minimized artifact. The 2025-07 → 2026-07 run completed for both candidates
+(OBS-12), but remains `prototype`: it does not supply representative multi-region sites,
+verified crop/boundary/consent, wet/dry labels, an approved HYP-03 threshold, source
+product identifiers, or independent raster comparison. It therefore cannot license a
+cadence or satisfy the M1 study acceptance by itself.
 
 ---
 

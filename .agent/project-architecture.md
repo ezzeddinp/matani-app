@@ -95,24 +95,25 @@ Sentinel Hub token endpoint (`sentinelAuth.js:20`) using `SENTINEL_CLIENT_ID` /
 `SENTINEL_CLIENT_SECRET` (`sentinelAuth.js:27-28`), caching the bearer token until ~60 s
 before expiry (`sentinelAuth.js:4-14,50-51`) — the reuse pattern EVID-011 describes.
 
-**As-built provider note:** both the NDVI statistics call
-(`utils.js:86` → `https://services.sentinel-hub.com/api/v1/statistics`) and the token call
-(`sentinelAuth.js:20` → `https://services.sentinel-hub.com/oauth/token`) target the
-**commercial `services.sentinel-hub.com` host**, not CDSE. Migrating this is DEC-04 /
-ADR-02, and it is a real credential+endpoint migration, not a URL swap (§ 4).
+**As-built provider note (updated 2026-07-29):** the server defaults and
+`backend/.env.example` now use the CDSE identity and Statistical API hosts, with both
+URLs remaining environment-configurable (`backend/sentinelAuth.js`,
+`backend/api/ndvi/utils.js`; ADR-02). A developer-controlled CDSE OAuth client was
+verified in the out-of-band M1 pilot (OBS-11). This provider migration does **not**
+upgrade the application request to a measurement: the production route still has the
+bbox, fixed-window, masking, persistence, and provenance defects recorded in § 2.
 
 ### 1.3 Supabase (Auth + Postgres + PostGIS + RLS + Storage)
 
-Schema lives in `supabase_setup.sql`. Tables: `lahan` (PostGIS `GEOMETRY(POLYGON,4326)`
-with a generated `area_ha` in hectares, `supabase_setup.sql:5-15`), `lahan_thumbnails`
-(`:27-37`), `public.users` (`:131-139`), `lahan_health` (NDVI/NDMI history, `:301-311`),
-`lahan_notes` (`:356-364`). RLS is enabled on every table with owner-scoped policies
-(e.g. `:87-95` for `lahan`, `:318-341` for `lahan_health`). A trigger on `auth.users`
-back-fills `public.users` on signup via a `SECURITY DEFINER` function (`:268-295`). A
-view `lahan_with_info` exposes GeoJSON + centroid (`:111-123`, redefined `:250-262`) —
-see § 5.2 for the authorization risk it carries. The app authenticates with the Supabase
-anon/publishable key (`EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY`), client-safe **conditional
-on RLS** (EVID-020).
+The installation path is the versioned `supabase/migrations/` sequence; the duplicated
+`supabase_setup.sql` is retained only as historical input (ADR-07). Operational tables
+are `lahan`, `lahan_thumbnails`, `public.users`, `lahan_health`, and `lahan_notes`.
+The linked hosted legacy schema was reconciled through
+`20260729000100_m0_hosted_reconciliation.sql`; owner-scoped RLS and the
+`security_invoker` view are tested locally and hosted (OBS-10; § 5.2). The app
+authenticates with the Supabase anon/publishable key
+(`EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY`), client-safe **conditional on RLS**
+(EVID-020).
 
 ---
 
@@ -217,13 +218,14 @@ Notebooks are **thin** — they call functions in `src/matani_rs/`, they do not 
 algorithms. This keeps the analysis reproducible and lets the same tested code back both
 research outputs and (if ADR-03 triggers) production processing.
 
-The 2026-07-28 pilot implementation is deliberately narrower than the M2 worker:
+The M1 pilot implementation is deliberately narrower than the M2 worker:
 `research/scripts/run-cdse-pilot.mjs` permits at most two padi fields and 31 days,
 requires `--allow-live`, keeps sensitive inputs and live artifacts out of Git, sends the
-exact polygon, and separates quality/10 m NDVI/20 m NDMI calls. Ordinary tests remain
-network-free under ADR-09. A missing CDSE OAuth client stops the runner before network
-access; the first local preflight did so, hence no live or measured result is claimed.
-(OBS-06.)
+validated exact polygon projected from stored WGS84 to a local UTM metre grid, and
+separates quality/10 m NDVI/20 m NDMI calls. Ordinary tests remain network-free under
+ADR-09. On 2026-07-29 the bounded pilot and a checkpointed 12-month two-polygon
+acquisition completed against CDSE (OBS-11/12). Those artifacts remain `prototype`, not
+`measured`: they do not pass M1 representativeness or M2 persistence/provenance gates.
 
 ---
 
@@ -245,19 +247,22 @@ Each ADR aligns to a `DEC-*` in [`context-dump.md`](context-dump.md) and carries
   cannot be patched incrementally.
 
 ### ADR-02 · Migrate satellite provider to CDSE Sentinel Hub free tier
-- **Status:** Accepted (DEC-04).
-- **Context:** As-built code targets the **commercial** `services.sentinel-hub.com`
-  (`utils.js:86`, `sentinelAuth.js:20`). CDSE's free "General User" tier exposes the same
+- **Status:** Accepted and provider-endpoint/OAuth migration applied on 2026-07-29
+  (DEC-04); production measurement semantics remain M2.
+- **Context:** The historical code targeted the commercial `services.sentinel-hub.com`.
+  CDSE's free "General User" tier exposes the same
   Sentinel Hub APIs (including the Statistical API) under OAuth2 client-credentials, with a
-  monthly quota (EVID-010, checked 2026-07-23) and OAuth mechanics (EVID-011); the
+  monthly quota (EVID-010, checked 2026-07-29) and OAuth mechanics (EVID-011); the
   Statistical API supports polygon geometry + evalscript + `dataMask` exclusion (EVID-012).
 - **Decision:** Move to CDSE Sentinel Hub free tier: **new OAuth client (client_id +
   client_secret) and CDSE endpoints** (token + statistics), preserving Statistical API
   request semantics.
 - **Consequences:** This is a **real migration, not a URL swap** — different identity
   endpoint, different credentials, quota accounting against CDSE limits, and STAC/data
-  availability that must be validated for Indonesian sites (OBS-01 could not be reproduced
-  on 2026-07-23 and must be re-verified). Removes commercial-account dependency.
+  availability that must be validated for Indonesian sites. The bounded two-polygon
+  provider run used approximately 8.027 PU and 72 requests (OBS-12), well inside the
+  freshly checked General User limits, but does not establish representative-study or
+  production capacity. Removes the runtime dependency on the commercial endpoint.
 - **Revisit trigger:** CDSE free-tier quota (EVID-010, **perishable — recheck at the source
   before deployment**) proves insufficient for the study, or CDSE changes its auth/endpoint
   contract.
@@ -390,14 +395,18 @@ Each ADR aligns to a `DEC-*` in [`context-dump.md`](context-dump.md) and carries
   M2 measurement-worker deployment.
 
 ### ADR-12 · Freeze the M1 measurement-record contract before M2
-- **Status:** Accepted as a reviewed implementation contract on 2026-07-28 (DEC-21);
+- **Status:** Accepted as a reviewed implementation contract on 2026-07-28 and amended
+  after live grid/pixel-accounting evidence on 2026-07-29 (DEC-21);
   physical migration and worker remain M2.
 - **Context:** M2 could not be implemented reproducibly while physical schema, worker
   runtime, geometry hashing, and processing-version semantics were open.
 - **Decision:** Use the contract and migration-ready draft in `research/contracts/`.
   `lahan_health` remains read-only legacy; M2 creates typed measurement and per-index
   records, uses the selected external Node worker, hashes canonical EPSG:4326 geometry,
-  and performs non-destructive versioned reprocessing.
+  projects the exact boundary to a recorded local UTM CRS for metre-based grids, records
+  source/valid counts independently per index, keeps nullable provider
+  `geometryPixelCount` distinct from derived coverage, and performs non-destructive
+  versioned reprocessing.
 - **Consequences:** M2 has a settled input contract without falsely claiming that the
   draft schema is already installed or that any measurement exists.
 - **Revisit trigger:** Advisor review rejects the physical model, or feasibility evidence
@@ -447,16 +456,21 @@ cross-user SQL tests for the base tables and view
 `supabase/tests/0001_m0_rls.sql`, CODE). The legacy `supabase_setup.sql` remains only as
 historical input and is not the installation path.
 
-On 2026-07-29, the developer linked the hosted project and supplied read-only
-`migration list`, `db push --dry-run`, and `db diff --linked --schema public` output.
-The remote migration history does not contain `20260728000100`, while the hosted project
-already contains the legacy operational tables and differs materially from the baseline
-shadow schema, including the `lahan_with_info` definition and RLS-policy set (OBS-09).
-Therefore the baseline must **not** be pushed directly or merely marked applied. A
-reviewed legacy-to-M0 reconciliation must first account for existing data, constraints,
-grants, functions, view security, and policy replacement; then hosted cross-user RLS
-tests must pass. Until that work is complete, local M0 schema evidence is not a hosted
-security claim.
+On 2026-07-29, the linked hosted project was first inspected read-only (OBS-09), then
+audited for data compatibility. Seven developer-authorized invalid test polygons had no
+dependent records and were removed by the guarded incremental migration
+`20260729000100_m0_hosted_reconciliation.sql`. The migration reconciled constraints,
+functions, triggers, indexes, grants, policies, and the `security_invoker` view without
+recreating the legacy tables. Post-apply hosted audits found 48 remaining field rows and
+zero tested NULL/orphan/owner/invalid-geometry defects; RLS was enabled on all five
+operational tables, the view option was present, hosted pgTAP passed 10/10, and migration
+history synchronized (OBS-10).
+
+The hosted PostGIS extension is non-relocatable in `public`, whereas a clean local install
+places it in `extensions`. The reconciliation deliberately preserves the hosted extension
+location and makes functions/tests schema-compatible; moving a non-relocatable production
+extension is not an M0 requirement. This is a controlled compatibility decision, not
+schema parity by destructive recreation.
 
 ### 5.3 Secrets posture
 As of **2026-07-23**, `.env` and `backend/.env` are **untracked** (git-ignored) and only
@@ -475,9 +489,9 @@ makes § 5.2 load-bearing.
 
 | Credential | Class | Action | Owner / status |
 |------------|-------|--------|-----------------|
-| Sentinel Hub `client_secret` (`SENTINEL_CLIENT_SECRET`) | Server-side secret | **Rotate** (and reissue as a CDSE OAuth client under ADR-02) | Developer action — pending |
-| Gemini key (`GOOGLE_GENERATIVE_AI_API_KEY`) | Server-side secret | **Rotate** | Developer action — pending |
-| AccuWeather key (`ACCUWEATHER_API_KEY`) | Server-side secret | **Rotate** (provider dropped in target, ADR-04) | Developer action — pending |
+| Sentinel Hub `client_secret` (`SENTINEL_CLIENT_SECRET`) | Server-side secret | **Rotate** (and reissue as a CDSE OAuth client under ADR-02) | New CDSE OAuth client configured and verified 2026-07-29 (OBS-11); revocation of any historical commercial credential still requires platform-side confirmation |
+| Gemini key (`GOOGLE_GENERATIVE_AI_API_KEY`) | Server-side secret | **Rotate** | No active local backend key detected; historical revocation/rotation still requires platform-side confirmation |
+| AccuWeather key (`ACCUWEATHER_API_KEY`) | Server-side secret | **Rotate** (provider dropped in target, ADR-04) | No active usable local backend key detected; historical revocation/rotation still requires platform-side confirmation |
 | Google Maps keys (iOS/Android) | Client-visible by design | **Restrict per-platform** (Android package + SHA-1 / iOS bundle ID) **and per-API**, then **monitor** usage (EVID-019) | Developer action — pending |
 | Supabase key | Publishable vs `service_role` | **Verify class**; if anon/publishable, safe only with RLS correct (EVID-020, § 5.2) | Verification — pending |
 
@@ -490,7 +504,7 @@ checked date and must be rechecked before any decision that depends on them.
 
 | Concern | Constraint | Provenance |
 |---------|-----------|------------|
-| Satellite (CDSE Sentinel Hub) | Bounded live access on the free "General User" tier; monthly + per-minute quota. **Perishable — recheck before deployment.** | EVID-010 (checked 2026-07-28); auth EVID-011; capability EVID-012 |
+| Satellite (CDSE Sentinel Hub) | Bounded live access on the free "General User" tier; monthly + per-minute quota. **Perishable — recheck before deployment.** | EVID-010 (checked 2026-07-29); auth EVID-011; capability EVID-012 |
 | Weather (default) | Open-Meteo free tier: **non-commercial, rate-limited, CC BY 4.0 attribution**, no uptime guarantee. **Perishable.** | EVID-021 (checked 2026-07-23) |
 | Supabase | **Local Supabase via CLI + Docker** for normal development; **hosted Supabase Free only** for shared device testing, demos, and pilots. | DEC-03/DEC-05 |
 | Backend hosting | **Vercel Hobby**, within its personal / non-commercial usage limits. | DEC-03 |
@@ -527,15 +541,14 @@ vulnerabilities. The root production audit retains 11 moderate advisories solely
 Expo's transitive `xcode` → `uuid` tooling chain; npm's proposed forced resolution would
 downgrade the SDK-pinned `expo-splash-screen`, so it was not applied.
 
-**Current local verification (2026-07-29).** `npm run lint`, `npm run typecheck`,
-`npm test`, and `npm run test:backend` exit 0. The runs contain 0 lint
-errors/warnings, 3 fixture-only M0 artifact tests, 7 backend security tests covering
-auth rejection, bounds, CORS, rate limiting, Gemini-off-by-default, and concurrent
-equivalent-request rejection, plus 5 exact-polygon CDSE pilot tests (12 backend tests
-total; OBS-02/06). The versioned Supabase baseline,
-reset/reapply result, pgTAP result, generated DB types, and Expo placeholder-config check
-are recorded in `docs/m0-m1-build-report-2026-07-28.md`; this local evidence does not
-stand in for hosted deployment or CI-run evidence.
+**Current verification (2026-07-29).** `npm run lint`, `npm run typecheck`,
+`npm test`, `npm run test:backend`, and `npm run test:research` exit 0. The runs contain
+0 lint errors/warnings, 3 fixture-only M0 artifact tests, and 16 backend tests covering
+the M0 security boundary plus exact-polygon/UTM-grid/masking/pixel-accounting/retry and
+12-month-study contracts. The versioned migrations complete a clean local reset,
+local pgTAP passes 10/10, and hosted reconciliation plus hosted pgTAP are recorded in
+OBS-10. Live-provider execution is excluded from ordinary tests and CI (ADR-09);
+OBS-11/12 are the separately enabled live evidence.
 
 **SDK 54 compatibility verification (2026-07-28).** `npx expo install --check` reports
 dependencies up to date, `npx expo-doctor@latest` passes 18/18, public config resolves as

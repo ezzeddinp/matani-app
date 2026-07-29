@@ -1,5 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
+set local search_path = public, extensions, pg_catalog;
 select plan(10);
 
 insert into auth.users (id, email, raw_app_meta_data, raw_user_meta_data, aud, role)
@@ -9,8 +10,8 @@ values
 
 insert into public.lahan (id, user_id, name, category, geom)
 values
-  ('10000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000001', 'A', 'padi', extensions.st_geomfromtext('POLYGON((106 -6,106.001 -6,106.001 -6.001,106 -6.001,106 -6))', 4326)),
-  ('10000000-0000-4000-8000-000000000002', '00000000-0000-4000-8000-000000000002', 'B', 'padi', extensions.st_geomfromtext('POLYGON((107 -7,107.001 -7,107.001 -7.001,107 -7.001,107 -7))', 4326));
+  ('10000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000001', 'A', 'padi', st_geomfromtext('POLYGON((106 -6,106.001 -6,106.001 -6.001,106 -6.001,106 -6))', 4326)),
+  ('10000000-0000-4000-8000-000000000002', '00000000-0000-4000-8000-000000000002', 'B', 'padi', st_geomfromtext('POLYGON((107 -7,107.001 -7,107.001 -7.001,107 -7.001,107 -7))', 4326));
 
 insert into public.lahan_notes (user_id, lahan_id, title, content)
 values
@@ -36,7 +37,7 @@ select results_eq(
   'geometry produces positive area'
 );
 select throws_ok(
-  $$insert into public.lahan (user_id, name, geom) values ('00000000-0000-4000-8000-000000000002', 'forbidden', extensions.st_geomfromtext('POLYGON((106 -6,106.001 -6,106.001 -6.001,106 -6.001,106 -6))', 4326))$$,
+  $$insert into public.lahan (user_id, name, geom) values ('00000000-0000-4000-8000-000000000002', 'forbidden', st_geomfromtext('POLYGON((106 -6,106.001 -6,106.001 -6.001,106 -6.001,106 -6))', 4326))$$,
   '42501',
   null,
   'cannot insert another user field'
@@ -59,5 +60,5 @@ select results_eq(
   'area is generated from geometry'
 );
 
-select * from finish();
+select * from finish(true);
 rollback;

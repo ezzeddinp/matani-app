@@ -3,6 +3,8 @@ import fetch from "node-fetch";
 
 let cachedToken = null;
 let tokenExpiry = 0;
+const DEFAULT_CDSE_TOKEN_URL =
+  "https://identity.dataspace.copernicus.eu/auth/realms/CDSE/protocol/openid-connect/token";
 
 export async function getSentinelToken() {
   const now = Date.now();
@@ -18,8 +20,7 @@ export async function getSentinelToken() {
     
     // request token baru
     const response = await fetch(
-      process.env.SENTINEL_TOKEN_URL ||
-        "https://services.sentinel-hub.com/oauth/token",
+      process.env.SENTINEL_TOKEN_URL || DEFAULT_CDSE_TOKEN_URL,
       {
       method: "POST",
       headers: { 

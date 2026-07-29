@@ -4,7 +4,9 @@ import test from "node:test";
 import {
   buildPreflightReport,
   buildStatisticalRequest,
+  executeStatisticalRequestWithRetry,
   geometryHash,
+  projectGeometryToLocalUtm,
   summarizeResponses,
   validatePilotGeometry,
 } from "../../research/lib/cdse-pilot.mjs";
@@ -30,13 +32,66 @@ test("pilot requests use exact polygon geometry and per-index native grids", () 
   };
   const ndvi = buildStatisticalRequest({ ...common, output: "ndvi" });
   const ndmi = buildStatisticalRequest({ ...common, output: "ndmi" });
-  assert.deepEqual(ndvi.input.bounds.geometry, smallField);
+  const quality = buildStatisticalRequest({ ...common, output: "quality" });
+  assert.notDeepEqual(ndvi.input.bounds.geometry, smallField);
+  assert.equal(
+    ndvi.input.bounds.properties.crs,
+    "http://www.opengis.net/def/crs/EPSG/0/32748",
+  );
+  assert.ok(ndvi.input.bounds.geometry.coordinates[0][0][0] > 100_000);
+  assert.ok(ndvi.input.bounds.geometry.coordinates[0][0][1] > 9_000_000);
   assert.equal("bbox" in ndvi.input.bounds, false);
   assert.equal(ndvi.aggregation.resx, 10);
   assert.equal(ndmi.aggregation.resx, 20);
   assert.match(ndvi.aggregation.evalscript, /\[0,1,3,8,9,10\]/);
-  assert.match(ndvi.aggregation.evalscript, /sample\.dataMask && !excluded/);
+  assert.match(ndvi.aggregation.evalscript, /denominator !== 0/);
+  assert.match(
+    ndvi.aggregation.evalscript,
+    /bands: \["ndvi", "coverage"\]/,
+  );
   assert.doesNotMatch(ndvi.aggregation.evalscript, /SCL.*6/);
+  assert.match(
+    quality.aggregation.evalscript,
+    /bands: \["cloudShadow", "invalid"\]/,
+  );
+  assert.match(
+    quality.aggregation.evalscript,
+    /return \{ quality: \[cloudShadow, invalid\], dataMask: \[sample\.dataMask\] \}/,
+  );
+});
+
+test("CDSE statistics retry is bounded and counts rate-limit attempts", async () => {
+  let calls = 0;
+  const result = await executeStatisticalRequestWithRetry({
+    token: "test-token",
+    request: {},
+    fetchImpl: async () => {
+      calls += 1;
+      return new Response(
+        calls < 3
+          ? JSON.stringify({ error: { code: "RATE_LIMIT_EXCEEDED" } })
+          : JSON.stringify({ data: [] }),
+        {
+          status: calls < 3 ? 429 : 200,
+          headers: { "content-type": "application/json" },
+        },
+      );
+    },
+    sleepImpl: async () => {},
+  });
+  assert.equal(calls, 3);
+  assert.equal(result.attempts, 3);
+});
+
+test("WGS84 polygon is projected to a closed local UTM metric grid", () => {
+  const projected = projectGeometryToLocalUtm(smallField);
+  assert.equal(projected.epsg, 32748);
+  assert.equal(projected.zone, 48);
+  assert.equal(projected.hemisphere, "south");
+  assert.deepEqual(
+    projected.geometry.coordinates[0][0],
+    projected.geometry.coordinates[0].at(-1),
+  );
 });
 
 test("pilot rejects self-intersecting geometry and windows over 31 days", () => {
@@ -55,6 +110,21 @@ test("pilot rejects self-intersecting geometry and windows over 31 days", () => 
         ],
       }),
     /polygon-self-intersects/,
+  );
+  assert.throws(
+    () =>
+      validatePilotGeometry({
+        type: "Polygon",
+        coordinates: [
+          [
+            [106.81, -6.16],
+            [106.82, -6.16],
+            [106.83, -6.16],
+            [106.81, -6.16],
+          ],
+        ],
+      }),
+    /polygon-is-degenerate/,
   );
   assert.throws(
     () =>
@@ -85,12 +155,15 @@ test("pilot geometry hash is stable across ring rotation and orientation", () =>
 });
 
 test("response summary keeps per-index counts separate and withholds passed status", () => {
-  const item = (output, stats, geometryPixelCount) => ({
+  const item = (output, stats, coverageStats, geometryPixelCount) => ({
     interval: {
       from: "2026-06-04T00:00:00Z",
       to: "2026-06-05T00:00:00Z",
     },
-    outputs: { [output]: { bands: { B0: { stats } } } },
+    outputs: {
+      [output]: { bands: { B0: { stats } } },
+      coverage: { bands: { B0: { stats: coverageStats } } },
+    },
     geometryPixelCount,
   });
   const report = summarizeResponses({
@@ -109,6 +182,7 @@ test("response summary keeps per-index counts separate and withholds passed stat
         item(
           "ndvi",
           { min: 0.1, max: 0.8, mean: 0.5, stDev: 0.1, sampleCount: 20, noDataCount: 3 },
+          { sampleCount: 20, noDataCount: 2 },
           18,
         ),
       ],
@@ -118,6 +192,7 @@ test("response summary keeps per-index counts separate and withholds passed stat
         item(
           "ndmi",
           { min: -0.1, max: 0.4, mean: 0.2, stDev: 0.1, sampleCount: 6, noDataCount: 2 },
+          { sampleCount: 6, noDataCount: 1 },
           5,
         ),
       ],
@@ -127,6 +202,10 @@ test("response summary keeps per-index counts separate and withholds passed stat
   const observation = report.observations[0];
   assert.equal(observation.ndvi_stats.valid_pixel_count, 17);
   assert.equal(observation.ndmi_stats.valid_pixel_count, 4);
+  assert.equal(observation.ndvi_source_pixel_count, 18);
+  assert.equal(observation.ndmi_source_pixel_count, 5);
+  assert.equal(observation.ndvi_valid_pixel_fraction, 17 / 18);
+  assert.equal(observation.ndmi_valid_pixel_fraction, 4 / 5);
   assert.equal(observation.quality_decision, "not-evaluated-hyp-03");
   assert.equal(report.data_state, "prototype");
 });

@@ -21,28 +21,29 @@ This is the canonical **order of engineering work** for the Matani thesis. Read 
 
 **Execution status (2026-07-29).**
 
-- **M0: foundation implemented and applicable local checks pass; milestone not formally
-  complete.** Lint, type-check, fixture-only tests, protected backend routes,
-  disabled-by-default Gemini, two clean DB reset/reapply cycles, 10/10 pgTAP checks,
-  generated types, and placeholder Expo config pass locally. The developer confirmed two
-  green remote `Verify` workflow runs, including commit `a10c8d4` (OBS-08), so the remote
-  CI criterion is now evidenced. The developer also linked the hosted Supabase project
-  and ran read-only migration-list, dry-run, and schema-diff checks. Those checks prove
-  that the legacy hosted schema differs materially from the M0 baseline; directly pushing
-  `20260728000100_m0_baseline.sql` would overlap existing objects and is prohibited until
-  a reviewed reconciliation migration and hosted RLS test exist (OBS-09). Secret
-  rotation/key restrictions also remain developer-controlled open evidence. Current
-  ownership and next actions are tracked in
-  `docs/m0-m1-progress-2026-07-29.md`.
-- **M1: partial; not complete.** The tested feasibility-report workspace, DEC-21
-  engineering contract, and bounded exact-polygon CDSE pilot runner exist. Two
-  developer-supplied padi-labeled polygons pass structural validation, but remain private
-  and unverified for crop identity, boundary fidelity, consent, and representativeness.
-  The live preflight correctly refused to run because no CDSE OAuth client was configured.
-  No live CDSE response, 12-month provider acquisition, measured PU consumption, per-site
-  measured report, or cadence determination exists; therefore M1 has not passed and M2
-  may not start (OBS-06/07). GitHub CI and hosted-schema inspection are M0 evidence, not
-  M1 satellite-study completion.
+- **M0: current local/hosted gates pass; current remote CI and external credential
+  confirmation remain.**
+  Lint, type-check, fixture-only tests, protected backend routes, disabled-by-default
+  Gemini, clean DB reset/reapply, pgTAP, generated types, placeholder Expo config, and
+  two earlier green remote `Verify` runs pass (OBS-02/08). The linked hosted project was audited,
+  reconciled with an incremental migration, and re-audited: 48 field rows remain, the
+  tested compatibility defects are zero, all operational tables have RLS enabled,
+  `lahan_with_info` uses `security_invoker`, hosted pgTAP passes 10/10, and migration
+  history is synchronized (OBS-10). Because this unit changes code, migrations, tests,
+  and the workflow, it needs a new green `Verify` run after push; the earlier runs do not
+  cover this delta. Formal M0 closure also requires the developer's platform-side
+  confirmation that historically exposed server credentials were revoked or absent and
+  Google Maps keys are restricted as specified in § 5.3 of `project-architecture.md`;
+  no secret values belong in this evidence.
+- **M1: provider-backed limited study complete; representative-study gate not complete.**
+  A valid CDSE OAuth client, CDSE endpoints, exact-polygon UTM metre grids, versioned SCL
+  masking, separate NDVI/NDMI pixel accounting, bounded retry, and request/PU accounting
+  are proven for `hi` and `sszs` (OBS-11). A checkpointed 12-month run completed 24/24
+  field-months and 72 successful calls (OBS-12). This is real-provider `prototype`
+  evidence, but the two same-area polygons are not a representative Indonesian
+  multi-region sample; crop identity/boundary/consent are unverified, wet/dry
+  stratification and HYP-03 approval are absent, and no cadence is licensed. M1 has not
+  passed, so M2 may not start.
 
 ---
 

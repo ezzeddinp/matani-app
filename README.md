@@ -17,17 +17,18 @@ Where things stand today:
 
 - The satellite path remains a **non-provenance-safe prototype**. Fixture fallback and the fully synthetic detail analysis are now visibly labeled in the UI, but they are still not measurements and are still scheduled for replacement in M2. The exact as-built wording lives only in [`.agent/project-architecture.md` § 2 (Current measurement provenance)](.agent/project-architecture.md).
 - **No `measured` data exists yet.** Nothing is persisted with provenance.
-- The **M0 foundation is implemented locally but not yet declared gate-complete**:
-  provider routes require a Supabase token, bounded/rate-limited requests precede quota
-  admission, Gemini defaults off, and two developer-confirmed remote `Verify` runs are
-  green (OBS-08). Read-only hosted Supabase inspection found that the legacy schema
-  differs from the M0 baseline, so direct baseline push is blocked pending a reviewed
-  reconciliation and hosted RLS test (OBS-09).
-- **M1 is partial:** the tested study calculator, engineering contract, and bounded
-  exact-polygon CDSE pilot runner exist. Two private padi-labeled candidate polygons pass
-  structural validation, but the live preflight stopped before network access because no
-  CDSE OAuth client is configured. No measured 12-month report or cadence determination
-  exists (OBS-06).
+- The **M0 technical foundation passes locally and on the linked hosted Supabase
+  project**. Earlier reported GitHub Actions runs were green, but the current delta needs
+  its own green run after push. The hosted legacy schema was reconciled through
+  an incremental migration; compatibility audits, RLS, `security_invoker`, migration
+  history, and hosted pgTAP pass (OBS-08/10). Formal M0 closure also needs
+  platform-side confirmation of historical credential revocation and Google Maps key
+  restrictions.
+- **M1 is partial with real provider evidence:** CDSE OAuth, exact-polygon UTM-grid
+  requests, SCL masking, separate NDVI/NDMI pixel counts, and a checkpointed 12-month
+  run completed for `hi` and `sszs` (OBS-11/12). Those two same-area, unverified
+  candidates do not satisfy representative Indonesian sampling, season stratification,
+  or HYP-03 approval, so the output remains `prototype` and cadence is withheld.
 - Team ownership, completed evidence, and remaining M0/M1 gates are tracked in
   [`docs/m0-m1-progress-2026-07-29.md`](docs/m0-m1-progress-2026-07-29.md).
 - What _is_ real: interactive polygon field capture persisted to Supabase (PostGIS), area computation, weather, and education content.
@@ -41,7 +42,9 @@ The roadmap to a real, persisted, provenance-complete pipeline runs across miles
 - **Backend** — Express 5 (Node), colocated in [`backend/`](backend/), deployed on Vercel; the runtime and TypeScript entrypoints expose the same three routes. Satellite, weather, and Gemini data calls use this boundary; mapping/place-search/display services remain client presentation integrations (ADR-10 / DEC-20).
 - **Data & auth** — Supabase: Auth, Postgres, PostGIS, Row Level Security.
 - **Maps** — Google Maps (`react-native-maps`) for polygon field drawing.
-- **Satellite** — Sentinel-2 L2A via Sentinel Hub Statistical API semantics. Target provider: Copernicus Data Space Ecosystem (migration from the commercial host is decided, not yet done).
+- **Satellite** — Sentinel-2 L2A via CDSE Sentinel Hub Statistical API. Provider
+  endpoint/OAuth migration is applied; the persisted production measurement pipeline
+  remains M2.
 - **Weather** — Open-Meteo (target default; AccuWeather is the as-built primary, being dropped).
 - **AI advisory** — optional, env-configured Google Gemini summary, disabled by default.
 

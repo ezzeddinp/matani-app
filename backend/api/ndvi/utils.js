@@ -3,6 +3,8 @@ import fetch from "node-fetch";
 import { getSentinelToken } from "../../sentinelAuth.js";
 
 const router = Router();
+const DEFAULT_CDSE_STATISTICS_URL =
+  "https://sh.dataspace.copernicus.eu/statistics/v1";
 
 const NDVI_NDMI_EVALSCRIPT = [
   "//VERSION=3",
@@ -83,8 +85,7 @@ router.get("/", async (req, res) => {
     console.log("📊 Request body:", JSON.stringify(requestBody, null, 2));
 
     const response = await fetch(
-      process.env.SENTINEL_STATISTICS_URL ||
-        "https://services.sentinel-hub.com/api/v1/statistics",
+      process.env.SENTINEL_STATISTICS_URL || DEFAULT_CDSE_STATISTICS_URL,
       {
         method: "POST",
         headers: {

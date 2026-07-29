@@ -3,7 +3,7 @@
 **Document type:** Research protocol
 **Audience:** The developer, thesis advisor, reviewers, and AI agents working in this repo
 **Status:** Active — draft pending advisor review
-**Updated:** 2026-07-28
+**Updated:** 2026-07-29
 **Canonical for:** Research questions, hypotheses, methodology, and validity of the Sentinel-2 NDVI/NDMI monitoring evaluation, and the thesis paper's system-evaluation track (§ 16)
 **Companion documents:** [`evidence-register.md`](evidence-register.md), [`data-evaluation-plan.md`](data-evaluation-plan.md), [`project-architecture.md`](project-architecture.md), [`implementation-plan.md`](implementation-plan.md), [`product-requirements.md`](product-requirements.md)
 
@@ -124,18 +124,22 @@ A **bounded 12-month retrospective availability study** over the representative 
 
 The **defensible product monitoring cadence** — weekly / biweekly / monthly / event-based — stated **per location and per season**, possibly differing across sites. This outcome, and only this outcome, licenses any cadence claim elsewhere in the repo (product-requirements.md, product-brief.md). Until it exists, cadence is stated as *unknown / to be determined by the feasibility study*. The mechanics of running the study (queries, batching, PU budgeting, persistence) are specified in [`data-evaluation-plan.md`](data-evaluation-plan.md); this section owns the *research requirement* and its forbidden-until-supported constraint.
 
-**Execution status (2026-07-28).** The tested calculation workspace and input/output
+**Execution status (2026-07-29).** The tested calculation workspace and input/output
 contract exist under `research/`, and a labeled fixture run proves the report can be
-generated deterministically (CODE; OBS-03). A separately enabled Node pilot runner now
-constructs bounded exact-polygon CDSE Statistical API requests for polygon quality,
-10 m NDVI, and 20 m NDMI, and its contract tests pass. Two developer-supplied,
-padi-labeled polygons passed structural validation and are retained only in a gitignored
-private input. Their crop identity, boundary fidelity, consent, and representativeness
-remain unverified. The 2026-07-28 live preflight stopped before network access because
-no CDSE OAuth credentials were configured; therefore no representative-site acquisition,
-measured feasibility report, or cadence determination exists. A fixture row, dry-run
-request, successful HTTP response, or nominal revisit cannot satisfy this section.
-(OBS-06.)
+generated deterministically (OBS-03). A developer-controlled CDSE OAuth client then
+enabled a bounded exact-polygon pilot and a checkpointed 2025-07-01 → 2026-07-01
+retrospective acquisition for the two private, padi-labeled polygons. Stored WGS84
+geometry was projected to a local UTM metre grid; SCL masking, separate 10 m NDVI and
+20 m NDMI counts, request/PU accounting, retry, and checkpoint/resume were exercised
+against live provider responses (OBS-11/12).
+
+This is a **limited provider-backed prototype study**, not the representative study
+required by this section. Both polygons are in one area; crop identity, boundary
+fidelity, consent, and representativeness remain unverified; wet/dry-season
+stratification and an advisor-approved HYP-03 threshold are absent. Consequently the
+descriptive gaps in OBS-12 do not license a monitoring cadence, and M1 remains open.
+A fixture row, dry-run request, successful HTTP response, nominal revisit, or these two
+unverified polygons alone cannot satisfy this section.
 
 ---
 

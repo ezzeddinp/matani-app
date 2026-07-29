@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import proj4 from "proj4";
 
 export const CDSE_TOKEN_URL =
   "https://identity.dataspace.copernicus.eu/auth/realms/CDSE/protocol/openid-connect/token";
@@ -8,8 +9,8 @@ export const CRS84 =
   "http://www.opengis.net/def/crs/OGC/1.3/CRS84";
 
 export const PILOT_VERSIONS = Object.freeze({
-  algorithm: "ndvi-ndmi-pilot-v1",
-  evalscript: "s2l2a-statistics-pilot-v1",
+  algorithm: "ndvi-ndmi-pilot-v3",
+  evalscript: "s2l2a-statistics-pilot-v3",
   masking: "s2l2a-scl-rice-pilot-v1",
 });
 
@@ -31,15 +32,33 @@ const INDEX_DEFINITIONS = Object.freeze({
   },
 });
 
-const orientation = (a, b, c) =>
-  Math.sign((b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]));
+const ORIENTATION_EPSILON = 1e-12;
+const orientation = (a, b, c) => {
+  const cross =
+    (b[0] - a[0]) * (c[1] - a[1]) -
+    (b[1] - a[1]) * (c[0] - a[0]);
+  return Math.abs(cross) <= ORIENTATION_EPSILON ? 0 : Math.sign(cross);
+};
+
+const pointOnSegment = (point, start, end) =>
+  orientation(start, end, point) === 0 &&
+  point[0] >= Math.min(start[0], end[0]) &&
+  point[0] <= Math.max(start[0], end[0]) &&
+  point[1] >= Math.min(start[1], end[1]) &&
+  point[1] <= Math.max(start[1], end[1]);
 
 const segmentsCross = (a, b, c, d) => {
   const o1 = orientation(a, b, c);
   const o2 = orientation(a, b, d);
   const o3 = orientation(c, d, a);
   const o4 = orientation(c, d, b);
-  return o1 !== o2 && o3 !== o4;
+  if (o1 * o2 < 0 && o3 * o4 < 0) return true;
+  return (
+    (o1 === 0 && pointOnSegment(c, a, b)) ||
+    (o2 === 0 && pointOnSegment(d, a, b)) ||
+    (o3 === 0 && pointOnSegment(a, c, d)) ||
+    (o4 === 0 && pointOnSegment(b, c, d))
+  );
 };
 
 export const validatePilotGeometry = (geometry) => {
@@ -74,7 +93,6 @@ export const validatePilotGeometry = (geometry) => {
   }
   const unique = new Set(ring.slice(0, -1).map((point) => point.join(",")));
   if (unique.size < 3) throw new Error("polygon-is-degenerate");
-
   const segmentCount = ring.length - 1;
   for (let left = 0; left < segmentCount; left += 1) {
     for (let right = left + 1; right < segmentCount; right += 1) {
@@ -93,6 +111,18 @@ export const validatePilotGeometry = (geometry) => {
         throw new Error("polygon-self-intersects");
       }
     }
+  }
+  const signedDoubleArea = ring
+    .slice(0, -1)
+    .reduce(
+      (sum, point, index) =>
+        sum +
+        point[0] * ring[index + 1][1] -
+        ring[index + 1][0] * point[1],
+      0,
+    );
+  if (Math.abs(signedDoubleArea) <= ORIENTATION_EPSILON) {
+    throw new Error("polygon-is-degenerate");
   }
   return geometry;
 };
@@ -124,6 +154,49 @@ export const geometryHash = (geometry) => {
   return crypto.createHash("sha256").update(payload).digest("hex");
 };
 
+const meanCoordinate = (ring, index) =>
+  ring.slice(0, -1).reduce((sum, coordinate) => sum + coordinate[index], 0) /
+  (ring.length - 1);
+
+export const projectGeometryToLocalUtm = (geometry) => {
+  const ring = validatePilotGeometry(geometry).coordinates[0];
+  const longitude = meanCoordinate(ring, 0);
+  const latitude = meanCoordinate(ring, 1);
+  if (latitude < -80 || latitude > 84) {
+    throw new Error("polygon-outside-utm-latitude-range");
+  }
+
+  const zone = Math.min(60, Math.max(1, Math.floor((longitude + 180) / 6) + 1));
+  const south = latitude < 0;
+  const epsg = (south ? 32700 : 32600) + zone;
+  const definition = [
+    "+proj=utm",
+    `+zone=${zone}`,
+    south ? "+south" : "",
+    "+datum=WGS84",
+    "+units=m",
+    "+no_defs",
+    "+type=crs",
+  ]
+    .filter(Boolean)
+    .join(" ");
+  const projectedRing = ring.map((coordinate) =>
+    proj4("EPSG:4326", definition, coordinate),
+  );
+
+  return {
+    geometry: {
+      type: "Polygon",
+      coordinates: [projectedRing],
+    },
+    source_crs: CRS84,
+    processing_crs: `http://www.opengis.net/def/crs/EPSG/0/${epsg}`,
+    epsg,
+    zone,
+    hemisphere: south ? "south" : "north",
+  };
+};
+
 const indexEvalscript = (index) => {
   const definition = INDEX_DEFINITIONS[index];
   if (!definition) throw new Error(`unsupported-index-${index}`);
@@ -132,14 +205,16 @@ const indexEvalscript = (index) => {
     "function setup() {",
     "  return {",
     `    input: [{ bands: ${JSON.stringify(definition.bands)} }],`,
-    `    output: [{ id: "${index}", bands: 1, sampleType: "FLOAT32" }, { id: "dataMask", bands: 1 }]`,
+    `    output: [{ id: "${index}", bands: 1, sampleType: "FLOAT32" }, { id: "coverage", bands: 1, sampleType: "UINT8" }, { id: "dataMask", bands: ["${index}", "coverage"] }]`,
     "  };",
     "}",
     "function evaluatePixel(sample) {",
     `  const excluded = ${JSON.stringify(MASKED_SCL)}.includes(sample.SCL);`,
     `  const denominator = ${index === "ndvi" ? "sample.B08 + sample.B04" : "sample.B08 + sample.B11"};`,
     `  const value = denominator === 0 ? 0 : ${definition.formula};`,
-    `  return { ${index}: [value], dataMask: [sample.dataMask && !excluded ? 1 : 0] };`,
+    "  const sourceMask = sample.dataMask ? 1 : 0;",
+    "  const indexMask = sourceMask && !excluded && denominator !== 0 ? 1 : 0;",
+    `  return { ${index}: [value], coverage: [1], dataMask: [indexMask, sourceMask] };`,
     "}",
   ].join("\n");
 };
@@ -150,7 +225,7 @@ const qualityEvalscript = () =>
     "function setup() {",
     "  return {",
     '    input: [{ bands: ["SCL", "dataMask"] }],',
-    '    output: [{ id: "quality", bands: [{ name: "cloudShadow" }, { name: "invalid" }], sampleType: "FLOAT32" }, { id: "dataMask", bands: 1 }]',
+    '    output: [{ id: "quality", bands: ["cloudShadow", "invalid"], sampleType: "FLOAT32" }, { id: "dataMask", bands: 1 }]',
     "  };",
     "}",
     "function evaluatePixel(sample) {",
@@ -184,11 +259,12 @@ export const buildStatisticalRequest = ({
   }
   const resolution = output === "quality" ? 20 : definition.resolution;
   const resampling = output === "quality" ? "NEAREST" : definition.resampling;
+  const projection = projectGeometryToLocalUtm(geometry);
   return {
     input: {
       bounds: {
-        geometry,
-        properties: { crs: CRS84 },
+        geometry: projection.geometry,
+        properties: { crs: projection.processing_crs },
       },
       data: [
         {
@@ -291,6 +367,26 @@ export const buildPreflightReport = ({ fields, from, to }) => {
 const statsForBand = (item, output, band = "B0") =>
   item?.outputs?.[output]?.bands?.[band]?.stats ?? null;
 
+const finiteNumberOrNull = (value) => {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+};
+
+const pixelAccounting = (stats) => {
+  if (!stats) return null;
+  const sampleCount = finiteNumberOrNull(stats.sampleCount);
+  const noDataCount = finiteNumberOrNull(stats.noDataCount);
+  const validPixelCount =
+    sampleCount === null || noDataCount === null
+      ? null
+      : Math.max(0, sampleCount - noDataCount);
+  return {
+    sample_count: sampleCount,
+    no_data_count: noDataCount,
+    valid_pixel_count: validPixelCount,
+  };
+};
+
 export const summarizeResponses = ({
   field,
   from,
@@ -300,6 +396,7 @@ export const summarizeResponses = ({
   ndmiResponse,
   quota,
 }) => {
+  const projection = projectGeometryToLocalUtm(field.geometry);
   const byInterval = new Map();
   const ensure = (item) => {
     const key = item.interval.from;
@@ -315,11 +412,18 @@ export const summarizeResponses = ({
 
   for (const item of qualityResponse?.data ?? []) {
     const row = ensure(item);
+    const cloudShadowStats = statsForBand(
+      item,
+      "quality",
+      "cloudShadow",
+    );
     row.geometry_pixel_count_20m = item.geometryPixelCount ?? null;
     row.polygon_cloud_shadow_fraction =
-      statsForBand(item, "quality", "cloudShadow")?.mean ?? null;
+      finiteNumberOrNull(cloudShadowStats?.mean);
     row.polygon_invalid_fraction =
-      statsForBand(item, "quality", "invalid")?.mean ?? null;
+      finiteNumberOrNull(statsForBand(item, "quality", "invalid")?.mean);
+    row.quality_source_pixel_count_20m =
+      pixelAccounting(cloudShadowStats)?.valid_pixel_count ?? null;
   }
   for (const [index, response] of [
     ["ndvi", ndviResponse],
@@ -328,20 +432,27 @@ export const summarizeResponses = ({
     for (const item of response?.data ?? []) {
       const row = ensure(item);
       const stats = statsForBand(item, index);
+      const accounting = pixelAccounting(stats);
+      const coverageAccounting = pixelAccounting(
+        statsForBand(item, "coverage"),
+      );
       row[`${index}_stats`] = stats
         ? {
-            min: stats.min,
-            max: stats.max,
-            mean: stats.mean,
-            stdev: stats.stDev,
-            sample_count: stats.sampleCount,
-            no_data_count: stats.noDataCount,
-            valid_pixel_count: Math.max(
-              0,
-              (stats.sampleCount ?? 0) - (stats.noDataCount ?? 0),
-            ),
+            min: finiteNumberOrNull(stats.min),
+            max: finiteNumberOrNull(stats.max),
+            mean: finiteNumberOrNull(stats.mean),
+            stdev: finiteNumberOrNull(stats.stDev),
+            ...accounting,
           }
         : null;
+      row[`${index}_source_pixel_count`] =
+        coverageAccounting?.valid_pixel_count ?? null;
+      row[`${index}_valid_pixel_fraction`] =
+        accounting?.valid_pixel_count !== null &&
+        coverageAccounting?.valid_pixel_count > 0
+          ? accounting.valid_pixel_count /
+            coverageAccounting.valid_pixel_count
+          : null;
       row[`geometry_pixel_count_${index === "ndvi" ? "10m" : "20m"}`] =
         item.geometryPixelCount ?? null;
     }
@@ -364,7 +475,12 @@ export const summarizeResponses = ({
     window: { from, to, aggregation: "P1D" },
     provider: "CDSE Sentinel Hub Statistical API",
     collection: "sentinel-2-l2a",
-    crs: "CRS84 / EPSG:4326 coordinates",
+    crs: {
+      stored_geometry: "CRS84 / EPSG:4326 coordinates",
+      processing_grid: `EPSG:${projection.epsg}`,
+      utm_zone: projection.zone,
+      hemisphere: projection.hemisphere,
+    },
     resolutions: { ndvi_metres: 10, ndmi_metres: 20, quality_metres: 20 },
     resampling: { method: "NEAREST", status: "pilot-provisional" },
     versions: PILOT_VERSIONS,
@@ -394,6 +510,8 @@ const responseJson = async (response, label) => {
     const error = new Error(`${label}-failed-${response.status}`);
     error.statusCode = response.status;
     error.providerBody = parsed;
+    error.retryAfterSeconds =
+      finiteNumberOrNull(response.headers.get("retry-after")) ?? null;
     throw error;
   }
   return parsed;
@@ -442,4 +560,40 @@ export const executeStatisticalRequest = async ({
     processingUnits:
       Number(response.headers.get("x-processingunits-spent")) || null,
   };
+};
+
+export const executeStatisticalRequestWithRetry = async ({
+  maxAttempts = 5,
+  sleepImpl = (milliseconds) =>
+    new Promise((resolve) => setTimeout(resolve, milliseconds)),
+  ...request
+}) => {
+  let attempt = 0;
+  while (attempt < maxAttempts) {
+    attempt += 1;
+    try {
+      const result = await executeStatisticalRequest(request);
+      return { ...result, attempts: attempt };
+    } catch (error) {
+      const retryable =
+        error?.statusCode === 429 ||
+        (error?.statusCode >= 500 && error?.statusCode <= 599);
+      if (!retryable || attempt >= maxAttempts) {
+        error.attempts = attempt;
+        throw error;
+      }
+      const providerDelay = Number(error.retryAfterSeconds) * 1000;
+      const exponentialDelay = 1000 * 2 ** (attempt - 1);
+      await sleepImpl(
+        Math.min(
+          15_000,
+          Math.max(
+            Number.isFinite(providerDelay) ? providerDelay : 0,
+            exponentialDelay,
+          ),
+        ),
+      );
+    }
+  }
+  throw new Error("unreachable-statistical-retry-state");
 };

@@ -1,6 +1,6 @@
 {
   "contractVersion": "measurement-v1",
-  "status": "M1-ready-for-M2-migration",
+  "status": "migration-ready-draft; M2 remains gated by M1 acceptance",
   "physicalSchema": {
     "strategy": "typed measurement table plus typed per-index child rows",
     "legacyTable": "lahan_health remains read-only legacy until M2 migration and backfill",
@@ -16,6 +16,23 @@
     "coordinatePrecisionDecimals": 7,
     "normalization": "close ring, round coordinates, canonicalize orientation and start vertex",
     "bufferIncluded": false
+  },
+  "processingGrid": {
+    "sourceGeometry": "validated EPSG:4326 GeoJSON Polygon",
+    "strategy": "project the exact polygon to its local UTM CRS before metre-based aggregation",
+    "crsProvenanceRequired": true,
+    "ndviResolutionMetres": 10,
+    "ndmiResolutionMetres": 20,
+    "qualityResolutionMetres": 20,
+    "bboxSubstitutionAllowed": false
+  },
+  "pixelAccounting": {
+    "perIndexRequired": true,
+    "sourcePixelCountRequired": true,
+    "validPixelCountRequired": true,
+    "validPixelFractionRequired": true,
+    "providerGeometryPixelCountNullable": true,
+    "derivedCoverageMustNotBeLabeledProviderGeometryPixelCount": true
   },
   "processingVersions": {
     "algorithm": "ndvi-ndmi-v1",

@@ -1,9 +1,9 @@
 # Matani research workspace
 
-This workspace implements the M1 retrospective-feasibility interface without making live
-provider calls during ordinary development or CI (DEC-09).
+This workspace implements the M1 retrospective-feasibility interface. Ordinary
+development and CI never call CDSE; live acquisition is always explicit (ADR-09).
 
-Run the deterministic fixture study:
+## Deterministic fixture study
 
 ```powershell
 python research/scripts/run_feasibility.py `
@@ -12,37 +12,50 @@ python research/scripts/run_feasibility.py `
   --output research/outputs/fixture-feasibility-report.json
 ```
 
-`fixture` output proves the analysis pipeline, not Indonesian monitoring cadence. A cadence
-determination is withheld unless the input is explicitly `measured`, covers the configured
-12-month window, contains only padi study fields, and passes manifest validation.
+Fixture output proves report calculation only. It cannot license Indonesian monitoring
+cadence or a `measured` claim.
 
-Live CDSE acquisition is intentionally a separate, explicitly enabled operation and is not
-implemented as a default test command. Credentials must remain in the execution environment.
+## Credential location
 
-Run the bounded exact-polygon pilot only after placing sensitive field input under the
-gitignored `research/private/` directory and exporting a CDSE OAuth client into the
-execution environment:
+The developer-standard local credential file is `backend/.env`, which is ignored by Git.
+It must contain the CDSE OAuth variables and endpoints shown in
+`backend/.env.example`:
+
+```dotenv
+SENTINEL_CLIENT_ID=...
+SENTINEL_CLIENT_SECRET=...
+SENTINEL_TOKEN_URL=https://identity.dataspace.copernicus.eu/auth/realms/CDSE/protocol/openid-connect/token
+SENTINEL_STATISTICS_URL=https://sh.dataspace.copernicus.eu/statistics/v1
+```
+
+Never commit this file or paste its values into chat, reports, screenshots, or logs.
+
+## Bounded exact-polygon pilot
+
+Keep sensitive GeoJSON input under ignored `research/private/`. Run:
 
 ```powershell
-$env:SENTINEL_CLIENT_ID = "<CDSE client id>"
-$env:SENTINEL_CLIENT_SECRET = "<CDSE client secret>"
-npm run pilot:cdse -- `
+node --env-file=backend/.env research/scripts/run-cdse-pilot.mjs `
   --input research/private/pilot-fields.geojson `
-  --output research/outputs/live-pilot.json `
+  --output research/outputs/live-pilot-2026-07-29.json `
   --from 2026-06-01T00:00:00Z `
   --to 2026-06-16T00:00:00Z `
   --allow-live
 ```
 
-The runner accepts at most two padi fields and a maximum 31-day window. It makes three
-Statistical API calls per field: polygon quality at 20 m, NDVI at 10 m, and NDMI at
-20 m. The exact GeoJSON polygon is sent; no bbox is substituted. SCL classes 0, 1, 3,
-8, 9, and 10 are excluded from index statistics, while water class 6 remains available
-for the padi-specific HYP-05 rule. Live artifacts and raw polygon inputs are ignored by
-Git. A smoke result remains `prototype` and never licenses a cadence or `measured`
-claim.
+The runner accepts one or two padi polygons and a maximum 31-day window. It validates
+the stored WGS84 polygon, projects the exact boundary to the local UTM CRS, and makes
+three Statistical API calls per field:
 
-Without credentials, the same two-field contract can be validated without network:
+- polygon quality/coverage at 20 m;
+- NDVI at 10 m;
+- NDMI at 20 m.
+
+No bbox is substituted. SCL 0, 1, 3, 8, 9, and 10 are excluded; SCL 6 (water) remains
+available under HYP-05. NDVI and NDMI source/valid counts remain separate. Geometry and
+direct identifiers are omitted from the live artifact.
+
+Without credentials, validate request construction without network:
 
 ```powershell
 npm run pilot:cdse -- `
@@ -53,6 +66,27 @@ npm run pilot:cdse -- `
   --preflight-only
 ```
 
-The preflight reports only geometry/reference hashes, exact-polygon request semantics,
-and theoretical area-to-pixel-footprint capacity. That capacity is explicitly not an
-observed valid-pixel count.
+## Checkpointed 12-month acquisition
+
+The two-field study has a hard ceiling of 72 requests and requires explicit
+acknowledgement:
+
+```powershell
+node --env-file=backend/.env research/scripts/run-cdse-availability-study.mjs `
+  --input research/private/pilot-fields.geojson `
+  --output research/outputs/live-availability-2025-07_to_2026-07.json `
+  --from 2025-07-01T00:00:00Z `
+  --to 2026-07-01T00:00:00Z `
+  --confirm-max-requests 72 `
+  --allow-live
+```
+
+The runner saves a checkpoint after each field-month, validates study identity before
+resume, throttles requests, and applies bounded retry to HTTP 429/transient 5xx failures.
+Re-running the same command resumes rather than repeats completed field-months.
+
+The 2026-07-29 run completed for `hi` and `sszs` (OBS-11/12), but remains
+provider-backed `prototype` evidence. It does not satisfy representative multi-region
+sampling, crop/boundary/consent verification, wet/dry stratification, HYP-03 approval,
+source-product identity, independent raster comparison, M2 persistence, or provenance.
+See `docs/m1-live-cdse-study-2026-07-29.md`.
