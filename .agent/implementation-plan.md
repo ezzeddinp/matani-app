@@ -3,7 +3,7 @@
 **Document type:** Implementation roadmap
 **Audience:** The developer, thesis advisor, reviewers, and AI agents working in this repo
 **Status:** Active
-**Updated:** 2026-07-28
+**Updated:** 2026-07-29
 **Canonical for:** Milestone sequencing, milestone acceptance criteria, and the definition of done for thesis engineering work
 **Companion documents:** [`project-architecture.md`](project-architecture.md), [`data-evaluation-plan.md`](data-evaluation-plan.md), [`research-protocol.md`](research-protocol.md), [`product-requirements.md`](product-requirements.md), [`evidence-register.md`](evidence-register.md), [`context-dump.md`](context-dump.md)
 
@@ -19,24 +19,30 @@ This is the canonical **order of engineering work** for the Matani thesis. Read 
 - **The documentation pass that produced this `.agent/` suite fixed nothing.** Writing these documents changed no code. The starting point for M0 is exactly the recorded debt in [`project-architecture.md`](project-architecture.md) § 7 (verification baseline) and § 5 (security risks) — a snapshot of debt, not a to-do already completed. Nothing in this repo is described as done except by linking that baseline.
 - **No milestone may violate an invariant.** INV-01…INV-09 ([`product-requirements.md`](product-requirements.md) § 1) hold at every milestone boundary. The 2026-07-27 presentation hardening closes the prior INV-01/02 defect; the labeled production fixture fallback remains an explicit **INV-06 deviation** only until M2 removes it. No new violation may be introduced.
 
-**Execution status (2026-07-28).**
+**Execution status (2026-07-29).**
 
 - **M0: foundation implemented and applicable local checks pass; milestone not formally
   complete.** Lint, type-check, fixture-only tests, protected backend routes,
   disabled-by-default Gemini, two clean DB reset/reapply cycles, 10/10 pgTAP checks,
-  generated types, and placeholder Expo config pass locally. Passing and outstanding
-  criteria are recorded in `docs/m0-m1-build-report-2026-07-28.md`. A workflow file is
-  not evidence that a remote Actions run is green; an unapplied hosted migration is not a
-  hosted security claim; and exact-polygon/acquisition-window route validation cannot be
-  claimed until the M2 measurement request exists.
+  generated types, and placeholder Expo config pass locally. The developer confirmed two
+  green remote `Verify` workflow runs, including commit `a10c8d4` (OBS-08), so the remote
+  CI criterion is now evidenced. The developer also linked the hosted Supabase project
+  and ran read-only migration-list, dry-run, and schema-diff checks. Those checks prove
+  that the legacy hosted schema differs materially from the M0 baseline; directly pushing
+  `20260728000100_m0_baseline.sql` would overlap existing objects and is prohibited until
+  a reviewed reconciliation migration and hosted RLS test exist (OBS-09). Secret
+  rotation/key restrictions also remain developer-controlled open evidence. Current
+  ownership and next actions are tracked in
+  `docs/m0-m1-progress-2026-07-29.md`.
 - **M1: partial; not complete.** The tested feasibility-report workspace, DEC-21
   engineering contract, and bounded exact-polygon CDSE pilot runner exist. Two
   developer-supplied padi-labeled polygons pass structural validation, but remain private
   and unverified for crop identity, boundary fidelity, consent, and representativeness.
   The live preflight correctly refused to run because no CDSE OAuth client was configured.
-  No 12-month provider acquisition, measured PU consumption, per-site measured report, or
-  cadence determination exists; therefore M1 has not passed and M2 may not start
-  (OBS-06).
+  No live CDSE response, 12-month provider acquisition, measured PU consumption, per-site
+  measured report, or cadence determination exists; therefore M1 has not passed and M2
+  may not start (OBS-06/07). GitHub CI and hosted-schema inspection are M0 evidence, not
+  M1 satellite-study completion.
 
 ---
 

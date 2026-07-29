@@ -3,7 +3,7 @@
 **Document type:** Architecture document
 **Audience:** The developer, thesis advisor, reviewers, and AI agents working in this repo
 **Status:** Active
-**Updated:** 2026-07-28
+**Updated:** 2026-07-29
 **Canonical for:** As-built and target architecture, **current measurement provenance (canonical wording — § 2)**, trust boundaries, provider decisions, Architecture Decision Records (ADRs), free-tier constraints, security risks, verification baseline, migration triggers
 **Companion documents:** [`evidence-register.md`](evidence-register.md), [`context-dump.md`](context-dump.md), [`data-evaluation-plan.md`](data-evaluation-plan.md), [`research-protocol.md`](research-protocol.md), [`product-requirements.md`](product-requirements.md), [`implementation-plan.md`](implementation-plan.md)
 
@@ -445,9 +445,18 @@ The M0 versioned baseline migration creates `lahan_with_info` with
 cross-user SQL tests for the base tables and view
 (`supabase/migrations/20260728000100_m0_baseline.sql`,
 `supabase/tests/0001_m0_rls.sql`, CODE). The legacy `supabase_setup.sql` remains only as
-historical input and is not the installation path. Applying the migration and tests to
-the hosted project remains a developer-controlled deployment action; until that happens,
-the hosted legacy view's owner/version is not inferred from repository code.
+historical input and is not the installation path.
+
+On 2026-07-29, the developer linked the hosted project and supplied read-only
+`migration list`, `db push --dry-run`, and `db diff --linked --schema public` output.
+The remote migration history does not contain `20260728000100`, while the hosted project
+already contains the legacy operational tables and differs materially from the baseline
+shadow schema, including the `lahan_with_info` definition and RLS-policy set (OBS-09).
+Therefore the baseline must **not** be pushed directly or merely marked applied. A
+reviewed legacy-to-M0 reconciliation must first account for existing data, constraints,
+grants, functions, view security, and policy replacement; then hosted cross-user RLS
+tests must pass. Until that work is complete, local M0 schema evidence is not a hosted
+security claim.
 
 ### 5.3 Secrets posture
 As of **2026-07-23**, `.env` and `backend/.env` are **untracked** (git-ignored) and only
@@ -518,11 +527,12 @@ vulnerabilities. The root production audit retains 11 moderate advisories solely
 Expo's transitive `xcode` → `uuid` tooling chain; npm's proposed forced resolution would
 downgrade the SDK-pinned `expo-splash-screen`, so it was not applied.
 
-**Current local verification (2026-07-28).** `npm run lint`, `npm run typecheck`,
+**Current local verification (2026-07-29).** `npm run lint`, `npm run typecheck`,
 `npm test`, and `npm run test:backend` exit 0. The runs contain 0 lint
-errors/warnings, 3 fixture-only M0 artifact tests, and 7 backend security tests covering
+errors/warnings, 3 fixture-only M0 artifact tests, 7 backend security tests covering
 auth rejection, bounds, CORS, rate limiting, Gemini-off-by-default, and concurrent
-equivalent-request rejection (OBS-02). The versioned Supabase baseline,
+equivalent-request rejection, plus 5 exact-polygon CDSE pilot tests (12 backend tests
+total; OBS-02/06). The versioned Supabase baseline,
 reset/reapply result, pgTAP result, generated DB types, and Expo placeholder-config check
 are recorded in `docs/m0-m1-build-report-2026-07-28.md`; this local evidence does not
 stand in for hosted deployment or CI-run evidence.

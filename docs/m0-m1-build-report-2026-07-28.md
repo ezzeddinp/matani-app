@@ -5,6 +5,12 @@
 and the M1 research workspace are included.  
 **Data-state rule:** the generated M1 report is `fixture`, never `measured`.
 
+> **2026-07-29 follow-up:** this file preserves the 2026-07-28 build snapshot. Remote
+> GitHub Actions and hosted Supabase inspection occurred afterward. Current ownership,
+> evidence, and remaining gates are recorded in
+> [`m0-m1-progress-2026-07-29.md`](m0-m1-progress-2026-07-29.md); its OBS-08/09 status
+> supersedes the `NOT RUN` remote rows below.
+
 ## Executive result
 
 - **The M0 foundation is implemented and its applicable local checks pass.**
@@ -29,7 +35,7 @@ and the M1 research workspace are included.
 | Gemini | A key was enough to activate the route. | `AI_SUMMARY_ENABLED` is false by default and tested. |
 | Provider configuration | Several provider endpoints were fixed in source. | Endpoint and security limits are environment-configurable; the example lists only consumed variables. |
 | Database install | `supabase_setup.sql` was duplicated and not a reliable clean migration. | Ordered migration, seed, local config, pgTAP tests, `security_invoker` view, RLS policies, triggers, geometry column, and generated TypeScript types exist under `supabase/`. The legacy file is historical input only. |
-| Verification | No complete fixture-first test/CI surface; lint had debt. | Root artifact tests, eleven backend security/provider-contract tests, three research tests, strict zero-warning lint, type-check scripts, DB scripts, and a fixture-only GitHub Actions workflow exist. |
+| Verification | No complete fixture-first test/CI surface; lint had debt. | Root artifact tests, seven backend security tests plus five CDSE pilot tests, three research tests, strict zero-warning lint, type-check scripts, DB scripts, and a fixture-only GitHub Actions workflow exist. |
 | M1 analysis | No executable retrospective report calculator. | `research/src/matani_rs/feasibility.py`, CLI, manifest, fixture input/output, and unit tests calculate the protocol's per-site metrics while withholding cadence for non-measured input. |
 | M1 contract | Physical schema, worker, geometry hash, and processing versions were open. | DEC-21/ADR-12 plus `research/contracts/measurement-contract-v1.json` and a migration-ready M2 draft close the design choices without applying M2 early. |
 
@@ -49,7 +55,7 @@ and the M1 research workspace are included.
 | Lint | PASS — 0 errors, 0 warnings |
 | TypeScript | PASS |
 | Root fixture-only tests | PASS — 3/3 |
-| Backend security/provider-contract tests | PASS — 11/11 |
+| Backend security/provider-contract tests | PASS — 12/12 (7 security + 5 CDSE pilot) |
 | Research tests | PASS — 3/3 |
 | Empty DB migration + reset/reapply | PASS — two consecutive `supabase db reset` runs |
 | RLS/view/geometry/trigger pgTAP | PASS — 10/10 |

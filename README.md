@@ -19,12 +19,17 @@ Where things stand today:
 - **No `measured` data exists yet.** Nothing is persisted with provenance.
 - The **M0 foundation is implemented locally but not yet declared gate-complete**:
   provider routes require a Supabase token, bounded/rate-limited requests precede quota
-  admission, Gemini defaults off, and versioned migrations/tests/fixture-only CI exist.
+  admission, Gemini defaults off, and two developer-confirmed remote `Verify` runs are
+  green (OBS-08). Read-only hosted Supabase inspection found that the legacy schema
+  differs from the M0 baseline, so direct baseline push is blocked pending a reviewed
+  reconciliation and hosted RLS test (OBS-09).
 - **M1 is partial:** the tested study calculator, engineering contract, and bounded
   exact-polygon CDSE pilot runner exist. Two private padi-labeled candidate polygons pass
   structural validation, but the live preflight stopped before network access because no
   CDSE OAuth client is configured. No measured 12-month report or cadence determination
   exists (OBS-06).
+- Team ownership, completed evidence, and remaining M0/M1 gates are tracked in
+  [`docs/m0-m1-progress-2026-07-29.md`](docs/m0-m1-progress-2026-07-29.md).
 - What _is_ real: interactive polygon field capture persisted to Supabase (PostGIS), area computation, weather, and education content.
 
 The roadmap to a real, persisted, provenance-complete pipeline runs across milestones **M0–M4** — see [`.agent/implementation-plan.md`](.agent/implementation-plan.md).
