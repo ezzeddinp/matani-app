@@ -38,7 +38,7 @@ select jsonb_pretty(
         select count(*)
         from public.lahan
         where category is not null
-          and lower(category) not in ('padi', 'jagung', 'kedelai', 'teh', 'kopi')
+          and lower(category) <> 'padi'
       ),
       'orphan_auth_user', (
         select count(*)

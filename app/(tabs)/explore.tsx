@@ -1,17 +1,9 @@
 import { DrawingModeIndicator } from "@/components/drawing-mode-indicator";
 import { ThemedView } from "@/components/themed-view";
-import {
-  NDVI_SEVERITY_CONFIG,
-  NDVI_UNKNOWN_CONFIG,
-  classifyNdviStatus,
-  formatNdviValue,
-  type NdviClassification,
-  type NdviClassificationKey,
-} from "@/constants/ndvi";
+import { formatNdviValue } from "@/constants/ndvi";
 import { API_BASE_CANDIDATES } from "@/hooks/config";
 import { LahanWithInfo, lahanService, supabase } from "@/hooks/supabase";
 import { authenticatedBackendFetch } from "@/utils/backend-api";
-import { computeSyntheticNdviForPolygon } from "@/utils/ndvi-simulator";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Location from "expo-location";
@@ -42,7 +34,6 @@ import {
   View,
 } from "react-native";
 import MapView, {
-  EdgePadding,
   LatLng,
   MapPressEvent,
   Marker,
@@ -52,33 +43,11 @@ import MapView, {
   Region,
 } from "react-native-maps";
 
-const LAHAN_CATEGORIES = [
-  {
-    id: "jagung",
-    label: "Jagung",
-    thumbnail: require("@/assets/foto-ladang/jagung.png"),
-  },
-  {
-    id: "padi",
-    label: "Padi",
-    thumbnail: require("@/assets/foto-ladang/padi.jpg"),
-  },
-  {
-    id: "kedelai",
-    label: "Kedelai",
-    thumbnail: require("@/assets/foto-ladang/kedelai.jpg"),
-  },
-  {
-    id: "teh",
-    label: "Teh",
-    thumbnail: require("@/assets/foto-ladang/teh.jpg"),
-  },
-  {
-    id: "kopi",
-    label: "Kopi",
-    thumbnail: require("@/assets/foto-ladang/kopi.jpg"),
-  },
-];
+const PADI_CATEGORY = {
+  id: "padi",
+  label: "Padi",
+  thumbnail: require("@/assets/foto-ladang/padi.jpg"),
+} as const;
 
 type LahanHealthRecord = {
   id: string;
@@ -118,7 +87,6 @@ type SearchSuggestion = {
 
 type LahanCard = SavedLahanItem & {
   latestHealth?: LahanHealthRecord | null | undefined;
-  classification: NdviClassification;
   centroid: LatLng | null;
   coordinateCount: number;
   locationLabel: string | null;
@@ -165,34 +133,12 @@ const FULL_MAP_HEIGHT = Math.max(
 );
 const NDVI_BBOX_PADDING = 0.0004;
 const LAHAN_PAGE_SIZE = 5;
-const DEFAULT_LAHAN_THUMBNAIL = {
-  uri: "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=900&q=80",
-} as const;
+const DEFAULT_LAHAN_THUMBNAIL = PADI_CATEGORY.thumbnail;
 const GEOCODE_CACHE_PRECISION = 4;
 const GEOCODE_RATE_LIMIT_COOLDOWN_MS = 5 * 60 * 1000;
 const RATE_LIMIT_LOG_INTERVAL_MS = 60 * 1000;
 
 let ndviFallbackWarningLogged = false;
-
-const CROP_FILTERS = ["Jagung", "Kedelai", "Kopi", "Padi", "Teh"] as const;
-
-const CROP_IMAGE_MAP: Record<string, ImageSourcePropType> = {
-  jagung: require("../../assets/foto-ladang/jagung.png"),
-  kedelai: require("../../assets/foto-ladang/kedelai.jpg"),
-  kopi: require("../../assets/foto-ladang/kopi.jpg"),
-  padi: require("../../assets/foto-ladang/padi.jpg"),
-  teh: require("../../assets/foto-ladang/teh.jpg"),
-};
-
-const FILTER_FIT_PADDING: EdgePadding = {
-  top: 100,
-  right: 100,
-  bottom: 140,
-  left: 100,
-};
-
-const normaliseCropKey = (value: string | null | undefined) =>
-  value ? value.trim().toLowerCase() : "";
 
 const ndviStatisticCache = new Map<string, NdviStatistic | null>();
 const ndviStatisticInflight = new Map<string, Promise<NdviStatistic | null>>();
@@ -310,28 +256,6 @@ const createNdviRecordFromStatistic = (
   };
 };
 
-const createSyntheticNdviRecord = (
-  lahan: SavedLahanItem
-): LahanHealthRecord | null => {
-  if (!Array.isArray(lahan.coordinates) || lahan.coordinates.length === 0)
-    return null;
-  const synthetic = computeSyntheticNdviForPolygon(
-    lahan.coordinates,
-    lahan.areaHa ?? null
-  );
-  if (!synthetic) return null;
-  const ndviScore = Number(synthetic.ndviCurrent.toFixed(2));
-  const latestHistory = synthetic.ndviHistory.at(-1);
-  return {
-    id: `ndvi-synthetic-${lahan.id}`,
-    lahan_id: lahan.id,
-    ndvi_score: ndviScore,
-    status: "fixture",
-    captured_at: latestHistory?.date?.toISOString() ?? new Date().toISOString(),
-    created_at: new Date().toISOString(),
-  };
-};
-
 const parseDateToTime = (value?: string | null) => {
   if (!value) return 0;
   const time = Date.parse(value);
@@ -345,18 +269,11 @@ const getNdviDataState = (
   const status = record.status?.trim().toLowerCase();
   if (
     status === "fixture" ||
-    status === "synthetic" ||
-    record.id.startsWith("ndvi-synthetic-")
+    status === "synthetic"
   ) {
     return "fixture";
   }
   return "prototype";
-};
-
-const applyAlphaToHex = (hex: string, alpha: number) => {
-  const normalisedAlpha = Math.max(0, Math.min(alpha, 1));
-  const alphaValue = Math.round(normalisedAlpha * 255).toString(16).padStart(2, "0");
-  return `${hex}${alphaValue}`;
 };
 
 const formatDisplayDate = (value?: string | null) => {
@@ -421,12 +338,9 @@ const isRateLimitError = (error: unknown) => {
 export default function ExploreScreen() {
   const router = useRouter();
   const fallbackUserId = process.env.EXPO_PUBLIC_SUPABASE_DEFAULT_USER_ID;
-  const [selectedFilter, setSelectedFilter] = useState<string | null>(null);
   const [drawingMode, setDrawingMode] = useState(false);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [lahanName, setLahanName] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [currentVertices, setCurrentVertices] = useState<LatLng[]>([]);
   const [pendingPolygon, setPendingPolygon] = useState<LatLng[]>([]);
   const [redoVertices, setRedoVertices] = useState<LatLng[]>([]);
@@ -546,20 +460,18 @@ export default function ExploreScreen() {
     const lines = lahanSummaryText.split(/\n+/).map((line) => line.trim()).filter(Boolean);
     return lines
       .map((line, index) => {
-        const match = /^Prioritas\s*(\d+)\s*:\s*(.*)$/i.exec(line);
+        const match = /^(?:Catatan|Prioritas)\s*(\d+)\s*:\s*(.*)$/i.exec(line);
         const priorityNumber = match ? Number.parseInt(match[1], 10) : index + 1;
-        const rawDescription = match ? match[2]?.trim() ?? "" : line.replace(/^Prioritas\s*\d+\s*:\s*/i, "").trim();
+        const rawDescription = match ? match[2]?.trim() ?? "" : line.replace(/^(?:Catatan|Prioritas)\s*\d+\s*:\s*/i, "").trim();
         const description =
           rawDescription.length > 0
             ? rawDescription
-            : line.replace(/^Prioritas\s*\d+\s*:\s*/i, "").trim() || line;
+            : line.replace(/^(?:Catatan|Prioritas)\s*\d+\s*:\s*/i, "").trim() || line;
         return { id: `${priorityNumber}-${index}`, priorityNumber, description };
       })
       .filter((item) => item.description.length > 0)
       .slice(0, 3);
   }, [lahanSummaryText]);
-
-  const filters = Array.from(CROP_FILTERS);
 
   const promptAuthSignup = useCallback(() => {
     Alert.alert(
@@ -624,7 +536,7 @@ export default function ExploreScreen() {
       if (error) throw error;
       setLahanHealth(Array.isArray(data) ? (data as LahanHealthRecord[]) : []);
     } catch (error) {
-      console.error("❌ Gagal memuat kesehatan lahan:", error);
+      console.error("Gagal memuat observasi lahan:", error);
       setLahanHealth([]);
     }
   }, []);
@@ -1063,7 +975,6 @@ export default function ExploreScreen() {
   const saveLahan = async () => {
     const trimmedName = lahanName.trim();
     if (!trimmedName) { Alert.alert("Error", "Nama lahan tidak boleh kosong"); return; }
-    if (!selectedCategory) { Alert.alert("Error", "Silakan pilih kategori tanaman"); return; }
     if (pendingPolygon.length < 3) { Alert.alert("Error", "Polygon lahan belum lengkap untuk disimpan."); return; }
     if (isSaving) return;
     const polygonToPersist = [...pendingPolygon];
@@ -1078,19 +989,15 @@ export default function ExploreScreen() {
       }
       const userId = authData?.user?.id ?? fallbackUserId;
       if (!userId) { promptAuthSignup(); setShowSaveModal(false); return; }
-      const selectedCategoryData = LAHAN_CATEGORIES.find((c) => c.id === selectedCategory);
       let categoryThumbnailUrl: string | null = null;
-      if (selectedCategoryData) {
-        try {
-          const resolvedAsset = Image.resolveAssetSource(selectedCategoryData.thumbnail);
-          categoryThumbnailUrl = resolvedAsset.uri;
-        } catch (error) {
-          console.warn("❌ Failed to resolve category thumbnail:", error);
-        }
+      try {
+        const resolvedAsset = Image.resolveAssetSource(PADI_CATEGORY.thumbnail);
+        categoryThumbnailUrl = resolvedAsset.uri;
+      } catch (error) {
+        console.warn("Gagal memuat thumbnail padi:", error);
       }
       const savedEntry = await lahanService.saveLahan(trimmedName, polygonToPersist, userId, area, {
         thumbnailUrl: categoryThumbnailUrl,
-        category: selectedCategory,
       });
       const savedArea = Number(savedEntry?.area_ha ?? area);
       const areaText = Number.isFinite(savedArea) ? savedArea.toFixed(2) : area.toFixed(2);
@@ -1101,15 +1008,14 @@ export default function ExploreScreen() {
         areaHa: savedArea,
         createdAt: savedEntry?.created_at ?? new Date().toISOString(),
         thumbnailUrl: savedEntry?.thumbnail_url ?? categoryThumbnailUrl ?? null,
-        category: savedEntry?.category ?? selectedCategory ?? null,
+        category: savedEntry?.category ?? PADI_CATEGORY.id,
       };
       setSavedLahan((prev) => {
         const filtered = prev.filter((item) => item.id !== newSavedLahan.id);
         return [...filtered, newSavedLahan];
       });
       loadSavedLahan();
-      setShowSaveModal(false); setLahanName(""); setSelectedCategory(null);
-      setShowCategoryPicker(false); clearActivePath();
+      setShowSaveModal(false); setLahanName(""); clearActivePath();
       Alert.alert("Sukses", `Lahan "${trimmedName}" berhasil disimpan!\nLuas: ${areaText} ha`);
     } catch (error: any) {
       console.error("❌ Gagal menyimpan lahan:", error);
@@ -1124,8 +1030,7 @@ export default function ExploreScreen() {
   };
 
   const handleCancelSave = () => {
-    setShowSaveModal(false); setLahanName(""); setSelectedCategory(null);
-    setShowCategoryPicker(false); clearActivePath();
+    setShowSaveModal(false); setLahanName(""); clearActivePath();
   };
 
   const lahanNameLookup = useMemo(() => {
@@ -1147,30 +1052,22 @@ export default function ExploreScreen() {
     return map;
   }, [lahanHealth]);
 
-  useEffect(() => {
-    if (savedLahan.length === 0) return;
-    const timeoutId = setTimeout(() => {
-      setNdviOverrides((prev) => {
-        const updates: Record<string, LahanHealthRecord | null | undefined> = {};
-        savedLahan.forEach((lahan) => {
-          if (prev[lahan.id] === undefined) updates[lahan.id] = createSyntheticNdviRecord(lahan) ?? null;
-        });
-        if (Object.keys(updates).length === 0) return prev;
-        return { ...prev, ...updates };
-      });
-    }, 0);
-    return () => clearTimeout(timeoutId);
-  }, [savedLahan]);
-
   const lahanCards = useMemo<LahanCard[]>(() => {
     return savedLahan.map((item) => {
       const supabaseHealth = latestHealthByLahan.get(item.id);
+      const hasObservationDate =
+        typeof supabaseHealth?.captured_at === "string" &&
+        !Number.isNaN(Date.parse(supabaseHealth.captured_at));
       const supabaseNdvi =
-        typeof supabaseHealth?.ndvi_score === "number" && Number.isFinite(supabaseHealth.ndvi_score)
+        hasObservationDate &&
+        typeof supabaseHealth?.ndvi_score === "number" &&
+        Number.isFinite(supabaseHealth.ndvi_score)
           ? supabaseHealth.ndvi_score
           : null;
       const supabaseNdmi =
-        typeof supabaseHealth?.ndmi_score === "number" && Number.isFinite(supabaseHealth.ndmi_score)
+        hasObservationDate &&
+        typeof supabaseHealth?.ndmi_score === "number" &&
+        Number.isFinite(supabaseHealth.ndmi_score)
           ? supabaseHealth.ndmi_score
           : null;
       const override = ndviOverrides[item.id];
@@ -1182,12 +1079,10 @@ export default function ExploreScreen() {
         supabaseNdvi !== null
           ? { ...supabaseHealth!, ndvi_score: supabaseNdvi, ndmi_score: supabaseNdmi ?? overrideNdmi ?? null }
           : override ?? undefined;
-      const classification = classifyNdviStatus(latestHealth?.ndvi_score ?? null, latestHealth?.status ?? null);
       const centroid = computePolygonCentroid(item.coordinates ?? []);
       return {
         ...item,
         latestHealth,
-        classification,
         centroid,
         coordinateCount: Array.isArray(item.coordinates) ? item.coordinates.length : 0,
         locationLabel: lahanLocationLabels[item.id] ?? null,
@@ -1195,69 +1090,22 @@ export default function ExploreScreen() {
     });
   }, [lahanLocationLabels, latestHealthByLahan, ndviOverrides, savedLahan]);
 
-  const lahanCardsById = useMemo(() => {
-    const map = new Map<string, LahanCard>();
-    lahanCards.forEach((card) => map.set(card.id, card));
-    return map;
-  }, [lahanCards]);
-
   const resolveLahanThumbnailSource = useCallback(
     (card: LahanCard): ImageSourcePropType => {
-      const cropKey = normaliseCropKey(card.category);
-      const asset = CROP_IMAGE_MAP[cropKey];
-      if (asset) return asset;
       if (card.thumbnailUrl) return { uri: card.thumbnailUrl };
       return DEFAULT_LAHAN_THUMBNAIL;
     },
     []
   );
 
-  const focusOnCropCategory = useCallback(
-    (categoryLabel: string) => {
-      const categoryKey = normaliseCropKey(categoryLabel);
-      if (!categoryKey) return;
-      const matches = lahanCards.filter(
-        (card) => normaliseCropKey(card.category) === categoryKey
-      );
-      if (matches.length === 0) {
-        Alert.alert(
-          "Lahan belum tersedia",
-          `Belum ada lahan dengan kategori "${categoryLabel}".`
-        );
-        return;
-      }
-      const coordinatesToFit = matches.flatMap((card) => card.coordinates ?? []);
-      const mapInstance = mapRef.current;
-      if (!mapInstance) return;
-      if (coordinatesToFit.length >= 2) {
-        mapInstance.fitToCoordinates(coordinatesToFit, { edgePadding: FILTER_FIT_PADDING, animated: true });
-        return;
-      }
-      const target = matches[0];
-      const fallbackPoint = target.centroid ?? coordinatesToFit[0] ?? null;
-      if (fallbackPoint) {
-        mapInstance.animateToRegion({
-          latitude: fallbackPoint.latitude,
-          longitude: fallbackPoint.longitude,
-          latitudeDelta: Math.max(userLocation.latitudeDelta ?? 0.02, 0.02),
-          longitudeDelta: Math.max(userLocation.longitudeDelta ?? 0.02, 0.02),
-        }, 450);
-        return;
-      }
-      Alert.alert("Lahan tidak dapat ditampilkan", "Koordinat lahan belum lengkap. Silakan perbarui polygon lahan.");
-    },
-    [lahanCards, userLocation.latitudeDelta, userLocation.longitudeDelta]
-  );
-
-  const handleSelectFilter = useCallback(
-    (label: string) => { setSelectedFilter(label); focusOnCropCategory(label); },
-    [focusOnCropCategory]
-  );
-
   const lahanSummaryPayload = useMemo(() => {
     if (lahanCards.length === 0) return null;
     let totalArea = 0, ndviSum = 0, ndviCount = 0, latestTimestamp = 0;
-    const classificationBreakdown: Record<string, number> = {};
+    const dataStateBreakdown: Record<NdviDataState, number> = {
+      fixture: 0,
+      prototype: 0,
+      unavailable: 0,
+    };
     const cardsPayload = lahanCards.map((card) => {
       if (typeof card.areaHa === "number" && Number.isFinite(card.areaHa)) totalArea += card.areaHa;
       const ndviScore =
@@ -1269,21 +1117,19 @@ export default function ExploreScreen() {
           ? Number(card.latestHealth.ndmi_score.toFixed(2))
           : null;
       if (ndviScore !== null) { ndviSum += ndviScore; ndviCount += 1; }
-      const timestamp = parseDateToTime(card.latestHealth?.captured_at ?? card.createdAt);
+      const timestamp = parseDateToTime(card.latestHealth?.captured_at ?? null);
       if (timestamp > latestTimestamp) latestTimestamp = timestamp;
-      const statusTitle = card.classification.title;
-      classificationBreakdown[statusTitle] = (classificationBreakdown[statusTitle] ?? 0) + 1;
+      const dataState = getNdviDataState(card.latestHealth);
+      dataStateBreakdown[dataState] += 1;
       return {
         id: card.id,
         name: card.name,
-        dataState: getNdviDataState(card.latestHealth),
+        dataState,
         areaHa: typeof card.areaHa === "number" && Number.isFinite(card.areaHa) ? Number(card.areaHa.toFixed(2)) : null,
         ndviScore,
         ndmiScore,
-        ndviStatus: card.classification.title,
-        ndviKey: card.classification.key,
         coordinateCount: card.coordinateCount,
-        capturedAt: card.latestHealth?.captured_at ?? card.createdAt ?? null,
+        capturedAt: card.latestHealth?.captured_at ?? null,
         locationLabel: card.locationLabel,
       };
     });
@@ -1293,7 +1139,7 @@ export default function ExploreScreen() {
         lahanCount: cardsPayload.length,
         totalAreaHa: Number(totalArea.toFixed(2)),
         averageNdvi: ndviCount > 0 ? Number((ndviSum / ndviCount).toFixed(2)) : null,
-        classificationBreakdown,
+        dataStateBreakdown,
         latestDataTimestamp: latestTimestamp ? new Date(latestTimestamp).toISOString() : null,
       },
     };
@@ -1326,14 +1172,6 @@ export default function ExploreScreen() {
   const handleNextLahanPage = useCallback(() => setLahanPage((prev) => Math.min(prev + 1, Math.max(totalLahanPages - 1, 0))), [totalLahanPages]);
   const isPrevLahanDisabled = lahanPage <= 0;
   const isNextLahanDisabled = totalLahanPages === 0 || lahanPage >= Math.max(totalLahanPages - 1, 0);
-
-  const lahanHealthSummary = useMemo(() => {
-    const seed = NDVI_SEVERITY_CONFIG.reduce(
-      (acc, item) => { acc[item.key] = 0; return acc; },
-      { unknown: 0 } as Record<NdviClassificationKey, number>
-    );
-    return lahanCards.reduce((acc, card) => { acc[card.classification.key] += 1; return acc; }, seed);
-  }, [lahanCards]);
 
   const fetchLahanSummary = useCallback(
     async (forceRefresh = false) => {
@@ -1424,8 +1262,17 @@ export default function ExploreScreen() {
     const lahanWithoutHealth = savedLahan.filter((item) => {
       if (!item.coordinates || item.coordinates.length < 3) return false;
       const supabaseHealth = latestHealthByLahan.get(item.id);
-      const hasNdvi = typeof supabaseHealth?.ndvi_score === "number" && Number.isFinite(supabaseHealth.ndvi_score);
-      const hasNdmi = typeof supabaseHealth?.ndmi_score === "number" && Number.isFinite(supabaseHealth.ndmi_score);
+      const hasObservationDate =
+        typeof supabaseHealth?.captured_at === "string" &&
+        !Number.isNaN(Date.parse(supabaseHealth.captured_at));
+      const hasNdvi =
+        hasObservationDate &&
+        typeof supabaseHealth?.ndvi_score === "number" &&
+        Number.isFinite(supabaseHealth.ndvi_score);
+      const hasNdmi =
+        hasObservationDate &&
+        typeof supabaseHealth?.ndmi_score === "number" &&
+        Number.isFinite(supabaseHealth.ndmi_score);
       const isFetching = ndviFetchingMap[item.id];
       const hasAttempted = ndviFetchAttemptedRef.current[item.id];
       return (!hasNdvi || !hasNdmi) && !isFetching && !hasAttempted;
@@ -1435,7 +1282,7 @@ export default function ExploreScreen() {
       ndviFetchAttemptedRef.current[lahan.id] = true;
       const bbox = getBoundingBoxFromCoordinates(lahan.coordinates);
       if (!bbox) {
-        setNdviOverrides((prev) => ({ ...prev, [lahan.id]: createSyntheticNdviRecord(lahan) ?? null }));
+        setNdviOverrides((prev) => ({ ...prev, [lahan.id]: null }));
         return;
       }
       setNdviFetchingMap((prev) => ({ ...prev, [lahan.id]: true }));
@@ -1443,13 +1290,12 @@ export default function ExploreScreen() {
         .then((stat) => {
           if (isCancelled) return;
           const recordFromApi = createNdviRecordFromStatistic(lahan.id, stat);
-          const fallbackRecord = recordFromApi ?? createSyntheticNdviRecord(lahan);
-          setNdviOverrides((prev) => ({ ...prev, [lahan.id]: fallbackRecord ?? null }));
+          setNdviOverrides((prev) => ({ ...prev, [lahan.id]: recordFromApi }));
         })
         .catch((error) => {
           if (isCancelled) return;
-          console.error(`❌ Gagal memproses NDVI lahan ${lahan.id}:`, error);
-          setNdviOverrides((prev) => ({ ...prev, [lahan.id]: createSyntheticNdviRecord(lahan) ?? null }));
+          console.error(`Gagal memproses NDVI lahan ${lahan.id}:`, error);
+          setNdviOverrides((prev) => ({ ...prev, [lahan.id]: null }));
         })
         .finally(() => {
           if (isCancelled) return;
@@ -1737,9 +1583,8 @@ export default function ExploreScreen() {
                 const labelIndex = Math.floor(item.coordinates.length / 2);
                 const labelCoordinate = item.coordinates[labelIndex] ?? item.coordinates[0];
                 const paletteColor = getLahanColor(item.id);
-                const cardInfo = lahanCardsById.get(item.id);
-                const strokeColor = cardInfo?.classification.color ?? paletteColor.stroke;
-                const fillColor = cardInfo?.classification.background ?? paletteColor.fill;
+                const strokeColor = paletteColor.stroke;
+                const fillColor = paletteColor.fill;
                 return (
                   <React.Fragment key={`saved-${item.id}`}>
                     <Polygon coordinates={item.coordinates} fillColor={fillColor} strokeColor={strokeColor} strokeWidth={3} tappable={false} />
@@ -1828,39 +1673,6 @@ export default function ExploreScreen() {
               </View>
             )}
           </View>
-
-          {/* ── CROP FILTERS ── */}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.filterScroll}
-            contentContainerStyle={styles.filterContainer}
-          >
-            {filters.map((filter, index) => (
-              <TouchableOpacity
-                key={filter}
-                style={[styles.filterButton, index === filters.length - 1 && styles.filterButtonLast, selectedFilter === filter && styles.activeFilterButton]}
-                onPress={() => handleSelectFilter(filter)}
-              >
-                {selectedFilter === filter ? (
-                  <LinearGradient
-                    colors={["#0E5229", "#166534"]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.filterButtonGradient}
-                  >
-                    <Ionicons name="leaf" size={13} color="#86EFAC" style={{ marginRight: 5 }} />
-                    <Text style={styles.activeFilterText}>{filter}</Text>
-                  </LinearGradient>
-                ) : (
-                  <>
-                    <Ionicons name="leaf-outline" size={13} color="#6B7280" style={{ marginRight: 5 }} />
-                    <Text style={styles.filterText}>{filter}</Text>
-                  </>
-                )}
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
 
           {/* ── DRAWING INSTRUCTION BANNER ── */}
           {drawingMode && (
@@ -1978,14 +1790,7 @@ export default function ExploreScreen() {
                     onPress={() =>
                       router.push({
                         pathname: "/detail-lahan-page",
-                        params: {
-                          id: card.id,
-                          ndviKey: card.classification.key,
-                          ndviScore:
-                            card.latestHealth?.ndvi_score !== undefined && card.latestHealth?.ndvi_score !== null
-                              ? String(card.latestHealth.ndvi_score)
-                              : undefined,
-                        },
+                        params: { id: card.id },
                       })
                     }
                   >
@@ -2003,8 +1808,8 @@ export default function ExploreScreen() {
                           end={{ x: 0, y: 1 }}
                           style={styles.lahanCardThumbnailOverlay}
                         >
-                          <View style={[styles.lahanCardBadgeOverlay, { backgroundColor: card.classification.color }]}>
-                            <Text style={styles.lahanCardBadgeOverlayText}>{card.classification.title}</Text>
+                          <View style={[styles.lahanCardBadgeOverlay, { backgroundColor: "#075985" }]}>
+                            <Text style={styles.lahanCardBadgeOverlayText}>Deret waktu</Text>
                           </View>
                         </LinearGradient>
                       </ImageBackground>
@@ -2021,12 +1826,12 @@ export default function ExploreScreen() {
                             <Ionicons name="resize-outline" size={12} color="#166534" />
                             <Text style={styles.lahanCardInfoText}>{formatHa(card.areaHa)}</Text>
                           </View>
-                          {card.category && (
-                            <View style={styles.lahanCardInfoItem}>
-                              <Ionicons name="leaf-outline" size={12} color="#166534" />
-                              <Text style={styles.lahanCardInfoText}>{card.category}</Text>
-                            </View>
-                          )}
+                          <View style={styles.lahanCardInfoItem}>
+                            <Ionicons name="leaf-outline" size={12} color="#166534" />
+                            <Text style={styles.lahanCardInfoText}>
+                              {card.category === "padi" ? "Padi" : "Scope lama"}
+                            </Text>
+                          </View>
                           <View style={styles.lahanCardInfoItem}>
                             <Ionicons name="location-outline" size={12} color="#166534" />
                             <Text style={styles.lahanCardInfoText}>{card.coordinateCount} titik</Text>
@@ -2034,26 +1839,26 @@ export default function ExploreScreen() {
                         </View>
 
                         {card.latestHealth?.ndvi_score !== undefined && card.latestHealth?.ndvi_score !== null ? (
-                          <View style={[styles.lahanCardNdviContainer, { backgroundColor: card.classification.background || "rgba(16,185,129,0.08)", borderColor: `${card.classification.color}30` }]}>
+                          <View style={[styles.lahanCardNdviContainer, { backgroundColor: "#EFF6FF", borderColor: "#BFDBFE" }]}>
                             <View style={styles.lahanCardNdviHeader}>
-                              <View style={[styles.lahanCardNdviDot, { backgroundColor: card.classification.color }]} />
-                              <Text style={[styles.lahanCardNdviLabel, { color: card.classification.color }]}>
-                                NDVI · {NDVI_DATA_STATE_META[getNdviDataState(card.latestHealth)].label}
+                              <View style={[styles.lahanCardNdviDot, { backgroundColor: "#0284C7" }]} />
+                              <Text style={[styles.lahanCardNdviLabel, { color: "#075985" }]}>
+                                Rekaman terbaru · {NDVI_DATA_STATE_META[getNdviDataState(card.latestHealth)].label}
                               </Text>
                               {getNdviDataState(card.latestHealth) === "prototype" && card.latestHealth?.captured_at && (
-                                <Text style={[styles.lahanCardNdviDate, { color: card.classification.color }]}>
+                                <Text style={[styles.lahanCardNdviDate, { color: "#075985" }]}>
                                   · {formatDisplayDate(card.latestHealth.captured_at)}
                                 </Text>
                               )}
                             </View>
                             <View style={styles.lahanCardNdviValueRow}>
-                              <Text style={[styles.lahanCardNdviValue, { color: card.classification.color }]}>
-                                {formatNdviValue(card.latestHealth.ndvi_score)}
+                              <Text style={[styles.lahanCardNdviValue, { color: "#075985" }]}>
+                                NDVI {formatNdviValue(card.latestHealth.ndvi_score)}
                               </Text>
                               {typeof card.latestHealth?.ndmi_score === "number" && Number.isFinite(card.latestHealth.ndmi_score) && (
                                 <View style={styles.lahanCardNdmiChip}>
-                                  <Ionicons name="water-outline" size={11} color={card.classification.color} />
-                                  <Text style={[styles.lahanCardNdmiText, { color: card.classification.color }]}>
+                                  <Ionicons name="water-outline" size={11} color="#0369A1" />
+                                  <Text style={[styles.lahanCardNdmiText, { color: "#0369A1" }]}>
                                     NDMI {formatNdviValue(card.latestHealth.ndmi_score)}
                                   </Text>
                                 </View>
@@ -2066,7 +1871,7 @@ export default function ExploreScreen() {
                         ) : (
                           <View style={styles.lahanCardNdviEmptyContainer}>
                             <Ionicons name="cloud-offline-outline" size={16} color="#9CA3AF" />
-                            <Text style={styles.lahanCardNdviEmptyText}>NDVI tidak tersedia</Text>
+                            <Text style={styles.lahanCardNdviEmptyText}>Observasi belum tersedia</Text>
                           </View>
                         )}
 
@@ -2145,7 +1950,7 @@ export default function ExploreScreen() {
                         style={[styles.aiRefreshButton, (isLahanSummaryLoading || savedLahan.length === 0) && styles.aiRefreshButtonDisabled]}
                         disabled={isLahanSummaryLoading || savedLahan.length === 0}
                         onPress={handleRefreshSummary}
-                        accessibilityLabel="Ringkaskan kondisi lahan"
+                        accessibilityLabel="Perbarui ringkasan observasi"
                       >
                         {isLahanSummaryLoading ? (
                           <ActivityIndicator size="small" color="#86EFAC" />
@@ -2162,14 +1967,14 @@ export default function ExploreScreen() {
                       style={[styles.aiAnalyzeButton, (isLahanSummaryLoading || savedLahan.length === 0) && styles.aiRefreshButtonDisabled]}
                       disabled={isLahanSummaryLoading || savedLahan.length === 0}
                       onPress={handleRefreshSummary}
-                      accessibilityLabel="Mulai analisis lahan"
+                      accessibilityLabel="Ringkas observasi lahan"
                     >
                       {isLahanSummaryLoading ? (
                         <ActivityIndicator size="small" color="#0A2B15" />
                       ) : (
                         <>
                           <Ionicons name="analytics-outline" size={14} color="#0A2B15" />
-                          <Text style={styles.aiAnalyzeText}>Analisis Sekarang</Text>
+                          <Text style={styles.aiAnalyzeText}>Ringkas Data</Text>
                         </>
                       )}
                     </TouchableOpacity>
@@ -2211,12 +2016,15 @@ export default function ExploreScreen() {
                   <View style={styles.aiPrioritiesContainer}>
                     {lahanSummaryPriorities.length > 0 ? (
                       lahanSummaryPriorities.map((item, index) => {
-                        const cfg =
-                          item.priorityNumber === 1
-                            ? { bg: "rgba(239,68,68,0.12)", border: "rgba(239,68,68,0.3)", icon: "flame" as const, iconColor: "#F87171", badgeBg: "rgba(239,68,68,0.2)", badgeText: "#FCA5A5", label: "Prioritas Utama" }
-                            : item.priorityNumber === 2
-                            ? { bg: "rgba(249,115,22,0.12)", border: "rgba(249,115,22,0.3)", icon: "alert-circle" as const, iconColor: "#FB923C", badgeBg: "rgba(249,115,22,0.2)", badgeText: "#FDBA74", label: "Perlu Perhatian" }
-                            : { bg: "rgba(74,222,128,0.08)", border: "rgba(74,222,128,0.2)", icon: "information-circle" as const, iconColor: "#4ADE80", badgeBg: "rgba(74,222,128,0.15)", badgeText: "#86EFAC", label: "Tindak Lanjut" };
+                        const cfg = {
+                          bg: "rgba(14,165,233,0.08)",
+                          border: "rgba(14,165,233,0.24)",
+                          icon: "information-circle" as const,
+                          iconColor: "#7DD3FC",
+                          badgeBg: "rgba(14,165,233,0.16)",
+                          badgeText: "#BAE6FD",
+                          label: `Catatan ${item.priorityNumber}`,
+                        };
 
                         return (
                           <View key={item.id} style={[styles.aiPriorityCard, { backgroundColor: cfg.bg, borderColor: cfg.border }]}>
@@ -2239,55 +2047,12 @@ export default function ExploreScreen() {
                 <View style={styles.aiEmptyState}>
                   <Ionicons name="analytics-outline" size={28} color="#166534" />
                   <Text style={styles.aiEmptyText}>
-                    Ringkasan AI bersifat opsional. Input NDVI/NDMI saat ini masih
-                    prototipe atau simulasi, bukan pengukuran maupun diagnosis.
+                    Ringkasan AI bersifat opsional dan hanya merangkum nilai, tanggal,
+                    serta status data. Matani tidak menghasilkan diagnosis.
                   </Text>
                 </View>
               )}
             </LinearGradient>
-          </View>
-
-          {/* ── STATUS KESEHATAN ── */}
-          <View style={styles.sectionContainer}>
-            <View style={styles.sectionTitleRow}>
-              <View style={styles.sectionTitleIcon}>
-                <Ionicons name="pulse-outline" size={18} color="#166534" />
-              </View>
-              <Text style={styles.sectionTitle}>
-                Interpretasi NDVI Prototipe (HYP-04)
-              </Text>
-            </View>
-            <View style={styles.healthLegendGrid}>
-              {NDVI_SEVERITY_CONFIG.map((item) => (
-                <View
-                  key={`legend-${item.key}`}
-                  style={[styles.healthLegendItem, { backgroundColor: item.background ?? applyAlphaToHex(item.color, 0.1), borderColor: `${item.color}25` }]}
-                >
-                  <View style={[styles.healthLegendColorBar, { backgroundColor: item.color }]} />
-                  <View style={styles.healthLegendCopy}>
-                    <Text style={[styles.healthLegendTitle, { color: item.color }]}>{item.title}</Text>
-                    <Text style={[styles.healthLegendRange, { color: `${item.color}AA` }]}>NDVI {item.range}</Text>
-                    <Text style={styles.healthLegendDescription}>{item.description}</Text>
-                  </View>
-                  <View style={[styles.healthLegendCountBadge, { backgroundColor: `${item.color}18`, borderColor: `${item.color}30` }]}>
-                    <Text style={[styles.healthLegendCount, { color: item.color }]}>{lahanHealthSummary[item.key]}</Text>
-                    <Text style={[styles.healthLegendCountLabel, { color: `${item.color}90` }]}>lahan</Text>
-                  </View>
-                </View>
-              ))}
-              <View style={[styles.healthLegendItem, { backgroundColor: NDVI_UNKNOWN_CONFIG.background, borderColor: `${NDVI_UNKNOWN_CONFIG.color}25` }]}>
-                <View style={[styles.healthLegendColorBar, { backgroundColor: NDVI_UNKNOWN_CONFIG.color }]} />
-                <View style={styles.healthLegendCopy}>
-                  <Text style={[styles.healthLegendTitle, { color: NDVI_UNKNOWN_CONFIG.color }]}>{NDVI_UNKNOWN_CONFIG.title}</Text>
-                  <Text style={[styles.healthLegendRange, { color: `${NDVI_UNKNOWN_CONFIG.color}AA` }]}>NDVI {NDVI_UNKNOWN_CONFIG.range}</Text>
-                  <Text style={styles.healthLegendDescription}>{NDVI_UNKNOWN_CONFIG.description}</Text>
-                </View>
-                <View style={[styles.healthLegendCountBadge, { backgroundColor: `${NDVI_UNKNOWN_CONFIG.color}18`, borderColor: `${NDVI_UNKNOWN_CONFIG.color}30` }]}>
-                  <Text style={[styles.healthLegendCount, { color: NDVI_UNKNOWN_CONFIG.color }]}>{lahanHealthSummary.unknown}</Text>
-                  <Text style={[styles.healthLegendCountLabel, { color: `${NDVI_UNKNOWN_CONFIG.color}90` }]}>lahan</Text>
-                </View>
-              </View>
-            </View>
           </View>
 
           {/* ── CATATAN ── */}
@@ -2382,39 +2147,20 @@ export default function ExploreScreen() {
                   <Text style={styles.inputLabel}>Nama Lahan</Text>
                   <TextInput
                     style={styles.textInput}
-                    placeholder="Contoh: Lahan Jagung Blok A"
+                    placeholder="Contoh: Sawah Blok A"
                     placeholderTextColor="#9CA3AF"
                     value={lahanName}
                     onChangeText={setLahanName}
                   />
 
-                  <Text style={styles.inputLabel}>Kategori Tanaman</Text>
-                  <TouchableOpacity style={styles.categoryPickerButton} onPress={() => setShowCategoryPicker((prev) => !prev)}>
+                  <Text style={styles.inputLabel}>Tanaman</Text>
+                  <View style={styles.categoryPickerButton}>
                     <Ionicons name="leaf-outline" size={16} color="#166534" style={{ marginRight: 8 }} />
-                    <Text style={[styles.categoryPickerLabel, !selectedCategory && { color: "#9CA3AF" }]}>
-                      {selectedCategory ? LAHAN_CATEGORIES.find((c) => c.id === selectedCategory)?.label : "Pilih kategori tanaman"}
+                    <Text style={styles.categoryPickerLabel}>
+                      Padi
                     </Text>
-                    <Ionicons name={showCategoryPicker ? "chevron-up" : "chevron-down"} size={18} color="#166534" />
-                  </TouchableOpacity>
-
-                  {showCategoryPicker && (
-                    <View style={styles.categoryPickerDropdown}>
-                      <ScrollView style={{ maxHeight: 180 }} keyboardShouldPersistTaps="handled">
-                        {LAHAN_CATEGORIES.map((category) => (
-                          <TouchableOpacity
-                            key={category.id}
-                            style={[styles.categoryPickerOption, selectedCategory === category.id && styles.categoryPickerOptionActive]}
-                            onPress={() => { setSelectedCategory(category.id); setShowCategoryPicker(false); }}
-                          >
-                            <Text style={[styles.categoryPickerOptionText, selectedCategory === category.id && styles.categoryPickerOptionTextActive]}>
-                              {category.label}
-                            </Text>
-                            {selectedCategory === category.id && <Ionicons name="checkmark-circle" size={18} color="#166534" />}
-                          </TouchableOpacity>
-                        ))}
-                      </ScrollView>
-                    </View>
-                  )}
+                    <Ionicons name="lock-closed-outline" size={16} color="#166534" />
+                  </View>
 
                   <View style={styles.modalButtons}>
                     <TouchableOpacity style={styles.modalCancelButton} onPress={handleCancelSave}>
@@ -3456,36 +3202,6 @@ const styles = StyleSheet.create({
   aiPriorityBadgeText: { fontSize: 10, fontWeight: "800", letterSpacing: 0.5 },
   aiPriorityText: { fontSize: 13.5, color: "#D1FAE5", lineHeight: 21, fontWeight: "500" },
   aiFallbackText: { fontSize: 13.5, color: "#D1FAE5", lineHeight: 21 },
-
-  // ── HEALTH LEGEND ──
-  healthLegendGrid: { gap: 8 },
-  healthLegendItem: {
-    borderRadius: 12,
-    padding: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    borderWidth: 1,
-    gap: 10,
-  },
-  healthLegendColorBar: {
-    width: 4,
-    height: 40,
-    borderRadius: 4,
-  },
-  healthLegendCopy: { flex: 1 },
-  healthLegendTitle: { fontSize: 13, fontWeight: "800" },
-  healthLegendRange: { fontSize: 11, fontWeight: "700", marginTop: 2 },
-  healthLegendDescription: { fontSize: 11, color: "#6B7280", marginTop: 1 },
-  healthLegendCountBadge: {
-    alignItems: "center",
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 10,
-    borderWidth: 1,
-    minWidth: 40,
-  },
-  healthLegendCount: { fontSize: 18, fontWeight: "800" },
-  healthLegendCountLabel: { fontSize: 9, fontWeight: "600", letterSpacing: 0.5 },
 
   // ── NOTES ──
   notesHeaderContent: { flexDirection: "row", alignItems: "center", flex: 1, gap: 12 },

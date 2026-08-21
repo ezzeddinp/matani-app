@@ -1,7 +1,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = public, extensions, pg_catalog;
-select plan(10);
+select plan(11);
 
 insert into auth.users (id, email, raw_app_meta_data, raw_user_meta_data, aud, role)
 values
@@ -41,6 +41,12 @@ select throws_ok(
   '42501',
   null,
   'cannot insert another user field'
+);
+select throws_ok(
+  $$insert into public.lahan (user_id, name, category, geom) values ('00000000-0000-4000-8000-000000000001', 'non-rice', 'jagung', st_geomfromtext('POLYGON((106 -6,106.001 -6,106.001 -6.001,106 -6.001,106 -6))', 4326))$$,
+  '23514',
+  null,
+  'padi-only scope rejects non-rice categories'
 );
 select throws_ok(
   $$insert into public.lahan_notes (user_id, lahan_id, title, content) values ('00000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000002', 'forbidden', 'fixture')$$,

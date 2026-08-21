@@ -47,11 +47,11 @@ const buildLahanSummaryPrompt = (cards, totals) => {
       const ndmi = card.ndmiScore === null || card.ndmiScore === undefined ? "-" : card.ndmiScore;
       const area = card.areaHa === null || card.areaHa === undefined ? "-" : card.areaHa;
       const location = card.locationLabel ? ` | Lokasi: ${card.locationLabel}` : "";
-      return `${index + 1}. ${card.name} | Status data: ${card.dataState} | Interpretasi NDVI: ${card.ndviStatus} | Nilai NDVI: ${ndvi} | Nilai NDMI: ${ndmi} | Luas: ${area} ha | Titik: ${card.coordinateCount}${location}`;
+      return `${index + 1}. ${card.name} | Status data: ${card.dataState} | Nilai NDVI: ${ndvi} | Nilai NDMI: ${ndmi} | Luas: ${area} ha | Titik polygon: ${card.coordinateCount} | Tanggal rekaman: ${card.capturedAt ?? "-"}${location}`;
     })
     .join("\n");
 
-  const distributionEntries = Object.entries(totals.classificationBreakdown || {}).map(
+  const distributionEntries = Object.entries(totals.dataStateBreakdown || {}).map(
     ([label, count]) => `${label}: ${count} lahan`
   );
 
@@ -63,13 +63,13 @@ const buildLahanSummaryPrompt = (cards, totals) => {
 Jumlah lahan: ${totals.lahanCount}
 Total luas: ${totals.totalAreaHa ?? "-"} ha
 Rata-rata nilai NDVI input: ${totals.averageNdvi ?? "-"}
-Distribusi status: ${distributionEntries.join(", ") || "-"}
+Distribusi status data: ${distributionEntries.join(", ") || "-"}
 Timestamp input terbaru (bukan otomatis tanggal akuisisi satelit): ${recencyLabel}
 
 Detail setiap lahan:
 ${lines}
 
-Buat ringkasan maksimal 3 poin dengan format "Prioritas X:" (mulai dari Prioritas 1 sebagai tindakan paling mendesak) untuk menjelaskan input yang tersedia dan saran verifikasi lapangan. Gunakan bahasa Indonesia yang ramah petani.`;
+Buat tepat 3 catatan dengan format "Catatan X:". Rangkum cakupan rekaman, kebaruan tanggal, dan kekosongan data. Jangan menilai kesehatan tanaman atau memberi saran agronomis.`;
 };
 
 router.post("/summary", async (req, res) => {
@@ -101,7 +101,6 @@ router.post("/summary", async (req, res) => {
       areaHa: normaliseNumber(card?.areaHa),
       ndviScore: normaliseNumber(card?.ndviScore),
       ndmiScore: normaliseNumber(card?.ndmiScore),
-      ndviStatus: card?.ndviStatus ?? "Belum Ada Status",
       dataState: ["fixture", "prototype", "measured", "unavailable"].includes(
         card?.dataState
       )
@@ -116,7 +115,7 @@ router.post("/summary", async (req, res) => {
       lahanCount: totals?.lahanCount ?? normalisedCards.length,
       totalAreaHa: normaliseNumber(totals?.totalAreaHa),
       averageNdvi: normaliseNumber(totals?.averageNdvi),
-      classificationBreakdown: totals?.classificationBreakdown ?? {},
+      dataStateBreakdown: totals?.dataStateBreakdown ?? {},
       latestDataTimestamp: totals?.latestDataTimestamp ?? null,
     };
 
@@ -134,27 +133,25 @@ router.post("/summary", async (req, res) => {
       .filter(Boolean)
       .map((model) => model.replace(/^models\//i, ""));
 
-  const systemInstruction = `Kamu adalah layanan ringkasan informasi prototipe Matani. Tugasmu adalah merangkum input yang diberikan tanpa mengubah fixture atau data prototipe menjadi pengukuran, diagnosis, atau ground truth.
+  const systemInstruction = `Kamu adalah layanan ringkasan data prototipe Matani. Tugasmu hanya merangkum nilai, tanggal, cakupan, dan status data tanpa membuat interpretasi agronomis.
 Jawab selalu dalam bahasa Indonesia yang ramah.
-Berikan ringkasan dalam persis 3 poin yang sudah diurutkan dari prioritas tertinggi ke terendah.
-Setiap poin WAJIB diawali dengan "Prioritas X:" (contoh: "Prioritas 1:") dan jelaskan alasan singkat serta tindak lanjut yang disarankan.
-Masukkan langkah yang paling berdampak di poin pertama, kemudian dukung dengan tindak lanjut penting lainnya.
+Berikan ringkasan dalam persis 3 poin.
+Setiap poin WAJIB diawali dengan "Catatan X:" (contoh: "Catatan 1:").
 Jangan menyertakan kode, tabel, atau format selain daftar poin.
 **perhatian**:
 - Sebutkan secara jelas jika input berstatus fixture, prototype, atau unavailable.
 - Jangan menyebut fixture/prototype sebagai pengukuran satelit atau observasi lapangan.
-- Jangan mendiagnosis hama, penyakit, stres, hasil panen, atau kondisi agronomis.
-- Jangan memberi instruksi aplikasi pestisida, fungisida, atau pupuk; arahkan pengguna untuk verifikasi lapangan dan konsultasi ahli.
-- minimal 3-4 kalimat pada device mobile!.
-- singkat & jelas.
-- pastikan jawaban tiap prioritas singkat dan sangat memberikan rekomendasi bagi para petani maupun pemilik lahan
-- Jangan gunakan format selain "Prioritas X:" untuk setiap poin.
-- tidak usah menggunakan kata pengantar/pembuka pembahasan seperti "tentu saja, mari kita bedah data lahan agar lebih mudah dipahami dan ditindaklanjuti", dll.
+- Jangan mendiagnosis atau memperkirakan kesehatan, hama, penyakit, stres, hasil panen, dan kondisi agronomis.
+- Jangan memberi rekomendasi budidaya atau penggunaan pestisida, fungisida, maupun pupuk.
+- Jangan menyimpulkan bahwa kenaikan atau penurunan indeks berarti kondisi tanaman membaik atau memburuk.
+- Gunakan kalimat singkat dan jelas.
+- Jangan gunakan format selain "Catatan X:" untuk setiap poin.
+- Jangan gunakan kata pengantar.
 - Jangan buat lebih dari atau kurang dari 3 poin.
 - Jangan gunakan emoji.
 - Gunakan bahasa Indonesia yang ramah petani.
 - Hindari istilah teknis yang rumit.
-Berikut adalah data ringkasan lahan yang perlu kamu analisis:
+Berikut adalah data rekaman lahan yang perlu kamu rangkum:
 ${userPrompt}`;
 
 
@@ -189,7 +186,7 @@ ${userPrompt}`;
       };
 
       try {
-        console.log(`🤖 Requesting Gemini summary using model ${modelName}`);
+        console.info("ai_provider_request", { model: modelName });
         const response = await fetch(endpoint, {
           method: "POST",
           headers: {
@@ -199,9 +196,12 @@ ${userPrompt}`;
         });
 
         if (!response.ok) {
-          const errorPayload = await response.text();
-          console.error(`❌ Gemini responded with ${response.status} for model ${modelName}:`, errorPayload);
-          lastError = new Error(errorPayload || `Gemini request failed with status ${response.status}`);
+          await response.text();
+          console.error("ai_provider_failed", {
+            model: modelName,
+            status: response.status,
+          });
+          lastError = new Error(`Gemini request failed with status ${response.status}`);
           if (response.status === 404 || response.status === 400) {
             continue;
           }
@@ -222,7 +222,10 @@ ${userPrompt}`;
 
         lastError = new Error("Gemini returned empty response");
       } catch (modelError) {
-        console.error(`❌ Gemini request failed for model ${modelName}:`, modelError);
+        console.error("ai_provider_failed", {
+          model: modelName,
+          name: modelError instanceof Error ? modelError.name : "UnknownError",
+        });
         lastError = modelError;
         continue;
       }
@@ -235,7 +238,9 @@ ${userPrompt}`;
     const formattedSummary = formatSummaryOutput(summaryText);
     res.json({ summary: formattedSummary });
   } catch (error) {
-    console.error("❌ Gemini summary error:", error);
+    console.error("ai_summary_failed", {
+      name: error instanceof Error ? error.name : "UnknownError",
+    });
     res.status(500).json({ error: "ai_provider_unavailable" });
   }
 });

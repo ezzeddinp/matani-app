@@ -3,7 +3,7 @@
 **Document type:** Architecture document
 **Audience:** The developer, thesis advisor, reviewers, and AI agents working in this repo
 **Status:** Active
-**Updated:** 2026-07-29
+**Updated:** 2026-08-21
 **Canonical for:** As-built and target architecture, **current measurement provenance (canonical wording — § 2)**, trust boundaries, provider decisions, Architecture Decision Records (ADRs), free-tier constraints, security risks, verification baseline, migration triggers
 **Companion documents:** [`evidence-register.md`](evidence-register.md), [`context-dump.md`](context-dump.md), [`data-evaluation-plan.md`](data-evaluation-plan.md), [`research-protocol.md`](research-protocol.md), [`product-requirements.md`](product-requirements.md), [`implementation-plan.md`](implementation-plan.md)
 
@@ -18,9 +18,10 @@ built, and why**. Read it this way:
   satellite pipeline actually does. Every other document links here with a short gloss
   and must never re-copy or soften the canonical paragraph. If a claim about "measured"
   vs "synthetic" NDVI appears elsewhere, it defers to § 2.
-- **Repository facts are cited to `file:line`** against commit
-  `d131c941bf0a260626324454825f51bbdc075f63` and were re-verified while writing this
-  document. Line numbers drift as code changes; re-verify before acting on a citation.
+- **Repository facts are cited to `file:line`** against the repository history and were
+  re-checked at base commit `ab5c77127666f2a914bc608d01549bb70a8ae457` during the
+  2026-08-21 audit. The audit edits themselves are an uncommitted worktree delta until
+  the developer commits them. Line numbers drift; re-verify before acting on a citation.
 - **External facts are cited by `EVID-*` / `OBS-*`** (see [`evidence-register.md`](evidence-register.md));
   **decisions by `DEC-*`** (see [`context-dump.md`](context-dump.md)). This document does
   not restate the underlying quota/coverage numbers — it references the ID.
@@ -81,7 +82,7 @@ Express 5.2, TypeScript 7, Node types 26, and `module` / `moduleResolution` set 
 | Endpoint | File | Upstream | Request flow (as-built) |
 |----------|------|----------|--------------------------|
 | `GET /ndvi` | `backend/api/ndvi/utils.js` | Sentinel Hub Statistical API | Parses `?bbox=w,s,e,n` (`utils.js:31-46`), defaults to a **Jakarta bbox** when absent (`utils.js:49`); fetches an OAuth token (`sentinelAuth.js`), POSTs a Statistics request with a **fixed Sept 2025 window** and the NDVI/NDMI evalscript, returns per-interval NDVI/NDMI stats or `{error:"No data available"}`. |
-| `GET /weather` | `backend/api/weather/route.js` | AccuWeather → Open-Meteo fallback | Requires `?lat&lon` (`route.js:101-104`); if `ACCUWEATHER_API_KEY` is set, does geoposition→current→5-day-forecast against AccuWeather (`route.js:6,106-206`); on any missing key/failure/exception falls back to Open-Meteo (`route.js:7,90-99,108,121,133,152,162,209`). |
+| `GET /weather` | `backend/api/weather/route.js` | Open-Meteo | Requires `?lat&lon`; requests current and daily weather including WMO weather codes, maps the response into the stable mobile contract, and returns a sanitized `weather_provider_unavailable` error on failure. Coordinates and raw provider payloads are not logged. |
 | `POST /ai/summary` | `backend/api/ai/route.js` | Google Gemini (Generative Language API) | Accepts `{lahanCards, totals}`, normalizes each card's data state, builds a bounded Indonesian summary prompt that forbids converting fixture/prototype inputs into measurements or diagnoses, and calls Gemini with an **env-configured model** `MATANI_GEMINI_MODEL` plus an **in-code fallback candidate list**; requires `GOOGLE_GENERATIVE_AI_API_KEY` (`route.js:96-148`). |
 
 `backend/index.ts` now mirrors the runtime `backend/index.js` route mounts (`/ndvi`,
@@ -119,33 +120,30 @@ authenticates with the Supabase anon/publishable key
 
 ## 2 · Current measurement provenance
 
-> A prototype Sentinel Hub request is connected to the field-list surface, with a visibly
-> labeled synthetic fixture fallback. Results are not yet a provenance-safe, polygon-based,
-> current, persisted monitoring pipeline. The detail analysis remains synthetic and is
-> visibly labeled as a fixture demonstration.
+> A prototype Sentinel Hub request is connected to the field-list surface. When the
+> request is unavailable or unusable, the app now shows an explicit unavailable state;
+> it does not synthesize a replacement. Stored legacy `lahan_health` rows with a valid
+> `captured_at` are rendered as fixture/prototype observations in a dated NDVI/NDMI time
+> series, never as measured data, health classifications, or diagnoses. Results are not
+> yet a provenance-safe, polygon-based, current, persisted monitoring pipeline.
 
 This is **the canonical measurement-provenance wording**. All other documents link here;
 none may soften or restate it. The verified facts behind it (commit
-`d131c941` plus the 2026-07-27 presentation hardening, re-checked 2026-07-27):
+the 2026-08-21 observation-first revision, re-checked 2026-08-21):
 
-- **Field-list surface seeds synthetic data first.** On load, every saved field without an
-  override is seeded with `createSyntheticNdviRecord(lahan)` (`app/(tabs)/explore.tsx:1181`).
-- **The one live call still falls back to a synthetic fixture, but the fallback is now labeled.** When a bounding box is available,
-  the code calls `fetchNdviStatistic(bbox)` (`explore.tsx:1451`); if the API result is not
-  usable it substitutes `createSyntheticNdviRecord(lahan)`
-  (`explore.tsx:1454-1456`, `recordFromApi ?? createSyntheticNdviRecord(lahan)`), and on a
-  thrown error it does the same (`explore.tsx:1458-1462`). A missing bbox also yields a
-  synthetic record (`explore.tsx:1445-1448`). The record is tagged `fixture`
-  (`explore.tsx:320-343`) and the card displays “Simulasi demo” plus “Bukan pengukuran
-  satelit” (`explore.tsx:2050-2072`). This fixes silent presentation, not the fallback or
-  measurement pipeline.
-- **The detail screen is fully synthetic.** NDVI history on the detail page is generated
-  by `buildNdviSeries(…)` from `utils/ndvi-simulator.ts`
-  (`app/detail-lahan-page.tsx:166`, imported at `detail-lahan-page.tsx:30-35`). No live
-  request runs on this screen at all. A fixture banner now states that the graph, dates,
-  harvest estimate, risks, and recommendations are synthetic and not measurements,
-  observations, diagnoses, or validated agronomic advice
-  (`detail-lahan-page.tsx:710-723`).
+- **There is no synthetic value substitution.** A missing bbox, unusable provider result,
+  or request failure stores a transient `null` override and the field-list surface shows
+  an unavailable state (`app/(tabs)/explore.tsx:1276-1289`). The former simulator module
+  was deleted.
+- **The detail screen reads only dated stored rows.** It queries all owner-visible legacy
+  `lahan_health` rows for the selected field, excludes rows without a valid `captured_at`,
+  and renders raw NDVI/NDMI chronology (`app/detail-lahan-page.tsx:54,212-239`). It does
+  not generate dates or values and does not infer crop health, stress, disease, yield,
+  harvest timing, or treatment.
+- **Stored rows are not promoted to measurements.** The legacy relation lacks complete
+  acquisition, geometry, processing, mask, quality, and provider provenance. Its rows
+  remain labeled `fixture` or `prototype`; only the future M2 schema can represent a
+  provenance-complete `measured` observation (ADR-12, DEC-21).
 - **The backend request is not polygon-based or current.** `backend/api/ndvi/utils.js`
   uses a **fixed 2025-09-01 → 2025-09-05 time range** in both the data filter and
   aggregation (`utils.js:65-77`), queries a **bounding box rather than the field polygon**
@@ -158,10 +156,9 @@ none may soften or restate it. The verified facts behind it (commit
   back to `lahan_health` with provenance.
 
 **Data-state vocabulary** (per [`../AGENTS.md`](../AGENTS.md) § Vocabulary): today's
-satellite path is **prototype** (partially wired, non-provenance-safe); its fallback and
-detail history are **fixture-grade synthetic values now labeled as demonstrations**. The
-labels close the silent-presentation defect only; M2 must still remove production fixture
-substitution. **Nothing is `measured`** yet (no persisted, provenance-complete value exists).
+satellite route is **prototype** (partially wired and non-provenance-safe); known fixture
+rows remain **fixture**; failed or absent retrieval is **unavailable**. **Nothing is
+`measured`** yet because no persisted, provenance-complete value exists.
 
 ---
 
@@ -280,14 +277,14 @@ Each ADR aligns to a `DEC-*` in [`context-dump.md`](context-dump.md) and carries
   same index/QA algorithm must run in both production and research and duplicating it in JS
   is untenable. Decide via a follow-up ADR at that point.
 
-### ADR-04 · Open-Meteo becomes the default weather provider; AccuWeather dropped from target
-- **Status:** Accepted (DEC-07).
-- **Context:** As-built, AccuWeather is primary with Open-Meteo as fallback
-  (`backend/api/weather/route.js:6-7`). AccuWeather access is time-limited/free-tier;
-  weather is **not** the thesis contribution. Open-Meteo's free tier is stable but
+### ADR-04 · Open-Meteo is the weather provider; AccuWeather removed
+- **Status:** Accepted (DEC-07) and implemented on 2026-08-21.
+- **Context:** AccuWeather was formerly primary with Open-Meteo as fallback. AccuWeather
+  access was time-limited/free-tier; weather is **not** the thesis contribution.
+  Open-Meteo's free tier is stable but
   **non-commercial, rate-limited, CC BY 4.0** (EVID-021).
-- **Decision:** Make **Open-Meteo the default**; **drop AccuWeather** from the target
-  architecture.
+- **Decision:** Use **Open-Meteo only** and remove AccuWeather configuration and request
+  branches. Return WMO weather codes so the client icon mapping matches the provider.
 - **Consequences:** Removes a perishable commercial dependency and simplifies the weather
   path; obliges CC BY 4.0 attribution and the non-commercial constraint (EVID-021).
 - **Revisit trigger:** A thesis/product requirement needs data Open-Meteo does not provide,
@@ -361,11 +358,11 @@ Each ADR aligns to a `DEC-*` in [`context-dump.md`](context-dump.md) and carries
   a scoped, out-of-band run, never wired into default CI.
 
 ### ADR-10 · Provider data requests stay behind the backend boundary
-- **Status:** Accepted and applied for weather on 2026-07-27 (DEC-20).
-- **Context:** The home and weather screens duplicated a direct Open-Meteo fallback even
-  though the backend `/weather` route already owns the AccuWeather→Open-Meteo provider
-  order. That bypass contradicted the documented integration boundary and duplicated
-  provider semantics in the client.
+- **Status:** Accepted and applied for weather on 2026-07-27; provider simplification
+  applied on 2026-08-21 (DEC-20, ADR-04).
+- **Context:** The home and weather screens duplicated direct provider access even though
+  the backend `/weather` route owns the Open-Meteo contract. That bypass contradicted the
+  documented integration boundary and duplicated provider semantics in the client.
 - **Decision:** Satellite, weather, and Gemini data requests use the Matani backend.
   When the backend is unavailable, the client renders an unavailable/error state rather
   than contacting a data provider directly. Client-side mapping, place-search, avatar,
@@ -426,6 +423,25 @@ Each ADR aligns to a `DEC-*` in [`context-dump.md`](context-dump.md) and carries
   development build remains the fallback when that version no longer matches.
 - **Revisit trigger:** The thesis team standardizes on a newer Expo Go, an OS requirement
   exceeds SDK 54 support, or a required native module needs a development build.
+
+### ADR-14 · Padi-only, observation-first time-series product surface
+- **Status:** Accepted and implemented on 2026-08-21 (DEC-24); advisor acceptance of the
+  revised thesis title remains an external gate.
+- **Context:** Multi-crop product scope and rule-derived health/severity labels conflicted
+  with the rice-only evidence base and could imply diagnosis from unvalidated index
+  thresholds. Synthetic histories also obscured the distinction between demonstration
+  data and observations.
+- **Decision:** New and active fields are padi-only. Existing non-padi category text is
+  preserved in `lahan.legacy_category` while active `category` becomes null. Product
+  surfaces display dated raw NDVI/NDMI observations and explicit data state; they do not
+  classify, diagnose, predict yield, or synthesize missing values. Optional AI output is
+  restricted to descriptive summaries of supplied values, dates, coverage, and state.
+- **Consequences:** HYP-04 and HYP-06 are retired from the active thesis/product scope.
+  The legacy `lahan_health` name and schema remain historical storage only and do not
+  license health semantics. M2 still must implement exact-polygon, quality-gated,
+  provenance-complete persistence.
+- **Revisit trigger:** Advisor-approved research evidence and a new explicit decision
+  justify a separately validated interpretive layer after the time-series thesis scope.
 
 ---
 
@@ -491,7 +507,7 @@ makes § 5.2 load-bearing.
 |------------|-------|--------|-----------------|
 | Sentinel Hub `client_secret` (`SENTINEL_CLIENT_SECRET`) | Server-side secret | **Rotate** (and reissue as a CDSE OAuth client under ADR-02) | New CDSE OAuth client configured and verified 2026-07-29 (OBS-11); revocation of any historical commercial credential still requires platform-side confirmation |
 | Gemini key (`GOOGLE_GENERATIVE_AI_API_KEY`) | Server-side secret | **Rotate** | No active local backend key detected; historical revocation/rotation still requires platform-side confirmation |
-| AccuWeather key (`ACCUWEATHER_API_KEY`) | Server-side secret | **Rotate** (provider dropped in target, ADR-04) | No active usable local backend key detected; historical revocation/rotation still requires platform-side confirmation |
+| Historical AccuWeather key (`ACCUWEATHER_API_KEY`) | No longer consumed after ADR-04 implementation | **Revoke** if it ever existed or was exposed | Variable removed from the runtime and env example; platform-side revocation remains unverified |
 | Google Maps keys (iOS/Android) | Client-visible by design | **Restrict per-platform** (Android package + SHA-1 / iOS bundle ID) **and per-API**, then **monitor** usage (EVID-019) | Developer action — pending |
 | Supabase key | Publishable vs `service_role` | **Verify class**; if anon/publishable, safe only with RLS correct (EVID-020, § 5.2) | Verification — pending |
 
@@ -541,14 +557,19 @@ vulnerabilities. The root production audit retains 11 moderate advisories solely
 Expo's transitive `xcode` → `uuid` tooling chain; npm's proposed forced resolution would
 downgrade the SDK-pinned `expo-splash-screen`, so it was not applied.
 
-**Current verification (2026-07-29).** `npm run lint`, `npm run typecheck`,
-`npm test`, `npm run test:backend`, and `npm run test:research` exit 0. The runs contain
-0 lint errors/warnings, 3 fixture-only M0 artifact tests, and 16 backend tests covering
-the M0 security boundary plus exact-polygon/UTM-grid/masking/pixel-accounting/retry and
-12-month-study contracts. The versioned migrations complete a clean local reset,
-local pgTAP passes 10/10, and hosted reconciliation plus hosted pgTAP are recorded in
-OBS-10. Live-provider execution is excluded from ordinary tests and CI (ADR-09);
-OBS-11/12 are the separately enabled live evidence.
+**Current local verification (2026-08-21).** `npm run lint`, `npm run typecheck`,
+`npm run typecheck:backend`, `npm test`, and `npm run test:backend` exit 0. The runs
+contain zero lint errors/warnings, 5 fixture-only root artifact tests, and 21 backend
+tests covering the protected provider boundary, weather/NDVI route contracts, sanitized
+provider failure behavior, plus exact-polygon/UTM-grid/masking/pixel-accounting/retry and
+12-month-study contracts (OBS-13). The lint script now calls
+ESLint directly with `--no-cache`, and backend test files are excluded from the backend
+build type-check because they import the sibling research workspace. `npm run
+test:research` did not run on this workstation because Python 3 is absent; its earlier
+fixture result is historical and is not counted as current re-verification. The last
+database reset/pgTAP and hosted reconciliation evidence remains OBS-10. Current remote
+CI is not independently verified. Live-provider execution remains excluded from
+ordinary tests and CI (ADR-09); OBS-11/12 are the separately enabled live evidence.
 
 **SDK 54 compatibility verification (2026-07-28).** `npx expo install --check` reports
 dependencies up to date, `npx expo-doctor@latest` passes 18/18, public config resolves as
@@ -556,10 +577,11 @@ SDK 54, strict lint and type-check pass, and Metro exports complete for both iOS
 Android (OBS-04). These are local config/bundle observations, not proof that every
 physical iPhone has a matching Expo Go version (EVID-023).
 
-The SDK 54 production-dependency audit has 33 transitive findings and no critical
-finding (OBS-05). npm's broad suggested remediation upgrades the project back to the
-SDK 57 family, so it is not applied under DEC-22. Individual advisory remediation must
-preserve the Expo-validated matrix; `npm audit fix --force` is prohibited for this state.
+The current SDK 54 dependency audit has 22 transitive development/toolchain findings
+(12 moderate, 10 high) and no critical finding after the non-breaking audit fix
+(OBS-15). npm's broad forced remediation upgrades the project to the SDK 57 family, so
+it is not applied under DEC-22. Individual advisory remediation must preserve the
+Expo-validated matrix; `npm audit fix --force` is prohibited for this state.
 
 ---
 
@@ -571,7 +593,7 @@ matani-app/
 │  ├─ _layout.tsx           # root layout
 │  ├─ (tabs)/               # index, explore (ladang), weather, education, profile
 │  ├─ auth/                 # sign-in / sign-up screens
-│  ├─ detail-lahan-page.tsx # field detail — synthetic NDVI history (§ 2)
+│  ├─ detail-lahan-page.tsx # dated stored NDVI/NDMI time series (§ 2)
 │  ├─ detail-education-page.tsx, onboarding.tsx, notifications.tsx, splash.tsx, modal.tsx
 ├─ backend/                 # colocated Express API (Vercel), port 5001 local
 │  ├─ index.js              # process entrypoint
@@ -582,8 +604,8 @@ matani-app/
 │  └─ api/{ndvi,weather,ai} # provider proxy handlers
 ├─ components/              # shared UI components
 ├─ hooks/                   # React hooks
-├─ constants/               # ndvi.ts (severity thresholds — HYP, DEC-11), education.ts, theme.ts
-├─ utils/                   # authenticated backend client; labeled fixture simulator
+├─ constants/               # NDVI formatting, padi education, theme
+├─ utils/                   # authenticated backend client and geometry helpers
 ├─ assets/                  # images / fonts
 ├─ supabase/                # versioned migrations, seed, pgTAP tests, generated types
 ├─ research/                # tested M1 feasibility package, fixtures, contracts, outputs

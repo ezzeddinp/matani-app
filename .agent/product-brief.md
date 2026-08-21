@@ -3,7 +3,7 @@
 **Document type:** Product brief
 **Audience:** The developer, thesis advisor, reviewers, and AI agents working in this repo
 **Status:** Active
-**Updated:** 2026-07-27
+**Updated:** 2026-08-21
 **Canonical for:** The product thesis, positioning, target user, and phased scope
 **Companion documents:** [`product-requirements.md`](product-requirements.md), [`project-architecture.md`](project-architecture.md), [`research-protocol.md`](research-protocol.md), [`evidence-register.md`](evidence-register.md), [`context-dump.md`](context-dump.md), [`implementation-plan.md`](implementation-plan.md)
 
@@ -23,9 +23,9 @@ Where this brief and a more canonical companion disagree, the companion wins (se
 
 ## 1 · One-sentence pitch
 
-Matani is a mobile decision support application for Indonesian smallholder **rice** farming — the thesis deliverable (DEC-14) — that lets farmers map their fields and, once the measurement pipeline is built, receive provenance-safe Sentinel-2 NDVI/NDMI observations, weather-based risk classification, and optional advisory support, structured by the thesis paper's GROW workflow (Gather → Recognize → Offer → Warn). Thesis scope is rice; the app's five crop categories remain product scope (DEC-15).
+Matani is a padi-only mobile decision support application for Indonesian smallholders that lets users map fields and inspect dated Sentinel-2 NDVI/NDMI values as a time series, together with weather context and field notes, without converting index values into crop-health diagnoses (DEC-24). The thesis evaluation asks whether provenance-safe observations can be delivered reliably for small tropical rice fields; GROW remains the paper-defined workflow framing (DEC-14).
 
-The qualifier is load-bearing. Today the satellite path is a **prototype**, not a working measurement pipeline; its exact behavior is described only by the canonical wording in [`project-architecture.md`](project-architecture.md) § Current measurement provenance. One-line summary: a prototype Sentinel Hub request still substitutes a visibly labeled synthetic fixture, and the detail analysis is also labeled synthetic — see that section for the precise, non-softened statement.
+The qualifier is load-bearing. Today the satellite path is a **prototype**, not a working measurement pipeline; its exact behavior is described only by the canonical wording in [`project-architecture.md`](project-architecture.md) § Current measurement provenance. The synthetic fallback and synthetic detail analysis were removed by DEC-24, but the production request remains bbox-based, fixed-window, transient, and non-provenance-safe.
 
 ---
 
@@ -47,10 +47,10 @@ The product problem is therefore also the thesis question: **can accessible, hon
 Matani is a field-first mobile app. The core loop, as built:
 
 1. **Draw the field polygon** on the map — the actual field boundary, not a bounding box.
-2. **Pick the crop** from the five supported categories: padi (rice), jagung (maize), kedelai (soybean), teh (tea), kopi (coffee).
-3. **View the field**: status card, local weather, education content, and an optional AI advisory surface.
+2. **Register the field as padi**; there is no multi-crop selector (DEC-24).
+3. **View the field over time**: dated NDVI/NDMI records, local weather, notes, education content, and an optional non-diagnostic data summary.
 
-What the loop captures today is real: polygon geometry is persisted to Supabase (PostGIS), area is computed, weather and education surfaces work. What it does **not** yet have is a trustworthy satellite measurement — the status card is a **prototype** with a labeled synthetic fixture fallback (§ 1).
+What the loop captures today is real: polygon geometry is persisted to Supabase (PostGIS), area is computed, weather and education surfaces work, and the detail screen reads stored dated legacy rows. What it does **not** yet have is a trustworthy satellite measurement writer; stored legacy rows remain fixture/prototype, while a transient provider response remains a prototype snapshot.
 
 The target adds two things the prototype lacks: **persisted, provenance-complete measurements** — every NDVI/NDMI value carrying its acquisition date, valid-pixel accounting, and masking rule-set version — and **honest unavailable states** that admit absence rather than papering over it with synthesized data.
 
@@ -67,17 +67,17 @@ Throughout, the app distinguishes four data states (per [`../AGENTS.md`](../AGEN
 
 | Phase | In scope | Provenance / references |
 |-------|----------|-------------------------|
-| **[As-built hackathon]** | Interactive polygon field drawing persisted to Supabase; Supabase auth with Row Level Security; a **prototype** Sentinel Hub satellite request with a **labeled synthetic fixture fallback** (one-line summary in § 1; canonical wording in architecture § Current measurement provenance); weather; education articles; optional AI advisory. The fixture-fallback history — seeded synthetic records, bbox-not-polygon queries, a fixed date window — is recorded historically. | DEC-03; RLS client-safety conditional on EVID-020; history in [`context-dump.md`](context-dump.md) § 2 |
-| **[Thesis]** | The rice-focused DSS as described in the thesis paper (DEC-14, DEC-15, DEC-19) — GROW workflow, NDVI/NDMI condition display, weather risk classification (HYP-07), advisory surfaces — plus the M0–M3 outcomes that make it defensible: **M0** verification & security foundation (secrets hygiene, RLS, fixture-first testing); **M1** the Indonesia feasibility study (12-month retrospective availability analysis that determines defensible cadence); **M2** a real, persisted, **provenance-complete** measurement pipeline replacing the labeled fixture fallback with measured values and honest unavailable states; **M3** research validation against the protocol's metrics and the paper's system-evaluation track ([`research-protocol.md`](research-protocol.md) § 16). | DEC-14/DEC-15/DEC-19; DEC-12 (feasibility precedes pipeline); DEC-09; roadmap in [`implementation-plan.md`](implementation-plan.md); methodology in [`research-protocol.md`](research-protocol.md) |
+| **[As-built]** | Interactive padi-field polygon capture persisted to Supabase; owner-scoped auth/RLS; a transient bbox/fixed-window satellite prototype; latest-value cards; a detail timeline that reads stored legacy rows without classification or diagnosis; weather; notes; education; optional non-diagnostic AI data summary. Provider/no-data failure renders unavailable rather than synthetic replacement. | DEC-03/20/24; RLS client-safety conditional on EVID-020; canonical behavior in [`project-architecture.md`](project-architecture.md) |
+| **[Thesis]** | The padi-only observation-first DSS (DEC-14/24) — GROW workflow, dated NDVI/NDMI time-series display, weather context, and non-diagnostic summaries — plus M0–M3 outcomes: **M0** verification/security; **M1** representative Indonesia availability study; **M2** persisted provenance-complete measurement pipeline; **M3** research and system evaluation. | DEC-12/14/24; DEC-09; roadmap in [`implementation-plan.md`](implementation-plan.md); methodology in [`research-protocol.md`](research-protocol.md) |
 | **[Post-thesis]** | Product hardening (**M4**); Sentinel-1 (SAR) as a cloud-independent contingency **only via a separate scope decision** (SAR measures backscatter, not the NDVI/NDMI reflectance this thesis evaluates — EVID-017); programme / partner exploration. | [`context-dump.md`](context-dump.md) § 6; EVID-017 |
-| **[OUT]** | **No silent synthetic data, ever again** — synthesized values are never presented as measured. **No cadence promises** ahead of the feasibility study (nominal revisit EVID-006 ≠ usable cadence). **No crop-health "diagnosis"** claims from the unvalidated as-built severity thresholds (HYP-04). **No Gemini as ground truth** or research label. **No paid-provider dependence** in the default architecture. **No claim of thesis-readiness today.** | DEC-10; DEC-12; HYP-04 / DEC-11; DEC-08; DEC-04 & DEC-07; [`../AGENTS.md`](../AGENTS.md) honesty constraints |
+| **[OUT]** | No synthetic substitution, cadence promise before M1, NDVI severity/health classification, agronomic diagnosis, Gemini ground truth/research labels, paid-provider dependence in the target default, or present thesis-readiness claim. | DEC-08/10/12/24; DEC-04/07; [`../AGENTS.md`](../AGENTS.md) honesty constraints |
 
 ---
 
 ## 5 · Target users
 
 - **Primary — the thesis team as researchers (DEC-17).** The thesis deliverable is the rice DSS, and its evaluation backbone is the measurement evaluation (DEC-14); Matani is first an instrument for producing and validating provenance-complete observations. The primary "user" of the measurement pipeline is the research itself.
-- **Secondary — Indonesian smallholder rice farmers** (thesis scope; DEC-15). The app's five crop categories (padi, jagung, kedelai, teh, kopi) remain its product design audience, and sub-0.5-ha fields (EVID-013) are the population the whole evaluation is built around.
+- **Secondary — Indonesian smallholder rice farmers** (product and thesis scope; DEC-24). Sub-0.5-ha fields (EVID-013) are the population the evaluation is built around.
 - **Tertiary — the thesis advisor and examiners** evaluating the research on its own terms — the RQ set, methodology, and validity of the feasibility and measurement work.
 
 **Honest note on the user base.** Matani has no deployed farmer base. Anyone using the app today is a **test user**, not a served customer; the secondary users are a design audience the product is being built *toward*, not a population it currently serves.
@@ -107,6 +107,6 @@ Competitor comparison lives in the thesis paper (Table V — Open-Meteo, Sentine
 **For the product:**
 
 - **Honest UX** — no fabricated data presented as measured, at any point, on any screen.
-- A **field-usable app** that captures real field polygons and surfaces measured status, weather, and education content the farmer can act on.
+- A **field-usable app** that captures real padi-field polygons and surfaces dated measurements, weather context, notes, and education without diagnosing crop health.
 
 The thesis and the product share one bar: it is better to honestly report that monitoring does not work at a useful cadence for the smallest fields than to ship a confident number that the data does not support.

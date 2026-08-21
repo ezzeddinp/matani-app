@@ -162,47 +162,47 @@ export const EDUCATION_ARTICLES: EducationArticle[] = [
   },
   {
     id: 'stress-panas-tanaman',
-    title: 'Mengurangi Stress Panas pada Tanaman Sayuran',
-    summary: 'Teknik peneduhan, manajemen mulsa, dan pengaturan nutrisi untuk mencegah kerusakan akibat suhu tinggi.',
+    title: 'Mencatat Dampak Suhu Tinggi pada Padi',
+    summary: 'Panduan observasi lapangan dan pencatatan kondisi padi saat suhu tinggi tanpa menghasilkan diagnosis otomatis.',
     priority: 'Tinggi',
     duration: '4m',
     icon: '🌡️',
     category: 'Cuaca',
-    keywords: ['stress panas', 'shade net', 'mulsa', 'sayuran'],
+    keywords: ['suhu tinggi', 'padi', 'observasi lapangan', 'cuaca'],
     detail: {
       overview:
-        'Suhu di atas 32°C menyebabkan respirasi meningkat dan tanaman mudah layu. Memadukan peneduhan dan manajemen air menjaga turgor dan kualitas hasil.',
+        'Suhu tinggi dapat bertepatan dengan perubahan kondisi tanaman padi. Catat waktu, fase pertumbuhan, kondisi air, dan gejala yang terlihat agar pengamatan dapat dibandingkan dengan cuaca dan deret waktu indeks secara hati-hati.',
       warningSigns: [
-        'Daun menggulung pada siang hari dan pulih saat sore',
-        'Warna daun memudar atau muncul bercak kecokelatan terbakar',
-        'Tanaman berbunga prematur atau abortus bunga',
+        'Daun menggulung atau berubah warna pada waktu tertentu',
+        'Perubahan kondisi malai atau pertumbuhan yang terlihat di lapangan',
+        'Perubahan terjadi berdekatan dengan periode suhu tinggi',
       ],
       actionSteps: [
         {
-          title: 'Pasang Shade Net 35–50%',
+          title: 'Catat Waktu dan Lokasi',
           description:
-            'Gunakan paranet di atas bedengan setinggi 2 m. Pastikan sirkulasi udara tetap baik dengan ventilasi samping.',
+            'Rekam tanggal, jam, petak, fase pertumbuhan, dan kondisi yang terlihat tanpa menyimpulkan penyebab.',
         },
         {
-          title: 'Aplikasikan Mulsa Organik Tebal 5 cm',
+          title: 'Bandingkan Kondisi Air',
           description:
-            'Sebarkan jerami atau sekam padi di sekitar perakaran untuk menahan kelembapan dan menurunkan suhu tanah.',
+            'Periksa kondisi air sawah dan bandingkan dengan catatan lapangan sebelumnya.',
         },
         {
-          title: 'Semprotkan Pupuk Daun Kalium',
+          title: 'Hubungkan dengan Data Cuaca',
           description:
-            'Larutkan KNO3 5 gram/liter dan semprotkan sore hari tiap 7 hari untuk meningkatkan kekuatan jaringan.',
+            'Bandingkan catatan lapangan dengan suhu dan curah hujan pada periode yang sama.',
         },
       ],
       monitoring: [
-        'Gunakan termometer tanah untuk memastikan suhu <29°C.',
-        'Periksa kelembapan media setiap pagi dengan tensiometer atau tes genggam.',
-        'Catat respon tanaman setelah tiga hari penerapan tindakan.',
+        'Gunakan alat ukur yang tersedia dan catat satuan serta waktu pengukuran.',
+        'Ambil foto dari titik yang konsisten untuk membandingkan perubahan visual.',
+        'Mintalah penilaian ahli lapangan jika diperlukan; aplikasi tidak menentukan diagnosis.',
       ],
       recommendations: [
-        'Tanam varietas toleran panas seperti cabai Laris atau tomat Servo.',
-        'Lakukan penyiraman bertahap pada pagi dan sore untuk menghindari shock.',
-        'Tambahkan agen hayati Trichoderma untuk memperkuat perakaran.',
+        'Gunakan catatan berulang, bukan satu observasi, untuk mendokumentasikan perubahan.',
+        'Pisahkan fakta yang diamati dari dugaan penyebab dalam setiap catatan.',
+        'Konsultasikan tindakan budidaya dengan penyuluh atau ahli setempat.',
       ],
     },
   },

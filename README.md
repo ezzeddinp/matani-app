@@ -1,6 +1,6 @@
 # Matani
 
-_Mata tani_ — "the farmer's eye." Matani is a rice-focused mobile decision support application structured by the thesis team's GROW workflow. Its evaluation backbone asks whether Sentinel-2 NDVI/NDMI monitoring can be used defensibly over Indonesian smallholder fields. The Expo / React Native app is the delivery and field-interaction vehicle that captures real field polygons and, after the measurement pipeline is built, will surface provenance-safe satellite observations, weather context, rule-based classifications, and optional advisory.
+_Mata tani_ — "the farmer's eye." Matani is a padi-only mobile decision support application structured by the thesis team's GROW workflow. Its evaluation backbone asks whether Sentinel-2 NDVI/NDMI monitoring can be used defensibly over Indonesian smallholder fields. The Expo / React Native app captures field polygons and presents dated raw index observations, weather context, notes, and explicit data states without classifying or diagnosing crop health.
 
 ## Project status
 
@@ -15,7 +15,7 @@ The project distinguishes four data states, and the distinction is a product fea
 
 Where things stand today:
 
-- The satellite path remains a **non-provenance-safe prototype**. Fixture fallback and the fully synthetic detail analysis are now visibly labeled in the UI, but they are still not measurements and are still scheduled for replacement in M2. The exact as-built wording lives only in [`.agent/project-architecture.md` § 2 (Current measurement provenance)](.agent/project-architecture.md).
+- The satellite path remains a **non-provenance-safe prototype**. Missing provider data now renders unavailable, and field detail reads only dated stored fixture/prototype rows; no simulator or health classifier remains. The exact as-built wording lives only in [`.agent/project-architecture.md` § 2 (Current measurement provenance)](.agent/project-architecture.md).
 - **No `measured` data exists yet.** Nothing is persisted with provenance.
 - The **M0 technical foundation passes locally and on the linked hosted Supabase
   project**. Earlier reported GitHub Actions runs were green, but the current delta needs
@@ -45,8 +45,8 @@ The roadmap to a real, persisted, provenance-complete pipeline runs across miles
 - **Satellite** — Sentinel-2 L2A via CDSE Sentinel Hub Statistical API. Provider
   endpoint/OAuth migration is applied; the persisted production measurement pipeline
   remains M2.
-- **Weather** — Open-Meteo (target default; AccuWeather is the as-built primary, being dropped).
-- **AI advisory** — optional, env-configured Google Gemini summary, disabled by default.
+- **Weather** — Open-Meteo through the protected backend, with WMO weather-code mapping.
+- **AI data summary** — optional, env-configured Google Gemini summary, disabled by default and constrained to descriptive output.
 
 ## Getting started
 

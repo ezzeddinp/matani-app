@@ -2,9 +2,12 @@ import { Router } from "express";
 import fetch from "node-fetch";
 import { getSentinelToken } from "../../sentinelAuth.js";
 
-const router = Router();
 const DEFAULT_CDSE_STATISTICS_URL =
   "https://sh.dataspace.copernicus.eu/statistics/v1";
+const DEMONSTRATION_TIME_RANGE = {
+  from: "2025-09-01T00:00:00Z",
+  to: "2025-09-05T23:59:59Z",
+};
 
 const NDVI_NDMI_EVALSCRIPT = [
   "//VERSION=3",
@@ -25,153 +28,106 @@ const NDVI_NDMI_EVALSCRIPT = [
   "}",
 ].join("\n");
 
-router.get("/", async (req, res) => {
-  console.log("🚀 Starting NDVI request...");
+const roundStat = (value) =>
+  typeof value === "number" && Number.isFinite(value)
+    ? Math.round(value * 10000) / 10000
+    : null;
 
-  try {
-    // Ambil parameter bbox dari query string
-    const bboxParam = req.query.bbox;
-    let bbox;
+const formatEntry = (item) => {
+  const interval = item?.interval?.from?.split("T")?.[0];
+  const ndvi = item?.outputs?.ndvi?.bands?.B0?.stats;
+  const ndmi = item?.outputs?.ndmi?.bands?.B0?.stats;
+  if (!interval || !ndvi) return null;
 
-    if (bboxParam) {
-      // Parse bbox dari parameter
-      bbox = bboxParam.split(",").map((coord) => parseFloat(coord));
-      console.log("📍 Using bbox from request:", bbox);
+  return {
+    interval,
+    ndvi_min: roundStat(ndvi.min),
+    ndvi_max: roundStat(ndvi.max),
+    ndvi_mean: roundStat(ndvi.mean),
+    ndvi_stdev: roundStat(ndvi.stDev),
+    ndmi_min: roundStat(ndmi?.min),
+    ndmi_max: roundStat(ndmi?.max),
+    ndmi_mean: roundStat(ndmi?.mean),
+    ndmi_stdev: roundStat(ndmi?.stDev),
+  };
+};
 
-      if (bbox.length !== 4 || bbox.some(isNaN)) {
-        console.error(
-          "❌ Invalid bbox format. Expected: west,south,east,north"
-        );
+export const createNdviRouter = ({
+  fetchImpl = fetch,
+  getToken = getSentinelToken,
+  statisticsUrl = process.env.SENTINEL_STATISTICS_URL ||
+    DEFAULT_CDSE_STATISTICS_URL,
+  logger = console,
+} = {}) => {
+  const router = Router();
+
+  router.get("/", async (req, res) => {
+    try {
+      const bboxParam = req.query.bbox;
+      const bbox = bboxParam
+        ? String(bboxParam)
+            .split(",")
+            .map((coordinate) => Number.parseFloat(coordinate))
+        : [106.7, -6.3, 106.9, -6.1];
+
+      if (bbox.length !== 4 || bbox.some((coordinate) => !Number.isFinite(coordinate))) {
         return res.status(400).json({
           error: "Invalid bbox format. Expected: west,south,east,north",
         });
       }
-    } else {
-      // Default bbox (Jakarta area)
-      bbox = [106.7, -6.3, 106.9, -6.1];
-      console.log("📍 Using default bbox (Jakarta):", bbox);
-    }
 
-    console.log("📡 Getting Sentinel Hub token...");
-    const token = await getSentinelToken();
-    console.log("✅ Token obtained successfully");
-
-    console.log("🌍 Preparing request to Sentinel Hub Statistics API...");
-    const requestBody = {
-      input: {
-        bounds: { bbox: bbox }, // Menggunakan bbox dinamis
-        data: [
-          {
-            type: "sentinel-2-l2a",
-            dataFilter: {
-              timeRange: {
-                from: "2025-09-01T00:00:00Z",
-                to: "2025-09-05T23:59:59Z",
-              },
+      const token = await getToken();
+      const requestBody = {
+        input: {
+          bounds: { bbox },
+          data: [
+            {
+              type: "sentinel-2-l2a",
+              dataFilter: { timeRange: DEMONSTRATION_TIME_RANGE },
             },
-          },
-        ],
-      },
-      aggregation: {
-        timeRange: {
-          from: "2025-09-01T00:00:00Z",
-          to: "2025-09-05T23:59:59Z",
+          ],
         },
-        aggregationInterval: { of: "P1D" },
-        evalscript: NDVI_NDMI_EVALSCRIPT,
-      },
-    };
+        aggregation: {
+          timeRange: DEMONSTRATION_TIME_RANGE,
+          aggregationInterval: { of: "P1D" },
+          evalscript: NDVI_NDMI_EVALSCRIPT,
+        },
+      };
 
-    console.log("📊 Request body:", JSON.stringify(requestBody, null, 2));
-
-    const response = await fetch(
-      process.env.SENTINEL_STATISTICS_URL || DEFAULT_CDSE_STATISTICS_URL,
-      {
+      const response = await fetchImpl(statisticsUrl, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify(requestBody),
-      }
-    );
-
-    console.log("📈 Response status:", response.status);
-    console.log(
-      "📈 Response headers:",
-      Object.fromEntries(response.headers.entries())
-    );
-
-    if (!response.ok) {
-      console.error(
-        "❌ API request failed:",
-        response.status,
-        response.statusText
-      );
-      const errorText = await response.text();
-      console.error("❌ Error response:", errorText);
-      throw new Error(
-        `API request failed: ${response.status} ${response.statusText}`
-      );
-    }
-
-    const data = await response.json();
-    console.log("📋 Raw response data:", JSON.stringify(data, null, 2));
-
-    // Format output sesuai kebutuhan
-    console.log("🔄 Processing response data...");
-    if (data.data && data.data.length > 0) {
-      console.log(`✅ Found ${data.data.length} data entries`);
-
-      const formattedData = data.data.map((item, index) => {
-        console.log(`📊 Processing entry ${index + 1}:`, {
-          interval: item.interval,
-          hasOutputs: !!item.outputs,
-          hasNdvi: !!(item.outputs && item.outputs.ndvi),
-        });
-
-        const interval = item.interval.from.split("T")[0]; // ambil tanggal saja
-        const ndviStats = item.outputs.ndvi.bands.B0.stats;
-        const ndmiStats = item.outputs.ndmi?.bands?.B0?.stats;
-
-        const formatted = {
-          interval: interval,
-          ndvi_min: Math.round(ndviStats.min * 10000) / 10000, // 4 decimal places
-          ndvi_max: Math.round(ndviStats.max * 10000) / 10000,
-          ndvi_mean: Math.round(ndviStats.mean * 10000) / 10000,
-          ndvi_stdev: Math.round(ndviStats.stDev * 10000) / 10000,
-          ndmi_min: ndmiStats
-            ? Math.round(ndmiStats.min * 10000) / 10000
-            : null,
-          ndmi_max: ndmiStats
-            ? Math.round(ndmiStats.max * 10000) / 10000
-            : null,
-          ndmi_mean: ndmiStats
-            ? Math.round(ndmiStats.mean * 10000) / 10000
-            : null,
-          ndmi_stdev: ndmiStats
-            ? Math.round(ndmiStats.stDev * 10000) / 10000
-            : null,
-        };
-
-        console.log(`📈 Formatted entry ${index + 1}:`, formatted);
-        return formatted;
       });
 
-      console.log("🎉 Successfully processed all data, sending response...");
-      res.json(formattedData);
-    } else {
-      console.log("⚠️ No data available in response");
-      res.json({ error: "No data available" });
-    }
-  } catch (err) {
-    console.error("NDVI provider request failed", {
-      name: err instanceof Error ? err.name : "UnknownError",
-    });
-    res.status(500).json({
-      error: "satellite_provider_unavailable",
-    });
-  }
-});
+      if (!response.ok) {
+        logger.error?.("satellite_provider_failed", { status: response.status });
+        return res.status(502).json({ error: "satellite_provider_unavailable" });
+      }
 
-export default router;
+      const payload = await response.json();
+      const formatted = Array.isArray(payload?.data)
+        ? payload.data.map(formatEntry).filter(Boolean)
+        : [];
+
+      if (formatted.length === 0) {
+        return res.json({ error: "No data available" });
+      }
+
+      logger.info?.("satellite_provider_complete", { entries: formatted.length });
+      return res.json(formatted);
+    } catch (error) {
+      logger.error?.("satellite_provider_failed", {
+        name: error instanceof Error ? error.name : "UnknownError",
+      });
+      return res.status(502).json({ error: "satellite_provider_unavailable" });
+    }
+  });
+
+  return router;
+};
+
+export default createNdviRouter();

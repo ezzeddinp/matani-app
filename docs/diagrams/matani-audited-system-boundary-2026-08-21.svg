@@ -1,0 +1,119 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000">
+  <rect width="1600" height="1000" fill="#ffffff"/>
+  <style>
+    .title { font: 700 34px Arial, sans-serif; fill: #111827; }
+    .subtitle { font: 18px Arial, sans-serif; fill: #374151; }
+    .lane-title { font: 700 22px Arial, sans-serif; fill: #111827; }
+    .box-title { font: 700 17px Arial, sans-serif; fill: #111827; }
+    .body { font: 15px Arial, sans-serif; fill: #1f2937; }
+    .small { font: 13px Arial, sans-serif; fill: #374151; }
+    .legend { font: 700 13px Arial, sans-serif; fill: #1f2937; }
+    .arrow { stroke: #4b5563; stroke-width: 3; fill: none; marker-end: url(#arrow); }
+    .implemented { fill: #eef8f1; stroke: #2e8b57; stroke-width: 2; }
+    .production { fill: #fff7e8; stroke: #d97706; stroke-width: 2; }
+    .research { fill: #ecfeff; stroke: #0f766e; stroke-width: 2; }
+    .target { fill: #eff6ff; stroke: #2563eb; stroke-width: 2; }
+    .open { fill: #fff1f2; stroke: #dc2626; stroke-width: 2; }
+    .lane { fill: #fafafa; stroke: #d1d5db; stroke-width: 1.5; }
+  </style>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#4b5563"/>
+    </marker>
+  </defs>
+
+  <text x="55" y="55" class="title">MATANI AUDITED SYSTEM BOUNDARY</text>
+  <text x="55" y="87" class="subtitle">Production app, bounded research evidence, and target measurement pipeline - 21 August 2026</text>
+
+  <rect x="930" y="25" width="620" height="72" rx="6" fill="#ffffff" stroke="#9ca3af"/>
+  <rect x="950" y="43" width="24" height="16" class="implemented"/><text x="983" y="56" class="legend">IMPLEMENTED</text>
+  <rect x="1090" y="43" width="24" height="16" class="production"/><text x="1123" y="56" class="legend">PRODUCTION PROTOTYPE</text>
+  <rect x="1325" y="43" width="24" height="16" class="research"/><text x="1358" y="56" class="legend">RESEARCH PROTOTYPE</text>
+  <rect x="950" y="68" width="24" height="16" class="target"/><text x="983" y="81" class="legend">TARGET</text>
+  <rect x="1090" y="68" width="24" height="16" class="open"/><text x="1123" y="81" class="legend">OPEN / UNVERIFIED GATE</text>
+
+  <rect x="35" y="120" width="1530" height="245" rx="6" class="lane"/>
+  <text x="60" y="153" class="lane-title">1. PRODUCTION APP - IMPLEMENTED BOUNDARY, SATELLITE VALUES STILL PROTOTYPE</text>
+
+  <rect x="60" y="180" width="220" height="135" rx="6" class="implemented"/>
+  <text x="80" y="210" class="box-title">Expo mobile app</text>
+  <text x="80" y="238" class="body"><tspan x="80" dy="0">- Supabase auth/session</tspan><tspan x="80" dy="23">- field polygon + notes</tspan><tspan x="80" dy="23">- weather + education</tspan><tspan x="80" dy="23">- visible data-state labels</tspan></text>
+
+  <path d="M280 247 H330" class="arrow"/>
+  <rect x="330" y="180" width="260" height="135" rx="6" class="implemented"/>
+  <text x="350" y="210" class="box-title">Protected Express boundary</text>
+  <text x="350" y="238" class="body"><tspan x="350" dy="0">JWT verification + authorization</tspan><tspan x="350" dy="23">origin allowlist + request bounds</tspan><tspan x="350" dy="23">rate/idempotency guards</tspan><tspan x="350" dy="23">sanitized errors; Gemini off default</tspan></text>
+
+  <path d="M590 247 H640" class="arrow"/>
+  <rect x="640" y="180" width="255" height="135" rx="6" class="implemented"/>
+  <text x="660" y="210" class="box-title">Operational services</text>
+  <text x="660" y="238" class="body"><tspan x="660" dy="0">CDSE endpoint defaults</tspan><tspan x="660" dy="23">Open-Meteo weather route</tspan><tspan x="660" dy="23">Supabase migrations + RLS</tspan><tspan x="660" dy="23">Gemini optional UX only</tspan></text>
+
+  <path d="M895 247 H945" class="arrow"/>
+  <rect x="945" y="170" width="325" height="155" rx="6" class="production"/>
+  <text x="965" y="202" class="box-title">Production satellite route</text>
+  <text x="965" y="230" class="body"><tspan x="965" dy="0">bbox + fixed 1-5 Sep 2025 window</tspan><tspan x="965" dy="23">no versioned SCL quality gate</tspan><tspan x="965" dy="23">no provenance-complete persistence</tspan><tspan x="965" dy="23">no synthetic fallback; unavailable on failure</tspan><tspan x="965" dy="23">NOT A MATANI MEASUREMENT</tspan></text>
+
+  <path d="M1270 247 H1320" class="arrow"/>
+  <rect x="1320" y="180" width="215" height="135" rx="6" class="open"/>
+  <text x="1340" y="210" class="box-title">Honest output state</text>
+  <text x="1340" y="238" class="small"><tspan x="1340" dy="0">padi-only time series</tspan><tspan x="1340" dy="23">fixture / prototype / unavailable</tspan><tspan x="1340" dy="23">no diagnosis or classification</tspan><tspan x="1340" dy="23">no measured history or alerts</tspan></text>
+
+  <rect x="35" y="390" width="1530" height="245" rx="6" class="lane"/>
+  <text x="60" y="423" class="lane-title">2. BOUNDED RESEARCH ACQUISITION - PROVIDER-BACKED PROTOTYPE EVIDENCE</text>
+
+  <rect x="60" y="445" width="230" height="150" rx="6" class="research"/>
+  <text x="80" y="485" class="box-title">Private candidate inputs</text>
+  <text x="80" y="513" class="small"><tspan x="80" dy="0">2 developer-supplied</tspan><tspan x="80" dy="23">padi-labeled polygons</tspan><tspan x="80" dy="23">identity, consent, boundary</tspan><tspan x="80" dy="23">fidelity not independently verified</tspan></text>
+
+  <path d="M290 520 H340" class="arrow"/>
+  <rect x="340" y="445" width="255" height="150" rx="6" class="research"/>
+  <text x="360" y="485" class="box-title">Exact-polygon processing</text>
+  <text x="360" y="513" class="small"><tspan x="360" dy="0">WGS84 validation -&gt; local UTM</tspan><tspan x="360" dy="23">10 m NDVI; 20 m NDMI/quality</tspan><tspan x="360" dy="23">versioned SCL exclusions</tspan><tspan x="360" dy="23">separate source/valid counts</tspan></text>
+
+  <path d="M595 520 H645" class="arrow"/>
+  <rect x="645" y="445" width="300" height="150" rx="6" class="research"/>
+  <text x="665" y="477" class="box-title">Bounded live evidence</text>
+  <text x="665" y="505" class="small"><tspan x="665" dy="0">Pilot: 6 requests; about 0.28 PU</tspan><tspan x="665" dy="21">Retrospective: 24/24 field-months</tspan><tspan x="665" dy="21">72 requests; about 8.027 PU</tspan><tspan x="665" dy="21">86 intervals per polygon</tspan><tspan x="665" dy="21">checkpoint + bounded 429 retry</tspan></text>
+
+  <path d="M945 520 H995" class="arrow"/>
+  <rect x="995" y="445" width="270" height="150" rx="6" class="research"/>
+  <text x="1015" y="477" class="box-title">Descriptive result only</text>
+  <text x="1015" y="505" class="small"><tspan x="1015" dy="0">Both indices nonzero:</tspan><tspan x="1015" dy="21">25/86 and 28/86 intervals</tspan><tspan x="1015" dy="21">median gap 7 days</tspan><tspan x="1015" dy="21">longest gaps 113 / 133 days</tspan><tspan x="1015" dy="21">No licensed cadence claim</tspan></text>
+
+  <path d="M1265 520 H1315" class="arrow"/>
+  <rect x="1315" y="445" width="220" height="150" rx="6" class="open"/>
+  <text x="1335" y="485" class="box-title">Still missing</text>
+  <text x="1335" y="513" class="body"><tspan x="1335" dy="0">representative regions/seasons</tspan><tspan x="1335" dy="23">approved quality threshold</tspan><tspan x="1335" dy="23">independent raster comparison</tspan><tspan x="1335" dy="23">production persistence</tspan></text>
+
+  <rect x="35" y="660" width="1530" height="210" rx="6" class="lane"/>
+  <text x="60" y="693" class="lane-title">3. TARGET MEASUREMENT PIPELINE - NOT YET PRODUCTION-IMPLEMENTED</text>
+
+  <rect x="60" y="725" width="200" height="100" rx="6" class="target"/>
+  <text x="80" y="755" class="box-title">Controlled request</text>
+  <text x="80" y="783" class="body"><tspan x="80" dy="0">external Node worker</tspan><tspan x="80" dy="23">deduplicated job</tspan></text>
+  <path d="M260 775 H300" class="arrow"/>
+  <rect x="300" y="725" width="220" height="100" rx="6" class="target"/>
+  <text x="320" y="755" class="box-title">Provider adapter</text>
+  <text x="320" y="775" class="body"><tspan x="320" dy="0">exact polygon +</tspan><tspan x="320" dy="21">dynamic window;</tspan><tspan x="320" dy="21">versioned processing</tspan></text>
+  <path d="M520 775 H560" class="arrow"/>
+  <rect x="560" y="725" width="215" height="100" rx="6" class="target"/>
+  <text x="580" y="755" class="box-title">Quality decision</text>
+  <text x="580" y="783" class="body"><tspan x="580" dy="0">passed / rejected /</tspan><tspan x="580" dy="23">unavailable + reason</tspan></text>
+  <path d="M775 775 H815" class="arrow"/>
+  <rect x="815" y="725" width="240" height="100" rx="6" class="target"/>
+  <text x="835" y="755" class="box-title">Provenance persistence</text>
+  <text x="835" y="775" class="body"><tspan x="835" dy="0">typed measurement +</tspan><tspan x="835" dy="21">per-index rows;</tspan><tspan x="835" dy="21">complete identity/config</tspan></text>
+  <path d="M1055 775 H1095" class="arrow"/>
+  <rect x="1095" y="725" width="200" height="100" rx="6" class="target"/>
+  <text x="1115" y="755" class="box-title">Mobile history</text>
+  <text x="1115" y="783" class="body"><tspan x="1115" dy="0">actual acquisition + quality</tspan><tspan x="1115" dy="23">never substitute fixture</tspan></text>
+  <path d="M1295 775 H1335" class="arrow"/>
+  <rect x="1335" y="725" width="200" height="100" rx="6" class="target"/>
+  <text x="1355" y="755" class="box-title">Evaluation</text>
+  <text x="1355" y="783" class="body"><tspan x="1355" dy="0">independent comparison</tspan><tspan x="1355" dy="23">field validation + UAT</tspan></text>
+
+  <rect x="35" y="895" width="1530" height="75" rx="6" class="implemented"/>
+  <text x="60" y="925" class="box-title">LOCAL ENGINEERING AUDIT (OBS-13)</text>
+  <text x="60" y="951" class="body">PASS: scoped lint, root/backend type-checks, root tests 5/5, backend tests 21/21. OPEN: Python 3 research re-run, current remote CI, advisor gates, representative study, measurement validation, and production persistence.</text>
+</svg>

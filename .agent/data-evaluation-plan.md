@@ -4,7 +4,7 @@
 **Audience:** The developer, thesis advisor, reviewers, and AI agents working in this repo
 **Status:** Active — target pipeline specification; M1 contract artifacts exist, while
 production measurement behavior remains unimplemented unless marked `[As-built]`
-**Updated:** 2026-07-29
+**Updated:** 2026-08-21
 **Canonical for:** the engineering measurement contract, provider adapter, quality pipeline, persistence/provenance, cache identity, idempotency, fixtures, and Indonesia-specific masking/resolution behavior
 **Companion documents:** [`research-protocol.md`](research-protocol.md), [`project-architecture.md`](project-architecture.md), [`product-requirements.md`](product-requirements.md), [`implementation-plan.md`](implementation-plan.md), [`evidence-register.md`](evidence-register.md)
 
@@ -27,7 +27,7 @@ This is the **engineering realization** of the research standard. Read it this w
 
 ## 1 · As-built summary `[As-built]`
 
-The satellite path today is a prototype request wired to the field-list surface with a visibly labeled synthetic fixture fallback, computing over a bounding box on a fixed date window through the CDSE-configured provider route, and persisting nothing as a measurement. The **canonical wording and the `file:line` evidence** for this live in [`project-architecture.md`](project-architecture.md) § 2 (Current measurement provenance) — it is not restated here; this document defers to it and specifies the target that replaces it.
+The satellite path today is a prototype request wired to the field-list surface, computing over a bounding box on a fixed date window through the CDSE-configured provider route, and persisting nothing as a measurement. Missing or failed retrieval now produces an explicit unavailable state rather than a synthetic substitute. The **canonical wording and the `file:line` evidence** for this live in [`project-architecture.md`](project-architecture.md) § 2 (Current measurement provenance) — it is not restated here; this document defers to it and specifies the target that replaces it.
 
 ### As-built gaps this plan closes
 
@@ -37,7 +37,7 @@ The satellite path today is a prototype request wired to the field-list surface 
 | **Bounding box, not polygon** — queries a bbox, defaulting to a hard-coded Jakarta bbox when none is supplied | `backend/api/ndvi/utils.js:49` | Statistics computed over the actual field polygon geometry (§ 2, § 4); bbox is never the measurement geometry (EVID-012, protocol § 7) | ADR-06 |
 | **No cloud masking beyond `dataMask`** — evalscript passes `dataMask` through but never consults the Scene Classification Layer; no cloud/cirrus/shadow exclusion | `backend/api/ndvi/utils.js:12,15,22` | SCL-driven masking at the polygon level (§ 4), contrast EVID-008 / EVID-012 | ADR-06 |
 | **No persistence** — fetched results become transient UI overrides (`ndviOverrides` state), never rows | `app/(tabs)/explore.tsx:1143-1150,1421,1426` | Provenance-complete measurement records written by the worker (§ 5) | ADR-06, ADR-07 |
-| **Labeled synthetic fixture fallback remains in production** — on missing bbox / unusable result / thrown error the UI substitutes a fixture record; the 2026-07-27 hardening labels it “Simulasi demo” and “Bukan pengukuran satelit,” but it still substitutes rather than returning `unavailable` | `app/(tabs)/explore.tsx:320-343,1445-1462,2050-2072` | A measurement passes quality and is persisted, or is recorded as rejected with a reason; fixture substitution is removed (§ 2, § 4); honest `unavailable` state (DEC-10, protocol § 8, § 11) | ADR-06 |
+| **No production measurement history** — synthetic substitution has been removed, but provider results remain transient and dated legacy rows lack complete provenance | `app/(tabs)/explore.tsx:1276-1289`; `app/detail-lahan-page.tsx:212-239` | A measurement passes quality and is persisted, is recorded as rejected with a reason, or is `unavailable` (§ 2, § 4); history reads provenance-complete M2 rows | ADR-06, ADR-12, ADR-14 |
 | **Provider migration is not a production measurement adapter** — CDSE endpoint defaults are applied, but the bbox prototype still calls the provider directly and lacks the stable M2 adapter/persistence contract | `backend/sentinelAuth.js`, `backend/api/ndvi/utils.js`; OBS-11 is out-of-band research evidence | CDSE Sentinel Hub behind the stable provider adapter (§ 3), with the measurement semantics unchanged above it | ADR-02, ADR-08 |
 
 ---
@@ -181,7 +181,7 @@ The as-built `lahan_health` table stores only `id, lahan_id, user_id, ndvi_score
 
 ### Relation to versioned migrations (ADR-07)
 
-The measurement record is introduced through **versioned, ordered Supabase migrations with DB tests** (ADR-07), which replace the legacy `supabase_setup.sql` (a 388-line file that is not a reliable clean-install migration — [`project-architecture.md`](project-architecture.md) § 4 ADR-07, § 7). DB tests must prove **cross-user RLS isolation** on the new table(s) (ADR-07, protocol § 14). Whether the record extends or supersedes `lahan_health` is part of the physical-schema open decision (§ 9).
+The measurement record is introduced through **versioned, ordered Supabase migrations with DB tests** (ADR-07), which replace the legacy `supabase_setup.sql` (a 388-line file that is not a reliable clean-install migration — [`project-architecture.md`](project-architecture.md) § 4 ADR-07, § 7). DB tests must prove **cross-user RLS isolation** on the new table(s) (ADR-07, protocol § 14). DEC-21 / ADR-12 settled the physical model: typed measurement rows plus typed per-index child rows supersede `lahan_health`, which remains read-only legacy during migration/backfill.
 
 ---
 
@@ -205,7 +205,7 @@ Testing is **fixture-first** (ADR-09 / DEC-09): ordinary development and CI **ne
 
 ### The fixture set
 
-- **healthy-field** — a clean acquisition with ample valid pixels for both indices.
+- **high-valid-pixel observation** — a clean acquisition with ample valid pixels for both indices.
 - **cloudy-acquisition** — polygon largely clouded; exercises `clouded` rejection.
 - **cloud-shadow** — SCL cloud-shadow class present; exercises shadow masking.
 - **no-valid-pixels** — an acquisition where nothing survives masking; exercises `no-valid-pixels`.

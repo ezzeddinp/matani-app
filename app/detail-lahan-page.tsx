@@ -1,8 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   ImageBackground,
@@ -12,1639 +11,487 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import Svg, { Circle, G, Line, Polyline, Text as SvgText } from "react-native-svg";
 import { SafeAreaView } from "react-native-safe-area-context";
-import Svg, {
-  Defs,
-  Path,
-  Stop,
-  LinearGradient as SvgLinearGradient,
-} from "react-native-svg";
 
-import {
-  NDVI_SEVERITY_CONFIG,
-  NDVI_UNKNOWN_CONFIG,
-  type NdviClassificationKey,
-} from "@/constants/ndvi";
-import { lahanService, type LahanDetail } from "@/hooks/supabase";
-import {
-  buildNdviSeries,
-  clamp,
-  Coordinate,
-  getDayOfYear,
-  toRadians,
-} from "@/utils/ndvi-simulator";
+import { lahanService, supabase, type LahanDetail } from "@/hooks/supabase";
 
-export const options = {
-  headerShown: false,
+type ObservationState = "fixture" | "prototype";
+type IndexKey = "ndvi" | "ndmi";
+
+type ObservationRecord = {
+  id: string;
+  lahan_id: string;
+  ndvi_score: number | null;
+  ndmi_score: number | null;
+  status: string | null;
+  captured_at: string | null;
+  created_at: string | null;
 };
 
-type AnalysisResult = {
-  centroid: Coordinate;
-  plantingDate: Date;
-  harvestCycleDays: number;
-  daysSincePlanting: number;
-  daysToHarvest: number;
-  harvestProgress: number;
-  ndviHistory: { date: Date; value: number }[];
-  ndviCurrent: number;
-  ndviWeekChange: number;
-  ndviTrendPercent: number;
-  ndviHighest: number;
-  ndviLowest: number;
-  ndviAverage: number;
-  anomalyDetected: boolean;
-  anomalySummary: string;
-  moistureIndex: number;
-  pestPressure: number;
-  diseaseRisk: number;
-  stressIndex: number;
-  soilMoisture: number;
-  pestAlert: string;
-  stressCategory: string;
-  growthStage: string;
-  recommendations: string[];
+type TimelinePoint = {
+  id: string;
+  timestamp: string;
+  ndvi: number | null;
+  ndmi: number | null;
+  state: ObservationState;
 };
 
-type SeverityLevel = "success" | "warning" | "danger";
+const PADI_IMAGE = require("@/assets/foto-ladang/padi.jpg");
+const CHART_WIDTH = 320;
+const CHART_HEIGHT = 190;
+const CHART_PADDING = 30;
 
-const severityPalette: Record<
-  SeverityLevel,
-  { background: string; border: string; text: string }
-> = {
-  success: { background: "#E8F5E9", border: "#C8E6C9", text: "#1B5E20" },
-  warning: { background: "#FFF6E5", border: "#FFE0B2", text: "#6D4C00" },
-  danger: { background: "#FBE9E7", border: "#F5C6CB", text: "#B71C1C" },
-};
-
-const classificationToSeverity: Record<NdviClassificationKey, SeverityLevel> = {
-  darkGreen: "success",
-  yellowGreen: "warning",
-  orange: "danger",
-  red: "danger",
-  unknown: "warning",
-};
-
-const healthSeverityLabels: Record<SeverityLevel, string> = {
-  success: "Sehat",
-  warning: "Perlu Perhatian",
-  danger: "Perlu Aksi",
-};
-
-const riskSeverityLabels: Record<SeverityLevel, string> = {
-  success: "Rendah",
-  warning: "Sedang",
-  danger: "Tinggi",
-};
-
-const heroGradientPalette: Record<SeverityLevel, [string, string]> = {
-  success: ["#2E7D32", "#1B5E20"],
-  warning: ["#FFB74D", "#F57C00"],
-  danger: ["#EF5350", "#C62828"],
-};
-
-const NDVI_TIPS = [
-  "Rentang NDVI pada layar ini adalah kategori prototipe HYP-04 yang belum dikalibrasi untuk lahan padi Indonesia.",
-  "NDVI membantu menggambarkan kehijauan kanopi, tetapi tidak mendiagnosis kesehatan, hama, penyakit, atau hasil panen.",
-  "Gunakan pengamatan lapangan dan konsultasi agronomi sebelum mengambil tindakan.",
-];
-
-// Category images mapping
-const CATEGORY_IMAGES: Record<string, any> = {
-  Jagung: require("@/assets/foto-ladang/jagung.png"),
-  Padi: require("@/assets/foto-ladang/padi.jpg"),
-  Kedelai: require("@/assets/foto-ladang/kedelai.jpg"),
-  Teh: require("@/assets/foto-ladang/teh.jpg"),
-  Kopi: require("@/assets/foto-ladang/kopi.jpg"),
-};
-
-const evaluateNdviSeverity = (value: number): SeverityLevel => {
-  if (value >= 0.6) return "success";
-  if (value >= 0.2) return "warning";
-  return "danger";
-};
-
-const evaluateTrendSeverity = (value: number): SeverityLevel => {
-  if (value >= 0) return "success";
-  if (value >= -5) return "warning";
-  return "danger";
-};
-
-const evaluateRiskSeverity = (value: number): SeverityLevel => {
-  if (value <= 0.45) return "success";
-  if (value <= 0.65) return "warning";
-  return "danger";
-};
-
-const formatPercent = (value: number, fractionDigits = 1) =>
-  `${(value * 100).toFixed(fractionDigits)}%`;
-const formatNdviValue = (value: number, fractionDigits = 2) =>
-  value.toFixed(fractionDigits);
-
-const computeAnalysis = (
-  coords: Coordinate,
-  areaHa: number | null,
-  createdAt?: string
-): AnalysisResult => {
-  const today = new Date();
-  const plantingDate = createdAt
-    ? new Date(createdAt)
-    : new Date(today.getTime() - 60 * 24 * 60 * 60 * 1000);
-  const harvestCycleDays = Math.round(95 + clamp((areaHa ?? 1) * 1.8, 0, 40));
-  const daysSincePlanting = Math.max(
-    0,
-    Math.floor(
-      (today.getTime() - plantingDate.getTime()) / (1000 * 60 * 60 * 24)
-    )
-  );
-  const daysToHarvest = Math.max(harvestCycleDays - daysSincePlanting, 0);
-  const harvestProgress = clamp(daysSincePlanting / harvestCycleDays, 0, 1);
-
-  const ndviHistory = buildNdviSeries(
-    coords.latitude,
-    coords.longitude,
-    areaHa ?? 1,
-    today
-  );
-  const ndviCurrent = ndviHistory[ndviHistory.length - 1]?.value ?? 0.65;
-  const ndviWeek = clamp(
-    (() => {
-      const dayOfYear = getDayOfYear(today) - 7;
-      const nir =
-        0.62 +
-        0.18 * Math.sin(toRadians(coords.latitude + dayOfYear / 2)) +
-        0.05 * Math.cos(toRadians(coords.longitude / 3 + (areaHa ?? 1)));
-      const red =
-        0.3 +
-        0.1 * Math.cos(toRadians(coords.latitude / 2 - dayOfYear / 3)) +
-        0.03 * Math.sin(toRadians(coords.longitude / 4));
-      return (nir - red) / (nir + red);
-    })(),
-    0.05,
-    0.95
-  );
-  const ndviWeekChange = ndviCurrent - ndviWeek;
-  const ndviTrendPercent =
-    clamp(ndviWeekChange / (Math.abs(ndviWeek) || 0.01), -0.5, 0.5) * 100;
-
-  const ndviHighest = Math.max(...ndviHistory.map((item) => item.value));
-  const ndviLowest = Math.min(...ndviHistory.map((item) => item.value));
-  const ndviAverage =
-    ndviHistory.reduce((acc, item) => acc + item.value, 0) / ndviHistory.length;
-
-  const anomalyDetected = Math.abs(ndviWeekChange) >= 0.035;
-  const anomalySummary = anomalyDetected
-    ? `NDVI ${ndviWeekChange > 0 ? "naik" : "turun"} ${(
-        Math.abs(ndviWeekChange) * 100
-      ).toFixed(1)}% dalam 7 hari.`
-    : "Tidak ada perubahan signifikan dalam 7 hari terakhir.";
-
-  const moistureIndex = clamp(
-    0.55 + 0.28 * Math.sin(toRadians(coords.latitude + ndviCurrent * 40)),
-    0.2,
-    0.95
-  );
-  const pestPressure = clamp(
-    0.35 +
-      0.4 * (1 / (1 + Math.exp(-((ndviAverage - 0.68) * 9)))) +
-      0.1 * Math.sin(toRadians(coords.longitude * 2)),
-    0.1,
-    0.98
-  );
-  const diseaseRisk = clamp(
-    0.32 +
-      0.45 * (1 - ndviCurrent) +
-      0.12 * Math.cos(toRadians(coords.latitude - coords.longitude)),
-    0.08,
-    0.92
-  );
-  const stressIndex = clamp(
-    0.4 + 0.5 * (0.75 - ndviCurrent) + 0.1 * Math.sin(toRadians(areaHa ?? 1)),
-    0.05,
-    0.95
-  );
-  const soilMoisture = clamp(
-    0.65 +
-      0.25 * Math.sin(toRadians(coords.latitude + getDayOfYear(today))) -
-      0.2 * stressIndex,
-    0.1,
-    0.96
-  );
-
-  const pestAlert =
-    pestPressure > 0.6
-      ? "Skenario demo memerlukan verifikasi melalui inspeksi visual; jangan menyimpulkan keberadaan hama dari skor ini."
-      : "Skor demo rendah tetap bukan bukti bahwa hama tidak ada; lakukan inspeksi lapangan.";
-
-  const stressSeverity = evaluateRiskSeverity(stressIndex);
-  const stressCategory = riskSeverityLabels[stressSeverity];
-
-  const growthStage =
-    harvestProgress < 0.35
-      ? "Vegetatif Aktif"
-      : harvestProgress < 0.7
-      ? "Pembungaan & Pengisian"
-      : "Menjelang Panen";
-
-  const recommendations = [
-    "Verifikasi seluruh indikator demo dengan inspeksi lapangan.",
-    "Catat fase pertumbuhan, kondisi air, dan perubahan kanopi yang benar-benar diamati.",
-    "Konsultasikan tindakan agronomis dengan penyuluh atau tenaga ahli setempat.",
-  ];
-
-  if (soilMoisture < 0.45) {
-    recommendations.unshift(
-      "Ukur kelembapan tanah secara langsung sebelum mengubah jadwal irigasi."
-    );
-  }
-  if (pestPressure > 0.6) {
-    recommendations.unshift(
-      "Lakukan inspeksi visual untuk memastikan ada atau tidaknya hama."
-    );
-  }
-  if (diseaseRisk > 0.55) {
-    recommendations.unshift(
-      "Periksa gejala penyakit secara langsung; skor demo bukan diagnosis."
-    );
-  }
-
-  return {
-    centroid: coords,
-    plantingDate,
-    harvestCycleDays,
-    daysSincePlanting,
-    daysToHarvest,
-    harvestProgress,
-    ndviHistory,
-    ndviCurrent,
-    ndviWeekChange,
-    ndviTrendPercent,
-    ndviHighest,
-    ndviLowest,
-    ndviAverage,
-    anomalyDetected,
-    anomalySummary,
-    moistureIndex,
-    pestPressure,
-    diseaseRisk,
-    stressIndex,
-    soilMoisture,
-    pestAlert,
-    stressCategory,
-    growthStage,
-    recommendations: Array.from(new Set(recommendations)),
-  };
-};
-
-const parseGeoJson = (value: any): any | null => {
-  if (!value) return null;
+const parseValue = (value: unknown) => {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
   if (typeof value === "string") {
-    try {
-      return JSON.parse(value);
-    } catch (error) {
-      console.warn("Tidak dapat mengurai GeoJSON:", error);
-      return null;
-    }
+    const parsed = Number.parseFloat(value);
+    return Number.isFinite(parsed) ? parsed : null;
   }
-  if (typeof value === "object") return value;
   return null;
 };
 
-const extractCentroid = (data: LahanDetail): Coordinate | null => {
-  const geojson = parseGeoJson(data.geojson);
-  if (!geojson || !Array.isArray(geojson.coordinates?.[0])) {
-    return null;
+const resolveTimestamp = (record: ObservationRecord) => record.captured_at;
+
+const resolveState = (status: string | null): ObservationState => {
+  const normalized = status?.trim().toLowerCase();
+  return ["fixture", "synthetic", "simulated", "simulation"].includes(
+    normalized ?? ""
+  )
+    ? "fixture"
+    : "prototype";
+};
+
+const formatValue = (value: number | null) =>
+  value === null ? "--" : value.toFixed(3);
+
+const formatDate = (value: string) => {
+  const timestamp = Date.parse(value);
+  if (Number.isNaN(timestamp)) return "Tanggal tidak valid";
+  return new Intl.DateTimeFormat("id-ID", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(timestamp);
+};
+
+const formatArea = (value: number | null | undefined) =>
+  typeof value === "number" && Number.isFinite(value)
+    ? `${value.toFixed(2)} ha`
+    : "Luas belum tersedia";
+
+function ObservationChart({
+  points,
+  indexKey,
+}: {
+  points: TimelinePoint[];
+  indexKey: IndexKey;
+}) {
+  const validPoints = points
+    .map((point) => ({ ...point, value: point[indexKey] }))
+    .filter(
+      (point): point is TimelinePoint & { value: number } =>
+        typeof point.value === "number" && Number.isFinite(point.value)
+    );
+
+  if (validPoints.length === 0) {
+    return (
+      <View style={styles.chartEmpty}>
+        <Ionicons name="analytics-outline" size={28} color="#94A3B8" />
+        <Text style={styles.chartEmptyTitle}>
+          Belum ada titik {indexKey.toUpperCase()}
+        </Text>
+        <Text style={styles.chartEmptyText}>
+          Grafik tidak dibuat sampai ada rekaman tersimpan dengan tanggal observasi.
+        </Text>
+      </View>
+    );
   }
 
-  const ring: number[][] = geojson.coordinates[0];
-  if (!ring.length) return null;
-
-  const coordinates = ring.map((point) => ({
-    latitude: point[1],
-    longitude: point[0],
+  const minValue = Math.min(...validPoints.map((point) => point.value));
+  const maxValue = Math.max(...validPoints.map((point) => point.value));
+  const span = Math.max(maxValue - minValue, 0.1);
+  const chartInnerWidth = CHART_WIDTH - CHART_PADDING * 2;
+  const chartInnerHeight = CHART_HEIGHT - CHART_PADDING * 2;
+  const coordinates = validPoints.map((point, index) => ({
+    ...point,
+    x:
+      CHART_PADDING +
+      (validPoints.length === 1
+        ? chartInnerWidth / 2
+        : (index / (validPoints.length - 1)) * chartInnerWidth),
+    y: CHART_PADDING + ((maxValue - point.value) / span) * chartInnerHeight,
   }));
-
-  const sum = coordinates.reduce(
-    (acc, item) => {
-      acc.latitude += item.latitude;
-      acc.longitude += item.longitude;
-      return acc;
-    },
-    { latitude: 0, longitude: 0 }
-  );
-
-  return {
-    latitude: sum.latitude / coordinates.length,
-    longitude: sum.longitude / coordinates.length,
-  };
-};
-
-const MiniAreaChart = ({ data }: { data: AnalysisResult["ndviHistory"] }) => {
-  const width = 320;
-  const height = 140;
-  const minValue = 0.2;
-  const maxValue = 0.95;
-
-  const path = useMemo(() => {
-    if (!data.length) return "";
-
-    const step = width / Math.max(data.length - 1, 1);
-    const points = data.map((point, index) => {
-      const x = step * index;
-      const normalized = clamp(
-        (point.value - minValue) / (maxValue - minValue),
-        0,
-        1
-      );
-      const y = height - normalized * height;
-      return { x, y };
-    });
-
-    const head = points[0];
-    const tail = points[points.length - 1];
-
-    let d = `M ${head.x} ${height} L ${head.x} ${head.y}`;
-    for (let i = 1; i < points.length; i++) {
-      const current = points[i];
-      d += ` L ${current.x} ${current.y}`;
-    }
-    d += ` L ${tail.x} ${height} Z`;
-
-    return d;
-  }, [data, height, maxValue, minValue, width]);
+  const linePoints = coordinates.map((point) => `${point.x},${point.y}`).join(" ");
 
   return (
-    <Svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`}>
-      <Defs>
-        <SvgLinearGradient id="ndviGradient" x1="0" y1="0" x2="0" y2="1">
-          <Stop offset="0%" stopColor="#4CAF50" stopOpacity="0.8" />
-          <Stop offset="100%" stopColor="#C8E6C9" stopOpacity="0.05" />
-        </SvgLinearGradient>
-      </Defs>
-      <Path
-        d={path}
-        fill="url(#ndviGradient)"
-        stroke="#2E7D32"
-        strokeWidth={2}
-      />
-    </Svg>
+    <View style={styles.chartFrame}>
+      <Svg
+        width="100%"
+        height={CHART_HEIGHT}
+        viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
+        accessibilityLabel={`Grafik deret waktu ${indexKey.toUpperCase()}`}
+      >
+        {[0, 0.5, 1].map((ratio) => {
+          const y = CHART_PADDING + ratio * chartInnerHeight;
+          const value = maxValue - ratio * span;
+          return (
+            <G key={ratio}>
+              <Line
+                x1={CHART_PADDING}
+                y1={y}
+                x2={CHART_WIDTH - CHART_PADDING}
+                y2={y}
+                stroke="#E2E8F0"
+                strokeWidth={1}
+              />
+              <SvgText x={2} y={y + 4} fontSize={9} fill="#64748B">
+                {value.toFixed(2)}
+              </SvgText>
+            </G>
+          );
+        })}
+        {coordinates.length > 1 && (
+          <Polyline
+            points={linePoints}
+            fill="none"
+            stroke={indexKey === "ndvi" ? "#15803D" : "#0369A1"}
+            strokeWidth={3}
+            strokeLinejoin="round"
+            strokeLinecap="round"
+          />
+        )}
+        {coordinates.map((point) => (
+          <Circle
+            key={point.id}
+            cx={point.x}
+            cy={point.y}
+            r={5}
+            fill={point.state === "fixture" ? "#F59E0B" : "#FFFFFF"}
+            stroke={indexKey === "ndvi" ? "#15803D" : "#0369A1"}
+            strokeWidth={3}
+          />
+        ))}
+      </Svg>
+      <View style={styles.chartAxisRow}>
+        <Text style={styles.chartAxisText}>{formatDate(validPoints[0].timestamp)}</Text>
+        <Text style={styles.chartAxisText}>
+          {formatDate(validPoints[validPoints.length - 1].timestamp)}
+        </Text>
+      </View>
+    </View>
   );
-};
+}
 
 export default function DetailLahanPage() {
   const router = useRouter();
-  const { id, ndviKey, ndviScore } = useLocalSearchParams<{
-    id?: string;
-    ndviKey?: string;
-    ndviScore?: string;
-  }>();
+  const { id } = useLocalSearchParams<{ id?: string | string[] }>();
+  const fieldId = Array.isArray(id) ? id[0] : id;
   const [detail, setDetail] = useState<LahanDetail | null>(null);
-  const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
+  const [observations, setObservations] = useState<TimelinePoint[]>([]);
+  const [activeIndex, setActiveIndex] = useState<IndexKey>("ndvi");
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"health" | "risk">("health");
-
-  const ndviKeyParam = Array.isArray(ndviKey) ? ndviKey[0] : ndviKey;
-  const ndviScoreParam = Array.isArray(ndviScore) ? ndviScore[0] : ndviScore;
-
-  const routeClassification = useMemo(() => {
-    if (!ndviKeyParam) {
-      return null;
-    }
-    const key = ndviKeyParam.trim() as NdviClassificationKey;
-    if (key === "unknown") {
-      return NDVI_UNKNOWN_CONFIG;
-    }
-    return (
-      NDVI_SEVERITY_CONFIG.find((item) => item.key === key) ??
-      NDVI_UNKNOWN_CONFIG
-    );
-  }, [ndviKeyParam]);
-
-  const routeNdviValue = useMemo(() => {
-    if (!ndviScoreParam) {
-      return null;
-    }
-    const parsed = Number(ndviScoreParam);
-    return Number.isFinite(parsed) ? parsed : null;
-  }, [ndviScoreParam]);
-
-  const heroSeverity = useMemo<SeverityLevel>(() => {
-    if (routeClassification) {
-      return classificationToSeverity[
-        routeClassification.key as NdviClassificationKey
-      ];
-    }
-    if (!analysis) {
-      return "success";
-    }
-    return evaluateNdviSeverity(analysis.ndviCurrent);
-  }, [analysis, routeClassification]);
-
-  const heroGradientColors = heroGradientPalette[heroSeverity];
 
   useEffect(() => {
-    if (routeNdviValue === null) return;
-    const timeoutId = setTimeout(() => {
-      setAnalysis((prev) => {
-        if (!prev || prev.ndviCurrent === routeNdviValue) return prev;
-        return { ...prev, ndviCurrent: routeNdviValue };
-      });
-    }, 0);
-    return () => clearTimeout(timeoutId);
-  }, [routeNdviValue]);
+    let active = true;
 
-  useEffect(() => {
-    let isMounted = true;
     const load = async () => {
-      if (!id || typeof id !== "string") {
+      if (!fieldId) {
         setErrorMessage("Parameter lahan tidak ditemukan.");
         setIsLoading(false);
         return;
       }
 
       try {
-        setErrorMessage(null);
         setIsLoading(true);
-        const record = await lahanService.getLahanDetail(id);
-        if (!isMounted) return;
+        setErrorMessage(null);
+        const [field, observationResult] = await Promise.all([
+          lahanService.getLahanDetail(fieldId),
+          supabase
+            .from("lahan_health")
+            .select("id,lahan_id,ndvi_score,ndmi_score,status,captured_at,created_at")
+            .eq("lahan_id", fieldId)
+            .order("captured_at", { ascending: true, nullsFirst: false })
+            .order("created_at", { ascending: true }),
+        ]);
 
-        if (!record) {
+        if (!active) return;
+        if (!field) {
           setErrorMessage("Data lahan tidak ditemukan.");
-          setIsLoading(false);
           return;
         }
+        if (observationResult.error) throw observationResult.error;
 
-        const centroid = extractCentroid(record);
-        if (!centroid) {
-          setErrorMessage("Koordinat lahan tidak valid.");
-          setIsLoading(false);
-          return;
-        }
+        const timeline = (observationResult.data as ObservationRecord[])
+          .map((record) => {
+            const timestamp = resolveTimestamp(record);
+            if (!timestamp || Number.isNaN(Date.parse(timestamp))) return null;
+            return {
+              id: record.id,
+              timestamp,
+              ndvi: parseValue(record.ndvi_score),
+              ndmi: parseValue(record.ndmi_score),
+              state: resolveState(record.status),
+            } satisfies TimelinePoint;
+          })
+          .filter((point): point is TimelinePoint => point !== null)
+          .filter((point) => point.ndvi !== null || point.ndmi !== null);
 
-        setDetail(record);
-        setAnalysis(
-          computeAnalysis(centroid, record.area_ha, record.created_at)
-        );
-      } catch (error: any) {
-        if (!isMounted) return;
-        console.error("❌ Detail lahan error:", error);
-        const message: string = error?.message ?? "Gagal memuat detail lahan.";
-        setErrorMessage(message);
+        setDetail(field);
+        setObservations(timeline);
+      } catch (error) {
+        if (!active) return;
+        console.error("Gagal memuat deret waktu lahan:", error);
+        setErrorMessage("Deret waktu lahan tidak dapat dimuat.");
       } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
+        if (active) setIsLoading(false);
       }
     };
 
-    load();
-
+    void load();
     return () => {
-      isMounted = false;
+      active = false;
     };
-  }, [id]);
+  }, [fieldId]);
 
-  const headerSubtitle = useMemo(() => {
-    if (!detail?.created_at) return "--";
-    const planted = new Date(detail.created_at);
-    return `${planted.toLocaleDateString("id-ID", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "2-digit",
-    })} tanggal ditanam`;
-  }, [detail]);
+  const latest = observations.at(-1) ?? null;
+  const activeValues = useMemo(
+    () =>
+      observations
+        .map((point) => point[activeIndex])
+        .filter((value): value is number => value !== null),
+    [activeIndex, observations]
+  );
+  const fixtureCount = observations.filter((point) => point.state === "fixture").length;
 
-  const harvestCountdownLabel = useMemo(() => {
-    if (!analysis) return "--";
-    return `${analysis.daysToHarvest} hari lagi menuju panen`;
-  }, [analysis]);
-
-  const harvestProgressLabel = useMemo(() => {
-    if (!analysis) return "--";
-    const completed = Math.round(
-      analysis.harvestProgress * analysis.harvestCycleDays
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.centered}>
+        <StatusBar style="dark" />
+        <ActivityIndicator size="large" color="#166534" />
+        <Text style={styles.loadingText}>Memuat deret waktu...</Text>
+      </SafeAreaView>
     );
-    return `${completed}/${analysis.harvestCycleDays}`;
-  }, [analysis]);
+  }
 
-  const healthMetrics = useMemo(() => {
-    if (!analysis) return [];
-
-    const ndviSeverity = evaluateNdviSeverity(analysis.ndviCurrent);
-    const trendSeverity = evaluateTrendSeverity(analysis.ndviTrendPercent);
-    const pestSeverity = evaluateRiskSeverity(analysis.pestPressure);
-
-    return [
-      {
-        key: "ndvi",
-        title: "NDVI Simulasi",
-        value: formatNdviValue(analysis.ndviCurrent),
-        caption: healthSeverityLabels[ndviSeverity],
-        palette: severityPalette[ndviSeverity],
-      },
-      {
-        key: "trend",
-        title: "Tren Demo 7 Hari",
-        value: `${
-          analysis.ndviTrendPercent >= 0 ? "+" : ""
-        }${analysis.ndviTrendPercent.toFixed(1)}%`,
-        caption:
-          analysis.ndviTrendPercent >= 0
-            ? "Membaik"
-            : trendSeverity === "warning"
-            ? "Menurun Tipis"
-            : "Menurun Tajam",
-        palette: severityPalette[trendSeverity],
-      },
-      {
-        key: "pest",
-        title: "Skor Hama Demo",
-        value: formatPercent(analysis.pestPressure),
-        caption: riskSeverityLabels[pestSeverity],
-        palette: severityPalette[pestSeverity],
-      },
-    ];
-  }, [analysis]);
-
-  const riskMetrics = useMemo(() => {
-    if (!analysis) return [];
-
-    const pestSeverity = evaluateRiskSeverity(analysis.pestPressure);
-    const diseaseSeverity = evaluateRiskSeverity(analysis.diseaseRisk);
-    const stressSeverity = evaluateRiskSeverity(analysis.stressIndex);
-
-    return [
-      {
-        key: "pest",
-        title: "Skor Hama Demo",
-        value: formatPercent(analysis.pestPressure),
-        caption: riskSeverityLabels[pestSeverity],
-        palette: severityPalette[pestSeverity],
-      },
-      {
-        key: "disease",
-        title: "Skor Penyakit Demo",
-        value: formatPercent(analysis.diseaseRisk),
-        caption: riskSeverityLabels[diseaseSeverity],
-        palette: severityPalette[diseaseSeverity],
-      },
-      {
-        key: "stress",
-        title: "Skor Stres Demo",
-        value: formatPercent(analysis.stressIndex),
-        caption: riskSeverityLabels[stressSeverity],
-        palette: severityPalette[stressSeverity],
-      },
-    ];
-  }, [analysis]);
+  if (errorMessage || !detail) {
+    return (
+      <SafeAreaView style={styles.centered}>
+        <StatusBar style="dark" />
+        <Ionicons name="cloud-offline-outline" size={36} color="#64748B" />
+        <Text style={styles.errorTitle}>Data tidak tersedia</Text>
+        <Text style={styles.errorText}>{errorMessage}</Text>
+        <TouchableOpacity style={styles.backAction} onPress={() => router.back()}>
+          <Text style={styles.backActionText}>Kembali</Text>
+        </TouchableOpacity>
+      </SafeAreaView>
+    );
+  }
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
-      <StatusBar style="auto" />
-      <View style={styles.container}>
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={styles.backButtonWrapper}>
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={() => router.back()}
-            >
-              <Ionicons name="chevron-back" size={24} color="#1B5E20" />
-              <Text style={styles.backButtonText}>Kembali ke Daftar Lahan</Text>
-            </TouchableOpacity>
+    <SafeAreaView style={styles.safeArea} edges={["top"]}>
+      <StatusBar style="light" />
+      <ScrollView contentContainerStyle={styles.content}>
+        <ImageBackground source={PADI_IMAGE} style={styles.hero} resizeMode="cover">
+          <View style={styles.heroOverlay} />
+          <TouchableOpacity
+            style={styles.iconButton}
+            onPress={() => router.back()}
+            accessibilityLabel="Kembali"
+          >
+            <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
+          </TouchableOpacity>
+          <View style={styles.heroCopy}>
+            <Text style={styles.cropLabel}>PADI</Text>
+            <Text style={styles.heroTitle}>{detail.name}</Text>
+            <Text style={styles.heroMeta}>{formatArea(detail.area_ha)}</Text>
           </View>
-          <View style={styles.heroContainer}>
-            <ImageBackground
-              source={
-                detail?.category && CATEGORY_IMAGES[detail.category]
-                  ? CATEGORY_IMAGES[detail.category]
-                  : CATEGORY_IMAGES.Jagung
-              }
-              style={styles.heroImageBackground}
-              imageStyle={styles.heroImage}
-              resizeMode="cover"
-            >
-              <LinearGradient
-                colors={heroGradientColors}
-                style={styles.heroGradient}
-              >
-                <View style={styles.heroContent}>
-                  <Text style={styles.fieldName}>
-                    {detail?.name ?? "Ladang"}
-                  </Text>
-                  <Text style={styles.fieldMeta}>
-                    {detail?.area_ha
-                      ? `${detail.area_ha.toFixed(2)} ha | ${headerSubtitle}`
-                      : headerSubtitle}
-                  </Text>
-                  <View style={styles.harvestRow}>
-                    <Text style={styles.harvestCountdown}>
-                      {harvestCountdownLabel}
-                    </Text>
-                    <Text style={styles.harvestProgressValue}>
-                      {harvestProgressLabel}
-                    </Text>
-                  </View>
-                  <View style={styles.harvestProgressBar}>
-                    <View
-                      style={[
-                        styles.harvestProgressFill,
-                        {
-                          width: `${clamp(
-                            (analysis?.harvestProgress ?? 0) * 100,
-                            2,
-                            100
-                          )}%`,
-                        },
-                      ]}
-                    />
-                  </View>
-                </View>
-              </LinearGradient>
-            </ImageBackground>
-          </View>
+        </ImageBackground>
 
-          <View style={styles.tabSwitchContainer}>
-            <TouchableOpacity
-              style={[
-                styles.tabSwitch,
-                activeTab === "health" && styles.tabSwitchActive,
-              ]}
-              onPress={() => setActiveTab("health")}
-            >
-              <Text
-                style={[
-                  styles.tabSwitchText,
-                  activeTab === "health" && styles.tabSwitchTextActive,
-                ]}
-              >
-                NDVI Demo
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.tabSwitch,
-                activeTab === "risk" && styles.tabSwitchActive,
-              ]}
-              onPress={() => setActiveTab("risk")}
-            >
-              <Text
-                style={[
-                  styles.tabSwitchText,
-                  activeTab === "risk" && styles.tabSwitchTextActive,
-                ]}
-              >
-                Risiko Demo
-              </Text>
-            </TouchableOpacity>
+        <View style={styles.noticeBand}>
+          <Ionicons name="time-outline" size={20} color="#075985" />
+          <View style={styles.noticeCopy}>
+            <Text style={styles.noticeTitle}>Deret waktu observasi</Text>
+            <Text style={styles.noticeText}>
+              Nilai ditampilkan apa adanya menurut tanggal rekaman. Matani tidak
+              menerjemahkannya menjadi diagnosis kesehatan, hama, penyakit, stres,
+              atau prediksi hasil.
+            </Text>
           </View>
+        </View>
 
-          <View style={styles.prototypeBanner}>
-            <Ionicons name="flask-outline" size={22} color="#8A4B08" />
-            <View style={styles.prototypeBannerCopy}>
-              <Text style={styles.prototypeBannerTitle}>
-                Mode simulasi (fixture)
-              </Text>
-              <Text style={styles.prototypeBannerText}>
-                Seluruh grafik, tanggal, estimasi panen, skor risiko, dan
-                rekomendasi pada halaman ini dibuat secara deterministik dari
-                koordinat/luas. Ini bukan pengukuran satelit, observasi lapangan,
-                diagnosis, atau rekomendasi agronomis tervalidasi.
-              </Text>
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <View>
+              <Text style={styles.sectionEyebrow}>REKAMAN TERSIMPAN</Text>
+              <Text style={styles.sectionTitle}>Perubahan indeks</Text>
+            </View>
+            <View style={styles.countBadge}>
+              <Text style={styles.countBadgeText}>{observations.length} titik</Text>
             </View>
           </View>
 
-          {isLoading ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#2E7D32" />
-              <Text style={styles.loadingText}>Memuat detail lahan…</Text>
-            </View>
-          ) : errorMessage ? (
-            <View style={styles.errorContainer}>
-              <Text style={styles.errorTitle}>Gagal Memuat Data</Text>
-              <Text style={styles.errorMessage}>{errorMessage}</Text>
+          <View style={styles.segmentedControl}>
+            {(["ndvi", "ndmi"] as IndexKey[]).map((key) => (
               <TouchableOpacity
-                style={styles.retryButton}
-                onPress={() => {
-                  setIsLoading(true);
-                  setErrorMessage(null);
-                  setDetail(null);
-                  setAnalysis(null);
-                  setTimeout(() => {
-                    if (id) {
-                      lahanService
-                        .getLahanDetail(String(id))
-                        .then((record) => {
-                          if (!record) {
-                            setErrorMessage("Data lahan tidak ditemukan.");
-                            return;
-                          }
-                          const centroid = extractCentroid(record);
-                          if (!centroid) {
-                            setErrorMessage("Koordinat lahan tidak valid.");
-                            return;
-                          }
-                          setDetail(record);
-                          setAnalysis(
-                            computeAnalysis(
-                              centroid,
-                              record.area_ha,
-                              record.created_at
-                            )
-                          );
-                        })
-                        .catch((error: any) => {
-                          console.error("❌ Detail lahan error:", error);
-                          setErrorMessage(
-                            error?.message ?? "Gagal memuat detail lahan."
-                          );
-                        })
-                        .finally(() => setIsLoading(false));
-                    }
-                  }, 300);
-                }}
+                key={key}
+                style={[
+                  styles.segmentButton,
+                  activeIndex === key && styles.segmentButtonActive,
+                ]}
+                onPress={() => setActiveIndex(key)}
               >
-                <Text style={styles.retryText}>Coba Lagi</Text>
+                <Text
+                  style={[
+                    styles.segmentText,
+                    activeIndex === key && styles.segmentTextActive,
+                  ]}
+                >
+                  {key.toUpperCase()}
+                </Text>
               </TouchableOpacity>
-            </View>
-          ) : analysis ? (
-            <>
-              {activeTab === "health" ? (
-                <View style={styles.sectionCard}>
-                  <Text style={styles.sectionTitle}>
-                    Grafik Simulasi NDVI (1 Bulan)
-                  </Text>
-                  <Text style={styles.sectionSubtitle}>
-                    Data demo sintetis berdasarkan koordinat lahan; bukan tanggal
-                    akuisisi Sentinel-2
-                  </Text>
-                  <View style={styles.chartContainer}>
-                    <MiniAreaChart data={analysis.ndviHistory} />
-                  </View>
-                  <View style={styles.chartLegendRow}>
-                    <Text style={styles.chartLegendLabel}>
-                      Pekan ini vs Pekan lalu:
-                    </Text>
-                    <Text
-                      style={[
-                        styles.chartLegendValue,
-                        {
-                          color:
-                            analysis.ndviWeekChange >= 0
-                              ? "#2E7D32"
-                              : "#C62828",
-                        },
-                      ]}
-                    >
-                      {analysis.ndviWeekChange >= 0 ? "+" : ""}
-                      {(analysis.ndviWeekChange * 100).toFixed(1)}%
-                    </Text>
-                  </View>
-                  <View style={styles.chartAxisRow}>
-                    <Text style={styles.axisLabel}>Rendah (&lt; 0.20)</Text>
-                    <Text style={styles.axisLabel}>Sedang (0.20-0.59)</Text>
-                    <Text style={styles.axisLabel}>Tinggi (≥ 0.60)</Text>
-                  </View>
-                </View>
-              ) : (
-                <View style={styles.sectionCard}>
-                  <Text
-                    style={[styles.sectionTitle, styles.sectionTitleCentered]}
-                  >
-                    Profil Risiko Tanaman
-                  </Text>
-                  <Text
-                    style={[
-                      styles.sectionSubtitle,
-                      styles.sectionSubtitleCentered,
-                    ]}
-                  >
-                    Skor sintetis untuk demonstrasi UI; bukan observasi risiko
-                  </Text>
-                  <View style={styles.metricsRow}>
-                    {riskMetrics.map((metric) => (
-                      <View
-                        key={metric.key}
-                        style={[
-                          styles.metricPill,
-                          {
-                            backgroundColor: metric.palette.background,
-                            borderColor: metric.palette.border,
-                          },
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.metricPillLabel,
-                            { color: metric.palette.text },
-                          ]}
-                        >
-                          {metric.title}
-                        </Text>
-                        <Text
-                          style={[
-                            styles.metricPillValue,
-                            { color: metric.palette.text },
-                          ]}
-                        >
-                          {metric.value}
-                        </Text>
-                        <Text
-                          style={[
-                            styles.metricPillStatus,
-                            { color: metric.palette.text },
-                          ]}
-                        >
-                          {metric.caption}
-                        </Text>
-                      </View>
-                    ))}
-                  </View>
-                </View>
-              )}
-
-              {activeTab === "health" ? (
-                <>
-                  <View style={styles.statusCard}>
-                    <Text style={styles.statusTitle}>
-                      Ringkasan Simulasi (bukan pengukuran)
-                    </Text>
-                    <View style={styles.statusMetricsRow}>
-                      {healthMetrics.map((metric, index) => (
-                        <View
-                          key={metric.key}
-                          style={[
-                            styles.statusMetricBox,
-                            index === healthMetrics.length - 1 &&
-                              styles.statusMetricBoxLast,
-                            {
-                              backgroundColor: metric.palette.background,
-                              borderColor: metric.palette.border,
-                            },
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              styles.statusMetricLabel,
-                              { color: metric.palette.text },
-                            ]}
-                          >
-                            {metric.title}
-                          </Text>
-                          <Text
-                            style={[
-                              styles.statusMetricValue,
-                              { color: metric.palette.text },
-                            ]}
-                          >
-                            {metric.value}
-                          </Text>
-                          <Text
-                            style={[
-                              styles.statusMetricCaption,
-                              { color: metric.palette.text },
-                            ]}
-                          >
-                            {metric.caption}
-                          </Text>
-                        </View>
-                      ))}
-                    </View>
-
-                    <View style={styles.noticeCard}>
-                      <View style={styles.noticeHeader}>
-                        <Ionicons name="warning" size={20} color="#C62828" />
-                        <Text style={styles.noticeTitle}>
-                          Skenario Anomali Demo
-                        </Text>
-                      </View>
-                      <Text style={styles.noticeDescription}>
-                        {analysis.anomalyDetected
-                          ? `Skenario perubahan NDVI: ${analysis.anomalySummary}`
-                          : "Skenario demo tidak menghasilkan perubahan besar."}
-                      </Text>
-
-                      <View style={styles.tipCard}>
-                        <Ionicons name="bulb" size={20} color="#2E7D32" />
-                        <View style={styles.tipTextContainer}>
-                          <Text style={styles.tipTitle}>Tips</Text>
-                          {NDVI_TIPS.map((tip, index) => (
-                            <View key={index} style={styles.tipListItem}>
-                              <Text style={styles.tipListBullet}>•</Text>
-                              <Text style={styles.tipDescription}>{tip}</Text>
-                            </View>
-                          ))}
-                        </View>
-                      </View>
-
-                      <View style={styles.extendedMetricsRow}>
-                        <View style={styles.extendedMetricBox}>
-                          <Text style={styles.extendedMetricLabel}>
-                            Nilai Tertinggi
-                          </Text>
-                          <Text style={styles.extendedMetricValue}>
-                            {formatPercent(analysis.ndviHighest, 1)}
-                          </Text>
-                          <Text style={styles.extendedMetricCaption}>
-                            30 hari
-                          </Text>
-                        </View>
-                        <View style={styles.extendedMetricBox}>
-                          <Text style={styles.extendedMetricLabel}>
-                            Nilai Terendah
-                          </Text>
-                          <Text style={styles.extendedMetricValue}>
-                            {formatPercent(analysis.ndviLowest, 1)}
-                          </Text>
-                          <Text style={styles.extendedMetricCaption}>
-                            30 hari
-                          </Text>
-                        </View>
-                        <View style={styles.extendedMetricBox}>
-                          <Text style={styles.extendedMetricLabel}>
-                            Nilai Rata-rata
-                          </Text>
-                          <Text style={styles.extendedMetricValue}>
-                            {formatPercent(analysis.ndviAverage, 1)}
-                          </Text>
-                          <Text style={styles.extendedMetricCaption}>
-                            30 hari
-                          </Text>
-                        </View>
-                      </View>
-                    </View>
-                  </View>
-
-                  <View style={styles.recommendationCard}>
-                    <View style={styles.recommendationHeader}>
-                      <View style={styles.recommendationBadge}>
-                        <Text style={styles.recommendationBadgeIcon}>✅</Text>
-                      </View>
-                      <View style={styles.recommendationTitleWrapper}>
-                        <Text style={styles.recommendationTitle}>
-                          Contoh Tindakan — Wajib Verifikasi
-                        </Text>
-                        <Text style={styles.recommendationSubtitle}>
-                          Bukan rekomendasi agronomis tervalidasi
-                        </Text>
-                      </View>
-                    </View>
-                    {analysis.recommendations.map((item, index) => (
-                      <View key={index} style={styles.recommendationItem}>
-                        <Text style={styles.recommendationBullet}>•</Text>
-                        <Text style={styles.recommendationText}>{item}</Text>
-                      </View>
-                    ))}
-                  </View>
-                </>
-              ) : (
-                <>
-                  <View style={styles.standaloneCardWrapper}>
-                    <View style={styles.noticeCard}>
-                      <View style={styles.noticeHeader}>
-                        <Ionicons name="analytics" size={20} color="#2E7D32" />
-                        <Text style={styles.noticeTitle}>
-                          Simulasi Risiko Detail
-                        </Text>
-                      </View>
-                      <Text style={styles.noticeDescription}>
-                        Skor demo dihitung dari koordinat lahan (
-                        {analysis.centroid.latitude.toFixed(4)}° LS,
-                        {analysis.centroid.longitude.toFixed(4)}° BT)
-                        menggunakan fungsi logistik kelembaban tanah, NDVI dan
-                        pola sinyal vegetasi harian. Angka ini bukan diagnosis
-                        hama, penyakit, stres, atau kelembapan tanah.
-                      </Text>
-
-                      <View style={styles.extendedMetricsRow}>
-                        <View style={styles.extendedMetricBox}>
-                          <Text style={styles.extendedMetricLabel}>
-                            Indeks Kelembapan Demo
-                          </Text>
-                          <Text style={styles.extendedMetricValue}>
-                            {formatPercent(analysis.moistureIndex)}
-                          </Text>
-                          <Text style={styles.extendedMetricCaption}>
-                            Model sin(ar)
-                          </Text>
-                        </View>
-                        <View style={styles.extendedMetricBox}>
-                          <Text style={styles.extendedMetricLabel}>
-                            Skor Penyakit Demo
-                          </Text>
-                          <Text style={styles.extendedMetricValue}>
-                            {formatPercent(analysis.diseaseRisk)}
-                          </Text>
-                          <Text style={styles.extendedMetricCaption}>
-                            Logistik NDVI
-                          </Text>
-                        </View>
-                        <View style={styles.extendedMetricBox}>
-                          <Text style={styles.extendedMetricLabel}>
-                            Kelembapan Tanah Demo
-                          </Text>
-                          <Text style={styles.extendedMetricValue}>
-                            {formatPercent(analysis.soilMoisture)}
-                          </Text>
-                          <Text style={styles.extendedMetricCaption}>
-                            NDVI x Lat/Lon
-                          </Text>
-                        </View>
-                      </View>
-
-                      <View style={styles.tipCard}>
-                        <Ionicons name="shield" size={20} color="#2E7D32" />
-                        <View style={styles.tipTextContainer}>
-                          <Text style={styles.tipTitle}>
-                            Contoh Pencegahan — Verifikasi Lapangan
-                          </Text>
-                          <Text style={styles.tipDescription}>
-                            {analysis.pestAlert}
-                          </Text>
-                        </View>
-                      </View>
-                    </View>
-                  </View>
-
-                  <View style={styles.recommendationCard}>
-                    <View style={styles.recommendationHeader}>
-                      <View
-                        style={[
-                          styles.recommendationBadge,
-                          styles.recommendationBadgeWarning,
-                        ]}
-                      >
-                        <Text style={styles.recommendationBadgeIcon}>⚠️</Text>
-                      </View>
-                      <View style={styles.recommendationTitleWrapper}>
-                        <Text style={styles.recommendationTitle}>
-                          Contoh Mitigasi — Belum Tervalidasi
-                        </Text>
-                        <Text style={styles.recommendationSubtitle}>
-                          Jangan digunakan tanpa inspeksi lapangan
-                        </Text>
-                      </View>
-                    </View>
-                    <View style={styles.recommendationItem}>
-                      <Text style={styles.recommendationBullet}>•</Text>
-                      <Text style={styles.recommendationText}>
-                        {analysis.moistureIndex < 0.5
-                          ? "Ukur kelembapan tanah secara langsung sebelum menyesuaikan irigasi."
-                          : "Pantau kelembapan dengan observasi atau sensor tanah yang sesuai."}
-                      </Text>
-                    </View>
-                    <View style={styles.recommendationItem}>
-                      <Text style={styles.recommendationBullet}>•</Text>
-                      <Text style={styles.recommendationText}>
-                        {analysis.diseaseRisk > 0.55
-                          ? "Lakukan inspeksi gejala dan konsultasikan temuan dengan tenaga ahli."
-                          : "Jaga catatan inspeksi lapangan; skor demo tidak menyatakan penyakit."}
-                      </Text>
-                    </View>
-                    <View style={styles.recommendationItem}>
-                      <Text style={styles.recommendationBullet}>•</Text>
-                      <Text style={styles.recommendationText}>
-                        {analysis.pestPressure > 0.6
-                          ? "Periksa populasi hama secara langsung sebelum menentukan tindakan."
-                          : "Catat hasil inspeksi hama; jangan menyimpulkan dari skor demo."}
-                      </Text>
-                    </View>
-                    <View style={styles.recommendationItem}>
-                      <Text style={styles.recommendationBullet}>•</Text>
-                      <Text style={styles.recommendationText}>
-                        {analysis.stressIndex > 0.6
-                          ? "Verifikasi air, tanah, cuaca, dan fase tumbuh sebelum menyimpulkan stres."
-                          : "Gunakan pengamatan lapangan sebagai dasar keputusan perawatan."}
-                      </Text>
-                    </View>
-                  </View>
-                </>
-              )}
-            </>
-          ) : null}
-
-          {/* Delete Button */}
-          <View style={styles.deleteButtonContainer}>
-            <TouchableOpacity
-              style={styles.deleteButton}
-              onPress={() => {
-                // TODO: Implement delete functionality
-                console.log("Delete lahan:", id);
-              }}
-            >
-              <Ionicons name="trash-outline" size={20} color="#C62828" />
-              <Text style={styles.deleteButtonText}>Hapus Ladang</Text>
-            </TouchableOpacity>
+            ))}
           </View>
-        </ScrollView>
-      </View>
+
+          <ObservationChart points={observations} indexKey={activeIndex} />
+
+          <View style={styles.metricRow}>
+            <View style={styles.metricBlock}>
+              <Text style={styles.metricLabel}>Terbaru</Text>
+              <Text style={styles.metricValue}>
+                {formatValue(latest?.[activeIndex] ?? null)}
+              </Text>
+            </View>
+            <View style={styles.metricDivider} />
+            <View style={styles.metricBlock}>
+              <Text style={styles.metricLabel}>Minimum</Text>
+              <Text style={styles.metricValue}>
+                {activeValues.length ? Math.min(...activeValues).toFixed(3) : "--"}
+              </Text>
+            </View>
+            <View style={styles.metricDivider} />
+            <View style={styles.metricBlock}>
+              <Text style={styles.metricLabel}>Maksimum</Text>
+              <Text style={styles.metricValue}>
+                {activeValues.length ? Math.max(...activeValues).toFixed(3) : "--"}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionEyebrow}>KRONOLOGI</Text>
+          <Text style={styles.sectionTitle}>Observasi per tanggal</Text>
+          {observations.length === 0 ? (
+            <View style={styles.emptyTimeline}>
+              <Ionicons name="calendar-outline" size={30} color="#94A3B8" />
+              <Text style={styles.emptyTimelineTitle}>Belum ada riwayat observasi</Text>
+              <Text style={styles.emptyTimelineText}>
+                Pipeline pengukuran belum menulis riwayat provenance-complete. Matani
+                menampilkan keadaan kosong ini tanpa membuat data pengganti.
+              </Text>
+            </View>
+          ) : (
+            observations
+              .slice()
+              .reverse()
+              .map((point) => (
+                <View key={point.id} style={styles.timelineRow}>
+                  <View
+                    style={[
+                      styles.timelineDot,
+                      point.state === "fixture" && styles.timelineDotFixture,
+                    ]}
+                  />
+                  <View style={styles.timelineCopy}>
+                    <View style={styles.timelineHeader}>
+                      <Text style={styles.timelineDate}>{formatDate(point.timestamp)}</Text>
+                      <Text
+                        style={[
+                          styles.stateLabel,
+                          point.state === "fixture" && styles.stateLabelFixture,
+                        ]}
+                      >
+                        {point.state === "fixture" ? "FIXTURE" : "PROTOTIPE"}
+                      </Text>
+                    </View>
+                    <Text style={styles.timelineValues}>
+                      NDVI {formatValue(point.ndvi)}   NDMI {formatValue(point.ndmi)}
+                    </Text>
+                  </View>
+                </View>
+              ))
+          )}
+        </View>
+
+        <View style={styles.provenanceBand}>
+          <Ionicons name="shield-checkmark-outline" size={20} color="#92400E" />
+          <Text style={styles.provenanceText}>
+            {fixtureCount > 0
+              ? `${fixtureCount} titik berstatus fixture dan bukan observasi satelit.`
+              : "Rekaman legacy masih berstatus prototipe karena provenance pengukuran belum lengkap."}
+          </Text>
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: "#f0f2ed",
-  },
-  container: {
-    flex: 1,
-    backgroundColor: "#f0f2ed",
-  },
-  scrollContent: {
-    paddingBottom: 48,
-  },
-  heroContainer: {
-    marginHorizontal: 16,
-    marginBottom: 16,
-    borderRadius: 24,
-    overflow: "hidden",
-    elevation: 8,
-    shadowColor: "#000",
-    shadowOpacity: 0.2,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 12,
-  },
-  heroImageBackground: {
-    minHeight: 240,
-    justifyContent: "flex-end",
-  },
-  heroImage: {
-    borderRadius: 24,
-  },
-  heroGradient: {
-    flex: 1,
-    borderRadius: 24,
-    paddingTop: 48,
-    minHeight: 240,
-    justifyContent: "flex-end",
-  },
-  backButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#E8F5E9",
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 24,
-    shadowColor: "#1B5E20",
-    shadowOpacity: 0.12,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  backButtonText: {
-    color: "#1B5E20",
-    fontSize: 14,
-    fontWeight: "600",
-    marginLeft: 4,
-  },
-  backButtonWrapper: {
-    marginTop: 16,
-    marginHorizontal: 16,
-    marginBottom: 12,
-  },
-  heroContent: {
-    padding: 20,
-  },
-  fieldName: {
-    color: "#fff",
-    fontSize: 26,
-    fontWeight: "700",
-    marginBottom: 6,
-  },
-  fieldMeta: {
-    color: "#f1f8e9",
-    fontSize: 14,
-    marginBottom: 16,
-  },
-  harvestRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  harvestCountdown: {
-    color: "#fff",
-    fontSize: 14,
-    fontWeight: "500",
-  },
-  harvestProgressValue: {
-    color: "#fff",
-    fontSize: 14,
-    fontWeight: "500",
-  },
-  harvestProgressBar: {
-    height: 6,
-    backgroundColor: "rgba(255,255,255,0.25)",
-    borderRadius: 4,
-    overflow: "hidden",
-  },
-  harvestProgressFill: {
-    height: "100%",
-    backgroundColor: "#C8E6C9",
-    borderRadius: 4,
-  },
-  tabSwitchContainer: {
-    flexDirection: "row",
-    backgroundColor: "#e0e3dc",
-    marginHorizontal: 16,
-    borderRadius: 24,
-    padding: 4,
-    marginTop: 16,
-  },
-  tabSwitch: {
-    flex: 1,
-    paddingVertical: 12,
-    alignItems: "center",
-    borderRadius: 20,
-  },
-  tabSwitchActive: {
-    backgroundColor: "#2E7D32",
-  },
-  tabSwitchText: {
-    fontSize: 15,
-    color: "#5d5f58",
-    fontWeight: "600",
-  },
-  tabSwitchTextActive: {
-    color: "#fff",
-  },
-  prototypeBanner: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 10,
-    marginHorizontal: 16,
-    marginTop: 14,
-    padding: 14,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "#F3C77B",
-    backgroundColor: "#FFF8E8",
-  },
-  prototypeBannerCopy: {
-    flex: 1,
-  },
-  prototypeBannerTitle: {
-    color: "#8A4B08",
-    fontSize: 14,
-    fontWeight: "800",
-    marginBottom: 4,
-  },
-  prototypeBannerText: {
-    color: "#6B4A1E",
-    fontSize: 12,
-    lineHeight: 18,
-  },
-  loadingContainer: {
-    marginTop: 40,
-    alignItems: "center",
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: "#555",
-  },
-  errorContainer: {
-    margin: 24,
-    padding: 20,
-    backgroundColor: "#fff5f5",
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#ffcdd2",
-  },
-  errorTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#c62828",
-    marginBottom: 8,
-  },
-  errorMessage: {
-    fontSize: 14,
-    color: "#b71c1c",
-    marginBottom: 16,
-  },
-  retryButton: {
-    alignSelf: "flex-start",
-    backgroundColor: "#2E7D32",
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 20,
-  },
-  retryText: {
-    color: "#fff",
-    fontWeight: "600",
-  },
-  standaloneCardWrapper: {
-    marginHorizontal: 16,
-    marginTop: 20,
-  },
-  sectionCard: {
-    marginHorizontal: 16,
-    marginTop: 20,
-    backgroundColor: "#fff",
-    borderRadius: 20,
-    padding: 20,
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 12,
-    elevation: 3,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#2E7D32",
-  },
-  sectionTitleCentered: {
-    textAlign: "center",
-  },
-  sectionSubtitle: {
-    fontSize: 13,
-    color: "#7a7c74",
-    marginTop: 2,
-  },
-  sectionSubtitleCentered: {
-    textAlign: "center",
-  },
-  chartContainer: {
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  chartLegendRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginTop: 8,
-  },
-  chartLegendLabel: {
-    fontSize: 13,
-    color: "#333",
-  },
-  chartLegendValue: {
-    fontSize: 14,
-    fontWeight: "700",
-  },
-  chartAxisRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 12,
-  },
-  axisLabel: {
-    fontSize: 11,
-    color: "#7a7c74",
-  },
-  metricsRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 16,
-  },
-  metricPill: {
-    flex: 1,
-    borderRadius: 16,
-    paddingVertical: 16,
-    paddingHorizontal: 12,
-    marginHorizontal: 4,
-    alignItems: "center",
-    borderWidth: 1,
-  },
-  metricPillLabel: {
-    fontSize: 13,
-    color: "#424242",
-    textAlign: "center",
-  },
-  metricPillValue: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#2E7D32",
-    marginVertical: 6,
-    textAlign: "center",
-  },
-  metricPillStatus: {
-    fontSize: 12,
-    color: "#616161",
-    textAlign: "center",
-  },
-  statusCard: {
-    marginHorizontal: 16,
-    marginTop: 20,
-    backgroundColor: "#fff",
-    borderRadius: 20,
-    padding: 20,
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 12,
-    elevation: 3,
-  },
-  statusTitle: {
-    fontSize: 18,
-    textAlign: "center",
-    fontWeight: "700",
-    color: "#2E7D32",
-    marginBottom: 16,
-  },
-  statusMetricsRow: {
-    textAlign: "center",
-    flexDirection: "row",
-    marginBottom: 20,
-  },
-  statusMetricBox: {
-    flex: 1,
-    textAlign: "center",
-    borderRadius: 16,
-    padding: 16,
-    marginRight: 12,
-    borderWidth: 1,
-    alignItems: "center",
-  },
-  statusMetricBoxLast: {
-    marginRight: 0,
-  },
-  statusMetricLabel: {
-    fontSize: 12,
-    color: "#2E7D32",
-    marginBottom: 6,
-    textAlign: "center",
-  },
-  statusMetricValue: {
-    fontSize: 22,
-    fontWeight: "700",
-    color: "#1B5E20",
-    textAlign: "center",
-  },
-  statusMetricCaption: {
-    fontSize: 12,
-    color: "#33691E",
-    marginTop: 4,
-    textAlign: "center",
-  },
-  noticeCard: {
-    backgroundColor: "#F9FBF6",
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: "#E0E6D8",
-    marginTop: 12,
-    alignSelf: "stretch",
-    width: "100%",
-  },
-  noticeHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  noticeTitle: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#2E7D32",
-    marginLeft: 8,
-  },
-  noticeDescription: {
-    fontSize: 13,
-    color: "#4E583E",
-  },
-  tipCard: {
-    marginTop: 12,
-    flexDirection: "row",
-    backgroundColor: "#E8F5E9",
-    borderRadius: 12,
-    padding: 12,
-  },
-  tipTextContainer: {
-    marginLeft: 12,
-    flex: 1,
-  },
-  tipTitle: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#2E7D32",
-  },
-  tipDescription: {
-    fontSize: 13,
-    color: "#2E7D32",
-    flex: 1,
-  },
-  tipListItem: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    marginTop: 6,
-  },
-  tipListBullet: {
-    fontSize: 16,
-    color: "#2E7D32",
-    marginRight: 8,
-    lineHeight: 18,
-  },
-  extendedMetricsRow: {
-    flexDirection: "row",
-    marginTop: 16,
-    justifyContent: "space-between",
-  },
-  extendedMetricBox: {
-    flex: 1,
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 14,
-    marginHorizontal: 4,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#E0E6D8",
-  },
-  extendedMetricLabel: {
-    fontSize: 13,
-    color: "#2E7D32",
-  },
-  extendedMetricValue: {
-    marginTop: 6,
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#1B5E20",
-  },
-  extendedMetricCaption: {
-    fontSize: 12,
-    color: "#7a7c74",
-    marginTop: 4,
-  },
-  recommendationCard: {
-    marginHorizontal: 16,
-    marginTop: 20,
-    backgroundColor: "#fff",
-    borderRadius: 20,
-    padding: 20,
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 12,
-    elevation: 3,
-  },
-  recommendationHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  recommendationBadge: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#E8F5E9",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 12,
-  },
-  recommendationBadgeWarning: {
-    backgroundColor: "#FFF3E0",
-  },
-  recommendationBadgeIcon: {
-    fontSize: 20,
-  },
-  recommendationTitleWrapper: {
-    flex: 1,
-  },
-  recommendationTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#2E7D32",
-  },
-  recommendationSubtitle: {
-    fontSize: 12,
-    color: "#7a7c74",
-  },
-  recommendationItem: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    marginBottom: 8,
-  },
-  recommendationBullet: {
-    fontSize: 16,
-    color: "#2E7D32",
-    marginRight: 8,
-  },
-  recommendationText: {
-    flex: 1,
-    fontSize: 13,
-    color: "#4E583E",
-  },
-  deleteButtonContainer: {
-    marginHorizontal: 16,
-    marginTop: 24,
-    marginBottom: 16,
-  },
-  deleteButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#FFEBEE",
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    borderRadius: 12,
-    gap: 8,
-  },
-  deleteButtonText: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#C62828",
-  },
+  safeArea: { flex: 1, backgroundColor: "#F8FAFC" },
+  centered: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24, backgroundColor: "#F8FAFC" },
+  loadingText: { marginTop: 12, color: "#475569", fontSize: 14 },
+  errorTitle: { marginTop: 12, fontSize: 20, fontWeight: "700", color: "#0F172A" },
+  errorText: { marginTop: 6, color: "#64748B", textAlign: "center" },
+  backAction: { marginTop: 20, backgroundColor: "#166534", paddingHorizontal: 20, paddingVertical: 12 },
+  backActionText: { color: "#FFFFFF", fontWeight: "700" },
+  content: { paddingBottom: 36 },
+  hero: { height: 230, justifyContent: "space-between", padding: 18 },
+  heroOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(5, 30, 16, 0.48)" },
+  iconButton: { width: 42, height: 42, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(15, 23, 42, 0.55)" },
+  heroCopy: { maxWidth: "90%" },
+  cropLabel: { color: "#BBF7D0", fontSize: 12, fontWeight: "800" },
+  heroTitle: { color: "#FFFFFF", fontSize: 30, fontWeight: "800", marginTop: 5 },
+  heroMeta: { color: "#E2E8F0", fontSize: 14, marginTop: 6 },
+  noticeBand: { flexDirection: "row", gap: 12, paddingHorizontal: 20, paddingVertical: 16, backgroundColor: "#E0F2FE", borderBottomWidth: 1, borderBottomColor: "#BAE6FD" },
+  noticeCopy: { flex: 1 },
+  noticeTitle: { color: "#075985", fontSize: 14, fontWeight: "800" },
+  noticeText: { color: "#0C4A6E", fontSize: 12, lineHeight: 18, marginTop: 3 },
+  section: { paddingHorizontal: 20, paddingTop: 24 },
+  sectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end" },
+  sectionEyebrow: { color: "#64748B", fontSize: 10, fontWeight: "800" },
+  sectionTitle: { color: "#0F172A", fontSize: 20, fontWeight: "800", marginTop: 4 },
+  countBadge: { backgroundColor: "#DCFCE7", paddingHorizontal: 10, paddingVertical: 6 },
+  countBadgeText: { color: "#166534", fontSize: 12, fontWeight: "800" },
+  segmentedControl: { flexDirection: "row", backgroundColor: "#E2E8F0", marginTop: 18, padding: 3 },
+  segmentButton: { flex: 1, height: 38, alignItems: "center", justifyContent: "center" },
+  segmentButtonActive: { backgroundColor: "#FFFFFF" },
+  segmentText: { color: "#64748B", fontSize: 13, fontWeight: "800" },
+  segmentTextActive: { color: "#166534" },
+  chartFrame: { marginTop: 14, backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: "#E2E8F0", paddingTop: 8 },
+  chartAxisRow: { flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 12, paddingBottom: 10 },
+  chartAxisText: { color: "#64748B", fontSize: 10 },
+  chartEmpty: { height: 210, alignItems: "center", justifyContent: "center", paddingHorizontal: 28, backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: "#E2E8F0", marginTop: 14 },
+  chartEmptyTitle: { color: "#334155", fontSize: 14, fontWeight: "700", marginTop: 8 },
+  chartEmptyText: { color: "#64748B", fontSize: 12, textAlign: "center", lineHeight: 18, marginTop: 4 },
+  metricRow: { flexDirection: "row", marginTop: 12, backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: "#E2E8F0", paddingVertical: 14 },
+  metricBlock: { flex: 1, alignItems: "center" },
+  metricDivider: { width: 1, backgroundColor: "#E2E8F0" },
+  metricLabel: { color: "#64748B", fontSize: 10, fontWeight: "700" },
+  metricValue: { color: "#0F172A", fontSize: 18, fontWeight: "800", marginTop: 4 },
+  emptyTimeline: { alignItems: "center", marginTop: 14, padding: 24, backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: "#E2E8F0" },
+  emptyTimelineTitle: { color: "#334155", fontWeight: "700", marginTop: 8 },
+  emptyTimelineText: { color: "#64748B", fontSize: 12, lineHeight: 18, textAlign: "center", marginTop: 5 },
+  timelineRow: { flexDirection: "row", gap: 12, paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: "#E2E8F0" },
+  timelineDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: "#0284C7", marginTop: 5 },
+  timelineDotFixture: { backgroundColor: "#F59E0B" },
+  timelineCopy: { flex: 1 },
+  timelineHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 8 },
+  timelineDate: { color: "#0F172A", fontSize: 13, fontWeight: "700", flex: 1 },
+  timelineValues: { color: "#475569", fontSize: 13, marginTop: 5 },
+  stateLabel: { color: "#0369A1", backgroundColor: "#E0F2FE", fontSize: 9, fontWeight: "800", paddingHorizontal: 7, paddingVertical: 4 },
+  stateLabelFixture: { color: "#92400E", backgroundColor: "#FEF3C7" },
+  provenanceBand: { flexDirection: "row", gap: 10, marginHorizontal: 20, marginTop: 24, padding: 14, backgroundColor: "#FFFBEB", borderWidth: 1, borderColor: "#FDE68A" },
+  provenanceText: { flex: 1, color: "#78350F", fontSize: 12, lineHeight: 18 },
 });

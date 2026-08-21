@@ -41,6 +41,7 @@ export type Database = {
           created_at: string
           geom: unknown
           id: string
+          legacy_category: string | null
           name: string
           thumbnail_url: string | null
           updated_at: string
@@ -52,6 +53,7 @@ export type Database = {
           created_at?: string
           geom: unknown
           id?: string
+          legacy_category?: string | null
           name: string
           thumbnail_url?: string | null
           updated_at?: string
@@ -63,6 +65,7 @@ export type Database = {
           created_at?: string
           geom?: unknown
           id?: string
+          legacy_category?: string | null
           name?: string
           thumbnail_url?: string | null
           updated_at?: string
@@ -426,4 +429,3 @@ export const Constants = {
     Enums: {},
   },
 } as const
-

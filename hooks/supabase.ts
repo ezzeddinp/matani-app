@@ -223,7 +223,6 @@ export const lahanService = {
     areaHa?: number,
     options?: {
       thumbnailUrl?: string | null;
-      category?: string | null;
     }
   ) {
     if (!userId) {
@@ -243,7 +242,7 @@ export const lahanService = {
           name: name,
           geom: polygonWkt,
           thumbnail_url: options?.thumbnailUrl ?? null,
-          category: options?.category ?? null,
+          category: "padi",
         },
       ])
       .select();

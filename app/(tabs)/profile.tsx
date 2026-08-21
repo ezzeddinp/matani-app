@@ -385,9 +385,9 @@ export default function ProfileScreen() {
             Metrik Agronomis Tidak Tersedia
           </Text>
           <Text style={styles.guestBannerText}>
-            Matani belum memiliki pengukuran provenance-complete untuk
-            menghitung kesehatan lahan, efisiensi monitoring, produktivitas,
-            atau respons terhadap alert.
+            Matani menampilkan deret waktu nilai yang tersedia tanpa mendiagnosis
+            kesehatan lahan atau memprediksi produktivitas. Pengukuran
+            provenance-complete dan alert produksi belum tersedia.
           </Text>
         </View>
       </View>

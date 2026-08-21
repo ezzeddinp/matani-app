@@ -1,9 +1,4 @@
-import {
-  classifyNdviStatus,
-  formatNdviValue,
-  NDVI_UNKNOWN_CONFIG,
-  type NdviClassification,
-} from "@/constants/ndvi";
+import { formatNdviValue } from "@/constants/ndvi";
 import {
   deriveSummaryIconKey,
   getWeatherIconSource,
@@ -55,6 +50,7 @@ interface SavedLahanCardProps {
   areaHa: number | null;
   ndviScore?: number | null;
   capturedAt?: string | null;
+  dataState?: "fixture" | "prototype";
   thumbnailUrl?: string | null;
   category?: string | null;
   warningCount?: number;
@@ -103,9 +99,20 @@ type LahanHealthRecord = {
 };
 
 type LahanHealthSummary = {
-  classification: NdviClassification;
   ndviScore: number | null;
   capturedAt: string | null;
+  dataState: "fixture" | "prototype";
+};
+
+const getObservationState = (
+  status?: string | null
+): "fixture" | "prototype" => {
+  const normalized = status?.trim().toLowerCase();
+  return ["fixture", "synthetic", "simulated", "simulation"].includes(
+    normalized ?? ""
+  )
+    ? "fixture"
+    : "prototype";
 };
 
 const parseDateToTime = (value?: string | null) => {
@@ -266,19 +273,14 @@ const WeatherCard = ({
 const { width } = Dimensions.get("window");
 
 // Category images mapping
-const CATEGORY_IMAGES: Record<string, any> = {
-  Jagung: require("@/assets/foto-ladang/jagung.png"),
-  Padi: require("@/assets/foto-ladang/padi.jpg"),
-  Kedelai: require("@/assets/foto-ladang/kedelai.jpg"),
-  Teh: require("@/assets/foto-ladang/teh.jpg"),
-  Kopi: require("@/assets/foto-ladang/kopi.jpg"),
-};
+const PADI_IMAGE = require("@/assets/foto-ladang/padi.jpg");
 
 const LahanCard = ({
   name,
   areaHa,
   ndviScore,
   capturedAt,
+  dataState,
   thumbnailUrl,
   category,
   warningCount = 0,
@@ -286,14 +288,13 @@ const LahanCard = ({
   onPress,
 }: SavedLahanCardProps) => {
   const ndviValue = parseOptionalNumber(ndviScore);
-  const classification = classifyNdviStatus(ndviValue, null);
-  const hasPrototypeNdvi = ndviValue !== null;
-  const statusLabel = hasPrototypeNdvi
-    ? `${classification.title} · Prototipe`
-    : NDVI_UNKNOWN_CONFIG.title;
-  const statusColor = hasPrototypeNdvi
-    ? classification.color
-    : NDVI_UNKNOWN_CONFIG.color;
+  const hasObservation = ndviValue !== null;
+  const statusLabel = hasObservation
+    ? `Rekaman terbaru · ${dataState === "fixture" ? "Fixture" : "Prototipe"}${
+        capturedAt ? ` · ${formatDisplayDate(capturedAt)}` : ""
+      }`
+    : "Observasi belum tersedia";
+  const statusColor = hasObservation ? "#075985" : "#64748B";
 
   // Truncate note with "..."
   const displayNote =
@@ -302,12 +303,6 @@ const LahanCard = ({
         ? `${note.substring(0, 30)}...`
         : note
       : "-";
-
-  // Get category image
-  const categoryImage =
-    category && CATEGORY_IMAGES[category]
-      ? CATEGORY_IMAGES[category]
-      : CATEGORY_IMAGES.Jagung;
 
   return (
     <View style={styles.fieldCardContainer}>
@@ -319,7 +314,7 @@ const LahanCard = ({
         <View style={styles.fieldCard}>
           {/* Top Section with Category Image */}
           <ImageBackground
-            source={categoryImage}
+            source={PADI_IMAGE}
             style={styles.fieldCardTop}
             resizeMode="cover"
             imageStyle={{
@@ -329,7 +324,7 @@ const LahanCard = ({
           >
             <View style={styles.fieldCategoryBadge}>
               <Text style={styles.fieldCategoryText}>
-                {category || "Jagung"}
+                {category?.toLowerCase() === "padi" ? "Padi" : "Scope lama"}
               </Text>
             </View>
 
@@ -673,8 +668,8 @@ export default function HomeScreen() {
                 item.thumbnail_url.length > 0
                   ? item.thumbnail_url
                   : thumbnailMap[item.id] ?? null,
-              category: item.category || "Jagung", // Use category from database
-              warningCount: 0, // Bisa dihitung dari health status atau issues
+              category: item.category ?? null,
+              warningCount: 0,
               latestNote: notesMap[item.id] ?? null,
             };
           })
@@ -757,16 +752,11 @@ export default function HomeScreen() {
           const record = latestEntries.get(id);
           if (record) {
             const parsedScore = parseOptionalNumber(record.ndvi_score);
+            const capturedAt = record.captured_at ?? null;
             acc[id] = {
-              classification: classifyNdviStatus(parsedScore, record.status),
-              ndviScore: parsedScore,
-              capturedAt: record.captured_at ?? record.created_at ?? null,
-            };
-          } else {
-            acc[id] = {
-              classification: NDVI_UNKNOWN_CONFIG,
-              ndviScore: null,
-              capturedAt: null,
+              ndviScore: capturedAt ? parsedScore : null,
+              capturedAt,
+              dataState: getObservationState(record.status),
             };
           }
           return acc;
@@ -776,19 +766,8 @@ export default function HomeScreen() {
 
       setLahanHealthMap(next);
     } catch (error) {
-      console.error("Gagal memuat kesehatan lahan:", error);
-      const fallback = targetIds.reduce<Record<string, LahanHealthSummary>>(
-        (acc, id) => {
-          acc[id] = {
-            classification: NDVI_UNKNOWN_CONFIG,
-            ndviScore: null,
-            capturedAt: null,
-          };
-          return acc;
-        },
-        {}
-      );
-      setLahanHealthMap(fallback);
+      console.error("Gagal memuat observasi lahan:", error);
+      setLahanHealthMap({});
     }
   }, []);
 
@@ -1163,8 +1142,6 @@ export default function HomeScreen() {
   const selectedNdviIsAvailable =
     typeof selectedLahanHealth?.ndviScore === "number" &&
     Number.isFinite(selectedLahanHealth.ndviScore);
-  const selectedNdviClassification =
-    selectedLahanHealth?.classification ?? NDVI_UNKNOWN_CONFIG;
 
   return (
     <View style={styles.container}>
@@ -1286,20 +1263,16 @@ export default function HomeScreen() {
         )}
 
         <View style={styles.content}>
-          {/* NDVI Status Card Mini */}
+          {/* Latest observation snapshot */}
           <View style={styles.ndviStatusCard}>
             <View style={styles.ndviStatusLeft}>
               <Ionicons
                 name="leaf"
                 size={24}
-                color={
-                  selectedNdviIsAvailable
-                    ? selectedNdviClassification.color
-                    : "#9E9E9E"
-                }
+                color={selectedNdviIsAvailable ? "#075985" : "#9E9E9E"}
               />
               <View style={styles.ndviStatusTextContainer}>
-                <Text style={styles.ndviStatusLabel}>Status Ladang</Text>
+                <Text style={styles.ndviStatusLabel}>Observasi Terbaru</Text>
                 <Text
                   style={[
                     styles.ndviStatusValue,
@@ -1309,8 +1282,12 @@ export default function HomeScreen() {
                   {!selectedLahanId
                     ? "Pilih ladang"
                     : selectedNdviIsAvailable
-                    ? `${selectedNdviClassification.title} · Prototipe`
-                    : "Data satelit tidak tersedia"}
+                    ? `${
+                        selectedLahanHealth?.dataState === "fixture"
+                          ? "Fixture"
+                          : "Prototipe"
+                      } · ${formatDisplayDate(selectedLahanHealth?.capturedAt)}`
+                    : "Riwayat belum tersedia"}
                 </Text>
               </View>
             </View>
@@ -1318,9 +1295,7 @@ export default function HomeScreen() {
               style={[
                 styles.ndviStatusBadge,
                 {
-                  backgroundColor: selectedNdviIsAvailable
-                    ? selectedNdviClassification.background
-                    : "#E0E0E0",
+                  backgroundColor: selectedNdviIsAvailable ? "#E0F2FE" : "#E0E0E0",
                 },
               ]}
             >
@@ -1328,14 +1303,12 @@ export default function HomeScreen() {
                 style={[
                   styles.ndviStatusBadgeText,
                   {
-                    color: selectedNdviIsAvailable
-                      ? selectedNdviClassification.color
-                      : "#757575",
+                    color: selectedNdviIsAvailable ? "#075985" : "#757575",
                   },
                 ]}
               >
                 {selectedNdviIsAvailable
-                  ? `NDVI demo: ${formatNdviValue(
+                  ? `NDVI: ${formatNdviValue(
                       selectedLahanHealth?.ndviScore
                     )}`
                   : "NDVI: --"}
@@ -1397,6 +1370,7 @@ export default function HomeScreen() {
                   areaHa={item.areaHa}
                   ndviScore={lahanHealthMap[item.id]?.ndviScore ?? null}
                   capturedAt={lahanHealthMap[item.id]?.capturedAt ?? null}
+                  dataState={lahanHealthMap[item.id]?.dataState}
                   thumbnailUrl={item.thumbnailUrl}
                   category={item.category}
                   warningCount={item.warningCount}

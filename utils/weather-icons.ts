@@ -40,7 +40,7 @@ export const getWeatherIconSource = (
   return WEATHER_ICON_SOURCES[key] ?? WEATHER_ICON_SOURCES.default;
 };
 
-export const mapAccuWeatherCodeToIconKey = (
+export const mapWmoWeatherCodeToIconKey = (
   code: number | null
 ): WeatherIconKey => {
   if (code === null || Number.isNaN(code)) {
@@ -49,20 +49,14 @@ export const mapAccuWeatherCodeToIconKey = (
 
   const numeric = Math.round(code);
 
-  if ([1].includes(numeric)) return "sunny";
-  if ([2, 3, 4, 5].includes(numeric)) return "partlyCloudy";
-  if ([6, 7, 8].includes(numeric)) return "cloudy";
-  if ([11].includes(numeric)) return "lightDrizzle";
-  if ([12, 13, 14, 18, 24, 25, 26].includes(numeric)) return "rainy";
-  if ([29].includes(numeric)) return "rainySun";
-  if ([15, 16, 17].includes(numeric)) return "thunderstorm";
-  if ([30].includes(numeric)) return "lightning";
-  if ([31, 32].includes(numeric)) return "sleet";
-  if ([19, 20, 21, 22, 23].includes(numeric)) return "snow";
-  if ([33, 34].includes(numeric)) return "night";
-  if ([35, 36].includes(numeric)) return "snowfall";
-  if ([37, 38, 39, 40].includes(numeric)) return "thunderstorm";
-  if ([41, 42, 43, 44].includes(numeric)) return "snowfall";
+  if (numeric === 0) return "sunny";
+  if ([1, 2].includes(numeric)) return "partlyCloudy";
+  if ([3, 45, 48].includes(numeric)) return "cloudy";
+  if ([51, 53, 55].includes(numeric)) return "lightDrizzle";
+  if ([56, 57, 66, 67].includes(numeric)) return "sleet";
+  if ([61, 63, 65, 80, 81, 82].includes(numeric)) return "rainy";
+  if ([71, 73, 75, 77, 85, 86].includes(numeric)) return "snowfall";
+  if ([95, 96, 99].includes(numeric)) return "thunderstorm";
 
   return "cloudy";
 };

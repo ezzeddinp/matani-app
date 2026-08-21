@@ -37,7 +37,7 @@ export default function OnboardingScreen() {
           <View style={styles.overlayContent}>
             <Text style={styles.overlayTitle}>Solusi Pertanian Cerdas</Text>
             <Text style={styles.overlayText}>
-              Pantau kondisi cuaca, tingkat kesuburan lahan, hingga edukasi pertanian dalam satu aplikasi.
+              Pantau cuaca, perubahan NDVI/NDMI dari waktu ke waktu, dan catatan lahan padi dalam satu aplikasi.
             </Text>
           </View>
         </LinearGradient>

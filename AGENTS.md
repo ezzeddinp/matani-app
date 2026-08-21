@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Matani is a thesis project: a **mobile decision support application (DSS) for rice crop condition and climate-risk classification** built on Sentinel-2 NDVI, SWIR-derived NDMI, and weather data, structured by the thesis paper's GROW workflow (Gather → Recognize → Offer → Warn). It is a **three-author group thesis** (DEC-17); the repo owner remains "the developer". The **measurement evaluation** of Sentinel-2 NDVI/NDMI monitoring over Indonesian smallholder fields is the thesis's evaluation backbone, not a separate thesis (DEC-14): the DSS is only as defensible as its measurements. **Thesis crop scope is padi (rice) only; the app's five crop categories remain product scope** (DEC-15). The Expo mobile app is the delivery and field-interaction vehicle. Every agent working in this repository follows the rules below.
+Matani is a thesis project: a **mobile decision support application (DSS) for padi-field time-series monitoring** built on Sentinel-2 NDVI, SWIR-derived NDMI, and weather data, structured by the thesis paper's GROW workflow (Gather → Recognize → Offer → Warn). It is a **three-author group thesis** (DEC-17); the repo owner remains "the developer". The **measurement evaluation** of Sentinel-2 NDVI/NDMI monitoring over Indonesian smallholder fields is the thesis's evaluation backbone, not a separate thesis (DEC-14): the DSS is only as defensible as its measurements. **Both thesis and product crop scope are padi (rice) only; Matani presents dated index observations and does not diagnose crop health** (DEC-24, superseding DEC-11/15/19). The Expo mobile app is the delivery and field-interaction vehicle. Every agent working in this repository follows the rules below.
 
 ## Document precedence
 
@@ -27,7 +27,7 @@ Every non-obvious claim in any document carries a typed marker:
 - **CODE-\*** or a direct `file:line` citation — repository facts. Verify against the code before writing.
 - **DEC-\*** — the developer's product/thesis decisions.
 - **OBS-\*** — test, catalogue, or field observations (dated, scoped; never generalized beyond what was observed).
-- **HYP-\*** — hypotheses or thresholds not yet validated. The NDVI severity thresholds in `constants/ndvi.ts` are HYP-04, and the client-side weather risk-score heuristic in `app/(tabs)/weather.tsx` is HYP-07, until calibrated against field observations.
+- **HYP-\*** — hypotheses or thresholds not yet validated. HYP-04 is retained only as a historical, retired threshold set after DEC-24 removed NDVI severity classification from the active product and thesis claim surface. The client-side weather risk-score heuristic in `app/(tabs)/weather.tsx` remains HYP-07 until calibrated against field observations.
 
 ## Honesty constraints (non-negotiable)
 

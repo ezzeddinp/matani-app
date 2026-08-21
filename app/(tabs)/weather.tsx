@@ -3,7 +3,7 @@ import { API_BASE_CANDIDATES } from "@/hooks/config";
 import { authenticatedBackendFetch } from "@/utils/backend-api";
 import {
   getWeatherIconSource,
-  mapAccuWeatherCodeToIconKey,
+  mapWmoWeatherCodeToIconKey,
   type WeatherIconKey,
 } from "@/utils/weather-icons";
 import { Ionicons } from "@expo/vector-icons";
@@ -296,7 +296,7 @@ export default function WeatherScreen() {
               return {
                 isoDate,
                 label: formatDateLabel(isoDate, index),
-                iconKey: mapAccuWeatherCodeToIconKey(iconCode),
+                iconKey: mapWmoWeatherCodeToIconKey(iconCode),
                 highTemp: high,
                 lowTemp: low,
                 humidity,
@@ -325,7 +325,7 @@ export default function WeatherScreen() {
         locationName:
           currentJson.location ?? labelHint ?? "Lokasi tidak diketahui",
         condition: currentJson.condition ?? dailyData[0]?.description ?? null,
-        iconKey: mapAccuWeatherCodeToIconKey(
+        iconKey: mapWmoWeatherCodeToIconKey(
           currentIconCode !== null ? Math.round(currentIconCode) : null
         ),
       };

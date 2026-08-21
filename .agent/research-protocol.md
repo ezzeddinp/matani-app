@@ -3,7 +3,7 @@
 **Document type:** Research protocol
 **Audience:** The developer, thesis advisor, reviewers, and AI agents working in this repo
 **Status:** Active — draft pending advisor review
-**Updated:** 2026-07-29
+**Updated:** 2026-08-21
 **Canonical for:** Research questions, hypotheses, methodology, and validity of the Sentinel-2 NDVI/NDMI monitoring evaluation, and the thesis paper's system-evaluation track (§ 16)
 **Companion documents:** [`evidence-register.md`](evidence-register.md), [`data-evaluation-plan.md`](data-evaluation-plan.md), [`project-architecture.md`](project-architecture.md), [`implementation-plan.md`](implementation-plan.md), [`product-requirements.md`](product-requirements.md)
 
@@ -17,21 +17,20 @@ This protocol is the single canonical home for **what the thesis is trying to le
 - **External facts are cited, never restated.** Every externally sourced figure or claim carries an `EVID-*` / `OBS-*` ID from [`evidence-register.md`](evidence-register.md). This document does not re-copy the number or the canonical wording; it cites the ID and adds a short role-specific gloss. If a fact you need has no EVID entry yet, it must be added to the register first (see the register's "Adding new evidence").
 - **Decisions are cited by `DEC-*`.** Product and thesis decisions live in [`context-dump.md`](context-dump.md) § 5. This protocol implements and elaborates them; it does not re-decide them.
 - **Hypotheses are typed `HYP-*` and defined here.** Every falsifiable claim this thesis intends to test is registered in § 1 with an ID, a directional statement, and an explicit falsification criterion (§ 12). A `HYP-*` is a *question the data will answer*, never a finding — do not cite a HYP as if it were established.
-- **Nothing here claims the current code is thesis-ready.** Per [`../AGENTS.md`](../AGENTS.md) honesty constraints, the satellite pipeline is a prototype with a visibly labeled synthetic fixture fallback; this protocol defines the standard the work must reach, and the gap to it is real and open.
+- **Nothing here claims the current code is thesis-ready.** The synthetic production fallback has been removed (DEC-24), but the satellite path remains bbox-based, fixed-window, transient, and non-provenance-safe; this protocol defines the standard the work must reach.
 - **The RQ set is provisional.** The research questions in § 1 are candidate framings consistent with the thesis focus (DEC-01). The **final RQ set requires advisor approval** — treat § 1 as a proposal to that conversation, not a settled contract.
 
 ---
 
 ## 1 · Research questions and hypotheses
 
-The thesis deliverable is the **rice-focused mobile decision support system** described in the thesis paper (GROW workflow; DEC-14 amending DEC-01), authored by the three-person thesis team (DEC-17). The measurement evaluation below is that thesis's **evaluation backbone**: the DSS's crop-condition claims are only as defensible as the Sentinel-2 NDVI/NDMI measurements beneath them, so RQ1–RQ3 remain the standard the pipeline must meet. Thesis crop scope is **padi (rice) only** (DEC-15); non-rice strata are post-thesis. The paper's own prototype evaluation framework (functional testing, API response testing, conceptual validation, UAT) is the **system-evaluation track** and is recorded in § 16; it complements, and never substitutes for, the measurement evaluation. The candidate research questions below frame that evaluation. **The final RQ set requires advisor approval** — this section is a proposal, and both the wording and the inclusion of the optional RQ4 are open decisions.
+The thesis deliverable is a **padi-only, observation-first mobile DSS** (GROW workflow; DEC-14/24), authored by the three-person thesis team (DEC-17). Its evaluation backbone is the reliability of dated Sentinel-2 NDVI/NDMI observations, so RQ1–RQ3 remain the standard the pipeline must meet. Crop-health classification and diagnosis are outside the claim surface; there are no non-rice strata (DEC-24). The paper's system-evaluation track is recorded in § 16 and never substitutes for measurement evaluation. **The final RQ wording still requires advisor approval.**
 
 ### Candidate research questions
 
 - **RQ1 — Usable-observation cadence.** Over a representative sample of Indonesian smallholder fields, what fraction of nominal Sentinel-2 acquisitions yield *quality-passing* NDVI/NDMI observations at the polygon level, and what monitoring cadence is therefore defensible — potentially differing by region and by wet/dry season? This directly separates nominal 5-day revisit (EVID-006) from usable cadence, which persistent tropical cloud cover erodes (EVID-015).
 - **RQ2 — Statistical API vs independent processing.** How do polygon-level NDVI/NDMI statistics returned by the Sentinel Hub Statistical API (EVID-012) compare with values independently computed from raster samples over the same geometry, acquisition, and masking rules? This tests whether the API's aggregated statistics are a trustworthy measurement surface or introduce systematic bias.
 - **RQ3 — Field size vs valid-pixel sufficiency and index reliability.** How does field size affect the number of valid pixels available per index and the resulting reliability, given that NDVI uses 10 m bands (B04/B08) and NDMI's SWIR input (B11) is 20 m native (EVID-009)? Because ≈62% of Indonesian land-using farmers are *petani gurem* controlling <0.5 ha (EVID-013), small fields are the population of interest, not an edge case.
-- **RQ4 (optional, advisor-dependent) — Index dynamics vs ground observations.** Do NDVI/NDMI dynamics over a crop cycle agree with independently recorded ground observations of crop stage and visible stress? RQ4's feasibility is bounded by the thesis team's ground-truth collection limits (§ 5; DEC-17); it may be scoped down or dropped.
 
 ### Hypotheses
 
@@ -40,12 +39,12 @@ All hypotheses are unvalidated until the evaluation is run; each has an explicit
 - **HYP-01 — Usable-observation cadence (supports RQ1).** For representative Indonesian smallholder fields, the rate of quality-passing polygon-level observations is materially lower than the nominal acquisition rate, such that no single fixed cadence (weekly/biweekly/monthly) is defensible nationwide; the defensible cadence varies by region and season and can only be set from the feasibility study (§ 4), never from EVID-006. *Directional prior, not a finding.*
 - **HYP-02 — API-vs-independent agreement (supports RQ2).** Polygon-level NDVI/NDMI from the Statistical API agrees with independently processed raster samples within a bounded, reportable error (bias and RMSE) when identical geometry, acquisition, and masking are applied; residual disagreement is attributable to documented differences (resampling of B11, dataMask/SCL handling, aggregation), not to unexplained divergence.
 - **HYP-03 — Minimum usable field size (supports RQ3).** There exists an empirically determined minimum field size below which valid-pixel counts (per index, computed independently for NDVI and NDMI) are too few for a reliable polygon statistic, and this threshold is *larger* for NDMI than for NDVI because of B11's coarser 20 m resolution (EVID-009). No universal threshold is assumed in advance — it is estimated from data.
-- **HYP-04 — As-built NDVI severity thresholds (as-built UI heuristic, not validated).** The NDVI severity bands and cutoffs currently hard-coded in `constants/ndvi.ts` (0.60 / 0.20 / 0.00 boundaries; `constants/ndvi.ts:12-45,64-100`) are an **as-built UI heuristic**, not calibrated science, and are not expected to hold as crop- and stage-appropriate stress classes for Indonesian smallholder conditions without recalibration (DEC-11). This HYP is registered to prevent the shipped thresholds being mistaken for a validated result; testing it is secondary to RQ1–RQ3 and stage-dependent (§ 13).
+- **HYP-04 — Retired historical threshold set.** The former 0.60/0.20/0.00 NDVI severity bands were removed from code and are not tested as a thesis hypothesis after DEC-24. The ID remains reserved so historical documents cannot be mistaken for current scope.
 - **HYP-05 — Crop/phenology-aware water masking (supports the quality rules in § 8).** A masking rule that does *not* blanket-mask water inside rice polygons — treating flooding/transplanting as legitimate low-NDVI phenology (EVID-016) rather than as invalid or stressed — produces more agronomically faithful rice observations than a naive "mask all water" rule. Remains HYP until validated against ground observations of paddy flooding state (§ 5); the rule itself is versioned (§ 8).
-- **HYP-06 (optional, paired with RQ4) — Index-dynamics vs ground agreement.** Where ground observations exist, NDVI/NDMI trajectories track recorded crop-stage progression and flagged visible stress with better-than-chance agreement. Contingent on RQ4 being approved and on ground-truth feasibility (§ 5); may be dropped with RQ4.
-- **HYP-07 — Weather risk-score heuristic (as-built UI heuristic, not validated; DEC-16).** The client-side weather risk score — `min(100, max(0, Pavg×4 + H×0.4))` with bands Low <40 / Medium 40–69 / High ≥70 (`app/(tabs)/weather.tsx:541-576`) — is a **prototype decision-support indicator**, not an adopted or validated agronomic risk model; its weights and bands are not expected to hold without calibration against local agronomic data. The thesis paper positions it exactly this way. Registered (like HYP-04) to prevent the shipped heuristic being mistaken for a validated result; calibrating it is stage-dependent and secondary to RQ1–RQ3.
+- **HYP-06 — Retired with RQ4.** Product and thesis outputs do not infer crop condition from index dynamics (DEC-24).
+- **HYP-07 — Weather risk-score heuristic (as-built UI heuristic, not validated; DEC-16).** The client-side weather score remains a prototype weather-context indicator, not an agronomic diagnosis or crop-damage prediction. It is secondary to RQ1–RQ3 and is not evidence about NDVI/NDMI measurement validity.
 
-**Open for advisor decision:** the final RQ wording, whether RQ4/HYP-06 are in scope, and whether HYP-04 is tested in this thesis or merely documented as an as-built heuristic to be calibrated later.
+**Open for advisor decision:** final RQ1–RQ3 wording, sites, sample size, quality thresholds, and evaluation tolerances. RQ4/HYP-06 and active HYP-04 testing are removed by DEC-24.
 
 ---
 
@@ -84,7 +83,7 @@ Sites within these regions are selected to give contrast on the axes the RQs car
 
 ### Field inclusion criteria
 
-- Crop type among the supported categories: **padi** (rice), **jagung** (maize), **kedelai** (soybean), **teh** (tea), **kopi** (coffee) — the product's crop vocabulary (glossary, `context-dump.md`). **Thesis analysis is scoped to padi (DEC-15)**: non-rice fields may be captured by the product but enter the thesis evaluation only as documented extensions.
+- Crop identity is verified as **padi (rice)**; non-rice fields are excluded from both product and thesis scope (DEC-24).
 - A **valid field polygon** (not a bbox): closed, non-self-intersecting geometry with a plausible area, digitized to the field boundary (§ 7).
 - **Farmer informed consent** obtained for use of field location and any ground observations (§ 14).
 - Field falls within a selected study site and its 12-month availability record exists (§ 4).
@@ -93,7 +92,7 @@ Sites within these regions are selected to give contrast on the axes the RQs car
 
 - Polygon invalid, degenerate, or clearly not a single agricultural field.
 - Consent absent or withdrawn.
-- Crop outside the supported categories, unless explicitly added as a documented extension.
+- Crop not verified as padi.
 - Fields whose geometry cannot be reliably separated from permanent water or built structures at Sentinel-2 resolution (flagged, not silently dropped — see § 8, § 9).
 
 Small fields are **not** an exclusion criterion. Because *petani gurem* <0.5 ha dominate the population (EVID-013), excluding small fields would evaluate a population the product does not serve; instead small-field reliability is a research question (RQ3) and any size threshold is an empirical outcome (HYP-03), not an entry filter.
@@ -145,12 +144,11 @@ unverified polygons alone cannot satisfy this section.
 
 ## 5 · Ground-truth / reference measurements
 
-Ground observations anchor any claim that an index reading corresponds to a real field condition (RQ4/HYP-06) and are required to move HYP-04 (severity thresholds) and HYP-05 (rice-water rule) from hypothesis toward validation.
+Ground observations support geometry/crop identity, acquisition-date context, and HYP-05 water-mask validation. They are not used to train or justify a crop-health diagnosis (DEC-24).
 
 ### What would be collected
 
-- **Crop stage** — e.g. for padi: pre-flood/land-prep, flooding/transplanting, tillering/vegetative, reproductive, ripening, harvest; analogous stage schemes per crop (§ 13).
-- **Visible stress** — presence/type of visible crop stress (water, nutrient, pest/disease) as a coarse categorical flag, not a quantitative measurement.
+- **Rice stage** — pre-flood/land-prep, flooding/transplanting, tillering/vegetative, reproductive, ripening, harvest (§ 13).
 - **Flooding state** — for rice, standing-water presence (directly relevant to HYP-05 and EVID-016).
 - **Georeferenced photos** — timestamped, location-tagged field photos as corroborating evidence.
 - **Farmer reports** — the farmer's own account of recent field events (planting, irrigation, harvest, damage).
@@ -163,16 +161,16 @@ Ground observations anchor any claim that an index reading corresponds to a real
 
 ### Honest feasibility note
 
-This is a **three-person group thesis with no field team** (DEC-17). Comprehensive, high-frequency, multi-site ground truth is not realistically collectable at scale. Ground truth will be **sparse, opportunistic, and geographically limited**, which directly bounds RQ4/HYP-06 and the extent to which HYP-04/HYP-05 can be validated versus merely characterized. This limitation is carried forward into sampling (§ 6) and threats to validity (§ 15); it must not be papered over by substituting model or LLM output for ground truth (Gemini is never ground truth or a research label — DEC-08).
+This is a **three-person group thesis with no field team** (DEC-17). Crop/stage/flooding reference observations will be sparse, opportunistic, and geographically limited, which bounds HYP-05 and phenology-aware interpretation. This limitation must not be papered over with model or LLM output (DEC-08/24).
 
 ---
 
 ## 6 · Sampling strategy and target sample size
 
-**Stratified sampling** by **region × crop × season** (the axes the RQs turn on). Strata ensure the evaluation reports per-context results (§ 12) rather than a single pooled number dominated by whichever context has the most fields, and align with the clustering structure (§ 2).
+**Stratified sampling** by **region × season** for verified padi fields (DEC-24). Strata ensure the evaluation reports per-context results rather than one pooled number dominated by the most sampled context.
 
-- **Strata:** region (§ 3) × crop × season (wet/dry). Under DEC-15 the thesis strata are **padi-only** (region × season); non-rice crop strata are defined here for post-thesis extension and are reported, if at all, as out-of-scope observations. Not all cells will be populated; empty or thin cells are reported as such, never imputed.
-- **Two sampling layers:** (a) fields sampled within strata for spatial/size/crop coverage; (b) observations sampled in time via the acquisition calendar — with usable-observation availability itself an outcome (RQ1), so temporal "sample size" per field is partly determined by the feasibility study (§ 4).
+- **Strata:** region (§ 3) × season (wet/dry), padi only. Empty or thin cells are reported, never imputed.
+- **Two sampling layers:** fields sampled for spatial/size coverage, then observations sampled in time through the acquisition calendar; usable availability remains an RQ1 outcome.
 
 ### Target N and power — stated honestly
 
@@ -180,7 +178,6 @@ No fabricated power analysis is offered. A credible target N and any power state
 
 - The **RQ2** comparison (API vs independent) can reach a relatively large observation N cheaply, because it needs no ground truth — every quality-passing observation contributes a paired value.
 - The **RQ1/RQ3** analyses are bounded by number of fields and by usable-observation availability.
-- The **RQ4/HYP-06** analysis is bounded by ground-truth feasibility (§ 5) and will likely be small-N and exploratory.
 
 A concrete target N and any power/precision targets will be set **after** the feasibility study and advisor approval, and recorded here at that point. Until then, claiming a specific N or statistical power would be unsupported.
 
@@ -208,7 +205,7 @@ Using the Level-2A Scene Classification Layer (SCL), which classifies cloud shad
 - **Mask** clouds at **medium and high** probability, **cirrus**, **cloud shadows**, and **invalid / saturated / defective** pixels, via SCL classes. SCL is a per-pixel heuristic classification, not ground truth (EVID-008) — treat it as a quality gate, not a guarantee.
 - **Persist the rejection reason** for every masked pixel category and every rejected acquisition (§ 11); rejections are data, not silent gaps.
 - **Display the actual acquisition date** of the observation shown, never a "current" or synthesized date.
-- **State unavailability honestly** — when no quality-passing observation exists for a field/window, the product shows an honest *unavailable* state (the honesty constraint from `../AGENTS.md`; replaces the prototype's labeled synthetic fixture fallback, roadmap M2).
+- **State unavailability honestly** — when no quality-passing observation exists for a field/window, the product shows an honest *unavailable* state. DEC-24 already removes product fallback substitution; M2 adds reason-bearing provenance outcomes.
 
 ### Rice-water rule (HYP-05)
 
@@ -242,7 +239,7 @@ Field size interacts with pixel size to determine whether a polygon statistic is
 
 Beyond size, terrain and cropping pattern degrade optical index reliability in exactly the regions the product targets:
 
-- **Terrain shadow** in tea (teh) and coffee (kopi) highlands: slopes and hill shadow alter illumination and can be misclassified or bias reflectance; highland sites are flagged and terrain effects noted per stratum (§ 12).
+- **Terrain shadow** in sloped or terraced rice sites: hill shadow can bias reflectance, so terrain context is flagged and reported per stratum (§ 12).
 - **Mixed cropping and fragmented polygons:** a single smallholder polygon may contain more than one crop or intercropping, and fields are small and irregular; the polygon statistic is then a mixture, not a pure-crop signal.
 - **Adjacency effects:** neighbouring fields at different growth stages contaminate boundary pixels (§ 9).
 - **Sentinel-1 (SAR) is a documented post-thesis contingency only.** C-band SAR images all-weather, day and night, unimpeded by cloud (EVID-017), which is attractive for cloud-limited sites — but SAR measures backscatter, **not** the NDVI/NDMI reflectance this thesis evaluates, so it is not a drop-in substitute. It is set aside as a post-thesis contingency requiring a **separate scope decision** before adoption (DEC — see `context-dump.md` § 6); it is **not in current thesis scope**.
@@ -264,12 +261,11 @@ Beyond size, terrain and cropping pattern degrade optical index reliability in e
 - **RQ2 (API vs independent):** paired-value agreement over the same observations — **bias (mean signed difference)**, **MAE**, **RMSE**, **correlation**, and a **Bland–Altman** analysis (mean-difference and limits of agreement) to expose any magnitude-dependent bias. Reported separately for NDVI and NDMI.
 - **RQ1 (usable cadence):** usable-observation fraction, usable observations/month, and gap statistics (median/longest), per site and season (§ 4).
 - **RQ3 (size vs sufficiency):** valid-pixel count and a reliability indicator as a function of field size, per index, with the size threshold (HYP-03) estimated with uncertainty.
-- **RQ4/HYP-06 (if in scope):** agreement between index dynamics and ground-observed stage/stress, reported as exploratory given small N (§ 5, § 6).
 
 ### Uncertainty
 
 - **Confidence intervals** on every reported estimate, computed in a way that respects clustering (§ 2) — cluster-robust or hierarchical, not naive pooled intervals.
-- **Per-stratum reporting** (region × crop × season) is the default; a pooled headline number, if given, is accompanied by its per-stratum breakdown and never replaces it.
+- **Per-stratum reporting** (region × season, padi only) is the default; a pooled headline number, if given, is accompanied by its per-stratum breakdown.
 
 ### Explicit failure / falsification criteria
 
@@ -278,19 +274,16 @@ Each hypothesis has a result that would falsify it:
 - **HYP-01** is falsified if usable-observation rates are high and stable enough across sites and seasons that a single fixed cadence *is* defensible nationwide (i.e. cloud loss does not materially erode nominal revisit).
 - **HYP-02** is falsified if API and independently processed values diverge beyond a pre-registered tolerance (bias/RMSE) that cannot be explained by documented differences (resampling, dataMask/SCL, aggregation) — indicating the API statistic is not a trustworthy measurement surface as used.
 - **HYP-03** is falsified if index reliability shows no systematic dependence on field size down to the smallest fields (no identifiable minimum), or if NDVI and NDMI thresholds do not order as predicted.
-- **HYP-04** is *supported* (contrary to its skeptical prior) only if the as-built `constants/ndvi.ts` cutoffs turn out to be crop- and stage-appropriate stress classes without recalibration; any crop/stage where a legitimate phenological low (e.g. flooded paddy, EVID-016) is misclassified as stress falsifies the heuristic for that context.
 - **HYP-05** is falsified if crop/phenology-aware water handling produces rice observations no more agronomically faithful than a naive blanket-water-mask rule, judged against ground flooding-state observations (§ 5).
-- **HYP-06** (if in scope) is falsified if index dynamics show no better-than-chance agreement with ground-observed stage/stress.
 
 Pre-registering these tolerances and criteria (with the advisor) before running the evaluation is the intended practice; the specific numeric tolerances are set at that point and recorded here.
 
 ---
 
-## 13 · Crop and phenological-stage stratification
+## 13 · Rice phenological-stage stratification
 
-- **Analysis is stratified by crop and by phenological stage**, not pooled across a whole cycle. NDVI/NDMI interpretation is **stage-dependent**: the same low NDVI means opposite things at different stages.
-- **The flooded-paddy example is canonical.** For padi, low NDVI during flooding/transplanting is expected phenology driven by standing water, not stress, and greenness alone cannot separate the two (EVID-016). Stress classification (and any test of HYP-04) must therefore be conditioned on crop and stage — a stress label applied stage-blind is invalid.
-- **Per-crop stage schemes** (padi, jagung, kedelai, teh, kopi) define the strata; tree crops (teh/kopi) have weaker discrete "stages" than annual row crops and are treated accordingly, in combination with the terrain caveats of § 10.
+- **Analysis is stratified by rice phenological stage**, not pooled blindly across a whole cycle. This is measurement context, not a health classifier.
+- **The flooded-paddy example is canonical.** Low NDVI during flooding/transplanting can reflect expected phenology and standing water (EVID-016); Matani therefore shows the value and date without assigning a stress label (DEC-24).
 - Stage assignment draws on ground observations and farmer reports where available (§ 5); where stage is unknown, observations are stratified as "stage unknown" rather than assumed.
 
 ---
@@ -313,27 +306,28 @@ Security implementation (RLS policies, secrets hygiene per DEC-13, trust boundar
 - **Seasonal coverage.** The 12-month feasibility window (§ 4) captures one wet/dry cycle; inter-annual variability (unusually wet/dry years) is uncontrolled and a monitoring-cadence result is conditional on the observed year.
 - **Single-country scope.** Findings are for Indonesian smallholder conditions (DEC-01); they are not claimed to generalize to other countries or agroclimates.
 - **Provider dependence.** Results depend on CDSE Sentinel Hub Statistical API semantics and the free-tier quota (EVID-010, EVID-012), on L2A/SCL product behavior (EVID-008), and on OAuth2 access (EVID-011). Provider changes can invalidate cost, cadence, or method assumptions.
-- **Small-N limits.** Ground-truth-dependent analyses (RQ4/HYP-06) and thin strata are small-N and exploratory (§ 5, § 6); conclusions there are tentative by construction.
+- **Small-N limits.** Ground-reference-dependent masking/phenology checks and thin strata are exploratory (§ 5, § 6).
 - **OBS-01 non-generalizability.** The single-location Jakarta catalogue check is one data point, was **not independently reproduced** from repo tooling, and tile-level cloud cover ≠ polygon cloud-free (OBS-01). It motivates the feasibility study; it is not evidence of usable cadence and is not generalized to any region or season.
 - **Instrument / provider change risk (perishable claims).** Quotas and pricing (EVID-010, EVID-021), coverage, and even constellation membership (EVID-006 notes 2A retired / 2C operational) change without notice; they carry checked dates and are rechecked before any decision. A cadence or capacity result stated against a stale quota is a warning, not a guarantee.
-- **Masking/threshold validity.** SCL is a heuristic (EVID-008); severity thresholds (HYP-04) and the rice-water rule (HYP-05) are unvalidated until field checks exist. Versioning masking rules (§ 8) bounds—but does not eliminate—the risk that a rule change alters conclusions.
+- **Masking validity.** SCL is a heuristic (EVID-008), and the rice-water rule (HYP-05) is unvalidated until field checks exist. Versioning masking rules (§ 8) bounds but does not eliminate semantic drift.
 - **Cloud-driven missingness is non-random.** Missing observations cluster by season and region (§ 11), so usable-cadence and agreement estimates can be biased toward clearer-sky periods/places; analyses must acknowledge this rather than treat gaps as random.
 
 ---
 
 ## 16 · System-evaluation track (from the thesis paper; DEC-14)
 
-The thesis paper defines a **planned** prototype evaluation framework for the DSS itself.
-At the 2026-07-27 repository baseline there is no automated test suite, CI workflow, or
-completed UAT dataset (`package.json`, `.github/workflows/`, CODE); none of the procedures
-below is a completed result yet. They are recorded here so the two tracks—**system
-evaluation** (does the DSS work and is it usable?) and **measurement evaluation** (are
-the numbers it shows defensible? §§ 1–15)—are one protocol, not two competing ones.
+The thesis paper defines a prototype evaluation framework for the DSS itself. As of the
+2026-08-21 local audit, deterministic engineering checks exist and the current lint,
+root/backend type-checks, 5/5 root artifact tests, and 21/21 backend tests pass (OBS-13).
+The Python research suite was not re-run on that workstation because Python 3 is absent;
+current remote CI, physical-device coverage, and UAT remain unverified. These boundaries
+keep **system evaluation** (does the DSS behave as specified and is it usable?) distinct
+from **measurement evaluation** (are its values defensible? §§ 1–15).
 
-1. **Functional testing** — core app features (registration, polygon drawing, NDVI/NDMI display, weather retrieval, recommendation viewing) verified against the functional requirements ([`product-requirements.md`](product-requirements.md)). **Constraint:** functional tests of the satellite surfaces must state which data state they exercised (fixture / prototype / measured / unavailable); passing a display test on synthetic data is a UI test, never evidence the measurement works (INV-01/02).
-2. **API response testing** — Sentinel Hub responses validated for correct band arithmetic and index ranges (−1…1); weather fallback (AccuWeather → Open-Meteo) verified under normal and simulated failure. Fixture-first in CI (DEC-09); live checks are bounded, out-of-band runs.
-3. **Conceptual validation** — computed NDVI/NDMI compared against known rice phenological patterns from the literature. This is a plausibility check, not ground truth; it cannot validate HYP-04/HYP-05/HYP-07 (§ 12 owns validation standards). The flooded-paddy caveat (EVID-016) applies: low NDVI on padi is not automatically "stress".
-4. **User acceptance testing (UAT)** — qualitative evaluation with prospective users of indicator understandability, risk-classification clarity, and perceived usefulness of AI-generated recommendations. UAT measures **usability and comprehension**, never measurement validity; Gemini output remains excluded from any research-label role (DEC-08).
+1. **Functional testing** — core app features (registration, padi polygon drawing, NDVI/NDMI time-series display, weather retrieval, notes, optional data summary) verified against the functional requirements. Every satellite test records its data state; passing a UI test never establishes measurement validity.
+2. **API response testing** — Sentinel Hub responses validated for correct band arithmetic and index ranges (−1…1); the Open-Meteo response/WMO-code contract is verified under normal and simulated failure. Fixture-first in CI (DEC-09); live checks are bounded, out-of-band runs.
+3. **Conceptual validation** — computed NDVI/NDMI compared against known rice phenological patterns as a plausibility check, never as health ground truth. The flooded-paddy caveat applies (EVID-016).
+4. **User acceptance testing (UAT)** — qualitative evaluation of timeline readability, date/data-state comprehension, weather-context clarity, and whether users understand that Matani does not diagnose. UAT measures usability, never measurement validity.
 5. **Known limitations** — no field-level ground truth (biomass, soil moisture sensors, yield records) in the prototype evaluation; the system is evaluated for technical correctness, API reliability, and usability, not predictive agronomic accuracy. This restates the paper's own limitation honestly; any stronger claim requires §§ 5, 12.
 
 The mapping of this track onto milestones (which tests run at M0/M2/M3) lives in [`implementation-plan.md`](implementation-plan.md).
