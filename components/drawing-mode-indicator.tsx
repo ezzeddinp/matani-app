@@ -30,7 +30,7 @@ export function DrawingModeIndicator({
 const styles = StyleSheet.create({
   drawingModeIndicator: {
     position: "absolute",
-    top: 60,
+    top: 16,
     left: 20,
     right: 20,
     backgroundColor: "#FF5722",

@@ -198,6 +198,8 @@ unavailable and achievement cards are labeled preview-only (`app/(tabs)/profile.
 
 The weather-icon set is a real design asset: 12 PNGs (`Icon=Sunny.png`, `Icon=Cloudy.png`, `Icon=Rainy.png`, `…Thunderstorm`, `…Snowfall`, `…Night`, etc.), keyed by `WeatherIconKey` with a `default` → Cloudy fallback. `mapWmoWeatherCodeToIconKey` maps the Open-Meteo WMO code contract to these provider-agnostic assets (DEC-07; ADR-04).
 
+The Ladang map keeps pan/drag enabled in normal browsing. In drawing mode, location search is hidden and the drawing status plus Undo, Redo, Batal, and Simpan controls are top-anchored inside the map so the completion path remains reachable on short mobile viewports (`app/(tabs)/explore.tsx`).
+
 ### 6.2 Icon system
 
 - **`@expo/vector-icons` — Ionicons** is the dominant icon set (≈122 uses across `app/` + `components/`; e.g. `drawing-mode-indicator.tsx:1`, `empty-state-lahan.tsx:1`).

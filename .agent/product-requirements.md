@@ -120,6 +120,8 @@ enforced separately by RLS.
 
 **Acceptance criteria.**
 - A drawn polygon of ≥3 vertices can be persisted (`explore.tsx:582` filters <3-vertex geometries).
+- Outside drawing mode, the map accepts direct pan/drag and zoom gestures without handing the gesture to the surrounding page scroll.
+- During drawing, place search is hidden and the Undo, Redo, Batal, and Simpan actions stay top-anchored inside the visible map area.
 - Place search returns location suggestions or an empty state; it never blocks field creation.
 - Reverse-geocode rate limiting degrades to a coordinate label, never to a fabricated place name.
 

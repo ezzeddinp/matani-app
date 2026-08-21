@@ -1484,8 +1484,9 @@ export default function ExploreScreen() {
 
           {/* ── MAP ── */}
           <View style={[styles.mapContainer, drawingMode && styles.mapContainerDrawing]}>
-            <View style={styles.searchContainer} pointerEvents="box-none">
-              <View style={styles.searchInputWrapper}>
+            {!drawingMode && (
+              <View style={styles.searchContainer} pointerEvents="box-none">
+                <View style={styles.searchInputWrapper}>
                 <Ionicons name="search-outline" size={16} color="#6B7280" style={{ marginRight: 8 }} />
                 <TextInput
                   style={styles.searchInput}
@@ -1503,10 +1504,10 @@ export default function ExploreScreen() {
                     <Ionicons name="close-circle" size={18} color="#9CA3AF" />
                   </TouchableOpacity>
                 ) : null}
-              </View>
+                </View>
 
-              {showSearchResults && (
-                <View style={styles.searchResultsContainer}>
+                {showSearchResults && (
+                  <View style={styles.searchResultsContainer}>
                   {isSearching ? (
                     <View style={styles.searchLoadingRow}>
                       <ActivityIndicator size="small" color="#166534" />
@@ -1525,9 +1526,10 @@ export default function ExploreScreen() {
                   ) : searchQuery.trim().length >= 3 ? (
                     <Text style={styles.searchResultEmpty}>Lokasi tidak ditemukan</Text>
                   ) : null}
-                </View>
-              )}
-            </View>
+                  </View>
+                )}
+              </View>
+            )}
 
             <MapView
               ref={mapRef}
@@ -1545,7 +1547,7 @@ export default function ExploreScreen() {
               showsMyLocationButton={false}
               showsCompass={false}
               showsScale={false}
-              scrollEnabled={drawingMode ? true : false}
+              scrollEnabled={true}
               zoomEnabled={true}
               rotateEnabled={false}
               pitchEnabled={false}
@@ -1620,7 +1622,7 @@ export default function ExploreScreen() {
 
             {drawingMode && (
               <DrawingModeIndicator
-                onCancel={() => { setDrawingMode(false); setCurrentVertices([]); }}
+                onCancel={cancelDrawing}
                 pointsCount={currentVertices.length}
               />
             )}
@@ -2537,7 +2539,7 @@ const styles = StyleSheet.create({
     right: 16,
     gap: 8,
   },
-  mapControlsDrawing: { top: 110 },
+  mapControlsDrawing: { top: 168 },
   zoomButton: {
     width: 38,
     height: 38,
@@ -2571,7 +2573,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: 14,
     right: 14,
-    bottom: 100,
+    top: 76,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -2584,6 +2586,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 12,
     elevation: 8,
+    zIndex: 30,
     gap: 6,
   },
   controlButton: {

@@ -42,6 +42,14 @@ test("field detail reads stored observations and contains no synthetic diagnosis
   );
 });
 
+test("field map remains pannable and keeps drawing actions at the top", async () => {
+  const explore = await readFile("app/(tabs)/explore.tsx", "utf8");
+  assert.match(explore, /scrollEnabled=\{true\}/);
+  assert.doesNotMatch(explore, /scrollEnabled=\{drawingMode\s*\?/);
+  assert.match(explore, /\{!drawingMode && \(\s*<View style=\{styles\.searchContainer\}/);
+  assert.match(explore, /drawingControlsOverlay:\s*\{[\s\S]*?top:\s*76,/);
+});
+
 test("ordinary verification commands contain no live provider invocation", async () => {
   const packageJson = JSON.parse(await readFile("package.json", "utf8"));
   const verification = [
