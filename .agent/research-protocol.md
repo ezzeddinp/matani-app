@@ -3,7 +3,7 @@
 **Document type:** Research protocol
 **Audience:** The developer, thesis advisor, reviewers, and AI agents working in this repo
 **Status:** Active — draft pending advisor review
-**Updated:** 2026-08-21
+**Updated:** 2026-08-28
 **Canonical for:** Research questions, hypotheses, methodology, and validity of the Sentinel-2 NDVI/NDMI monitoring evaluation, and the thesis paper's system-evaluation track (§ 16)
 **Companion documents:** [`evidence-register.md`](evidence-register.md), [`data-evaluation-plan.md`](data-evaluation-plan.md), [`project-architecture.md`](project-architecture.md), [`implementation-plan.md`](implementation-plan.md), [`product-requirements.md`](product-requirements.md)
 
@@ -45,6 +45,13 @@ All hypotheses are unvalidated until the evaluation is run; each has an explicit
 - **HYP-07 — Weather risk-score heuristic (as-built UI heuristic, not validated; DEC-16).** The client-side weather score remains a prototype weather-context indicator, not an agronomic diagnosis or crop-damage prediction. It is secondary to RQ1–RQ3 and is not evidence about NDVI/NDMI measurement validity.
 
 **Open for advisor decision:** final RQ1–RQ3 wording, sites, sample size, quality thresholds, and evaluation tolerances. RQ4/HYP-06 and active HYP-04 testing are removed by DEC-24.
+
+**M1 decision-status checkpoint (2026-08-28; DEC-25).** The relayed advisor response
+confirms staged sampling by region × season, site-specific seasonal labeling as the
+operational method, and cadence reporting per site × season. This checkpoint does not
+approve the final RQ wording, final regions, target N, numeric HYP-03 reliability floors,
+pre-registered tolerances, or whether independent raster comparison closes in M1 or is
+formally moved to M3; those items remain open until explicitly decided and recorded.
 
 ---
 

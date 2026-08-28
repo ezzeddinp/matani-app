@@ -1,6 +1,10 @@
 import { ThemedView } from "@/components/themed-view";
 import { API_BASE_CANDIDATES } from "@/hooks/config";
-import { authenticatedBackendFetch } from "@/utils/backend-api";
+import {
+  authenticatedBackendFetch,
+  readBackendJson,
+  retainMostUsefulBackendError,
+} from "@/utils/backend-api";
 import {
   getWeatherIconSource,
   mapWmoWeatherCodeToIconKey,
@@ -234,18 +238,7 @@ export default function WeatherScreen() {
         for (const url of candidateUrls) {
           try {
             const response = await authenticatedBackendFetch(url);
-            if (!response.ok) {
-              const text = await response.text();
-              lastStatus = response.status;
-              lastUrl = url;
-              lastErrorMessage = text || response.statusText || "Unknown";
-              console.warn(
-                `⚠️ Weather endpoint responded with ${response.status} from ${url}`
-              );
-              continue;
-            }
-
-            payload = await response.json();
+            payload = await readBackendJson(response);
             lastStatus = response.status;
             lastUrl = url;
             console.log("Weather data fetched from", url);
@@ -253,10 +246,10 @@ export default function WeatherScreen() {
           } catch (networkError) {
             lastStatus = null;
             lastUrl = url;
-            lastErrorMessage =
-              networkError instanceof Error
-                ? networkError.message
-                : String(networkError);
+            lastErrorMessage = retainMostUsefulBackendError(
+              lastErrorMessage,
+              networkError
+            );
             console.warn(
               `⚠️ Weather request network error for ${url}:`,
               lastErrorMessage
@@ -266,9 +259,9 @@ export default function WeatherScreen() {
       }
 
       if (!payload) {
-        const details = lastUrl
-          ? `${lastStatus ?? ""} from ${lastUrl}`
-          : lastErrorMessage || "Tidak ada data cuaca.";
+        const details =
+          lastErrorMessage ||
+          (lastUrl ? `${lastStatus ?? ""} from ${lastUrl}` : "Tidak ada data cuaca.");
         throw new Error(`Gagal memuat cuaca: ${details}`.trim());
       }
 

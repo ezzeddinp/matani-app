@@ -3,7 +3,7 @@
 **Document type:** Implementation roadmap
 **Audience:** The developer, thesis advisor, reviewers, and AI agents working in this repo
 **Status:** Active
-**Updated:** 2026-08-21
+**Updated:** 2026-08-28
 **Canonical for:** Milestone sequencing, milestone acceptance criteria, and the definition of done for thesis engineering work
 **Companion documents:** [`project-architecture.md`](project-architecture.md), [`data-evaluation-plan.md`](data-evaluation-plan.md), [`research-protocol.md`](research-protocol.md), [`product-requirements.md`](product-requirements.md), [`evidence-register.md`](evidence-register.md), [`context-dump.md`](context-dump.md)
 
@@ -22,7 +22,7 @@ This is the canonical **order of engineering work** for the Matani thesis. Read 
   progress. A claim is complete only when it cites current verification evidence.
 - **No milestone may violate an invariant.** INV-01…INV-09 ([`product-requirements.md`](product-requirements.md) § 1) hold at every milestone boundary. DEC-24 removed the production fixture substitution and interpretive health labels before M2; this is an honesty/scope correction, not a claim that M2 measurement persistence exists. No new violation may be introduced.
 
-**Execution status (2026-08-21).**
+**Execution status (2026-08-28).**
 
 - **M0: current local/hosted gates pass; current remote CI and external credential
   confirmation remain.**
@@ -44,7 +44,7 @@ This is the canonical **order of engineering work** for the Matani thesis. Read 
   historically exposed server credentials were revoked or absent, and Google Maps keys
   are platform/API restricted as specified in § 5.3 of `project-architecture.md`; no
   secret values belong in this evidence. Current remote CI remains unverified.
-- **M1: provider-backed limited study complete; representative-study gate not complete.**
+- **M1: provider-backed limited study complete; decision-status checkpoint recorded; representative-study gate not complete.**
   A valid CDSE OAuth client, CDSE endpoints, exact-polygon UTM metre grids, versioned SCL
   masking, separate NDVI/NDMI pixel accounting, bounded retry, and request/PU accounting
   are proven for `hi` and `sszs` (OBS-11). A checkpointed 12-month run completed 24/24
@@ -53,6 +53,12 @@ This is the canonical **order of engineering work** for the Matani thesis. Read 
   multi-region sample; crop identity/boundary/consent are unverified, wet/dry
   stratification and HYP-03 approval are absent, and no cadence is licensed. M1 has not
   passed, so M2 may not start.
+  A relayed advisor response is recorded as **DEC-25**: staged sampling by region × season,
+  site-specific seasonal labeling rather than a fixed island-wide calendar, and cadence
+  reporting per site × season are confirmed operational choices. Final RQ wording, final
+  regions, target N, numeric HYP-03 reliability floors, pre-registered tolerances, and the
+  M1-versus-M3 placement of independent raster comparison remain explicitly open; they are
+  not treated as approval or as M1 completion.
 
 ---
 

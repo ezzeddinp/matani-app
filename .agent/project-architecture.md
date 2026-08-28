@@ -3,7 +3,7 @@
 **Document type:** Architecture document
 **Audience:** The developer, thesis advisor, reviewers, and AI agents working in this repo
 **Status:** Active
-**Updated:** 2026-08-21
+**Updated:** 2026-08-26
 **Canonical for:** As-built and target architecture, **current measurement provenance (canonical wording — § 2)**, trust boundaries, provider decisions, Architecture Decision Records (ADRs), free-tier constraints, security risks, verification baseline, migration triggers
 **Companion documents:** [`evidence-register.md`](evidence-register.md), [`context-dump.md`](context-dump.md), [`data-evaluation-plan.md`](data-evaluation-plan.md), [`research-protocol.md`](research-protocol.md), [`product-requirements.md`](product-requirements.md), [`implementation-plan.md`](implementation-plan.md)
 
@@ -64,6 +64,11 @@ research measurements.
 - The app reaches the backend over an `EXPO_PUBLIC_API_URL` / host+port candidate list;
   the NDVI call builds `/ndvi?bbox=…` against those candidates
   (`app/(tabs)/explore.tsx:862-891`).
+- Expo Go development also adds the current Metro manifest host as a LAN backend
+  candidate, so a stale explicit LAN IP does not prevent trying the active workstation.
+  Backend responses must be JSON; Vercel SSO/HTML responses are classified as
+  unavailable rather than passed to `JSON.parse` (`hooks/config.ts`,
+  `utils/backend-api.ts`, CODE; OBS-16).
 - Home and Weather use the backend `/weather` route only. The prior duplicate
   client-to-Open-Meteo fallbacks were removed on 2026-07-27 (DEC-20); an unavailable
   backend now produces an honest weather error/unavailable state rather than bypassing
@@ -457,6 +462,12 @@ fails closed. Provider errors sent to clients are normalized, while structured r
 logs contain request ID, route, status, duration, and authenticated user ID but no bearer
 token or provider payload. Mobile provider calls attach the active Supabase access token
 through `utils/backend-api.ts` (CODE).
+
+The configured Vercel URL was not publicly callable during the 2026-08-26 check because
+it redirected to Vercel SSO (OBS-16). This is an external deployment gate, not an
+Open-Meteo failure. The client now fails honestly on that response and may use the
+current Metro LAN candidate during local Expo Go development; production still requires
+a publicly callable backend alias or an explicitly configured access mechanism.
 
 The M0 guard validates the current bbox prototype's coordinate/area limits. Exact-polygon
 vertex and acquisition-window validation belongs to the explicit M2 measurement request,

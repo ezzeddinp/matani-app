@@ -50,6 +50,25 @@ test("field map remains pannable and keeps drawing actions at the top", async ()
   assert.match(explore, /drawingControlsOverlay:\s*\{[\s\S]*?top:\s*76,/);
 });
 
+test("mobile provider calls reject protected HTML and recover stale sessions", async () => {
+  const backendClient = await readFile("utils/backend-api.ts", "utf8");
+  const config = await readFile("hooks/config.ts", "utf8");
+  const supabaseClient = await readFile("hooks/supabase.ts", "utf8");
+  const providerScreens = await Promise.all(
+    ["app/(tabs)/index.tsx", "app/(tabs)/weather.tsx", "app/(tabs)/explore.tsx"].map(
+      (file) => readFile(file, "utf8")
+    )
+  );
+
+  assert.match(backendClient, /BACKEND_DEPLOYMENT_PROTECTED/);
+  assert.match(backendClient, /content-type/);
+  assert.match(backendClient, /refreshSession\(\)/);
+  assert.match(config, /resolveManifestHost\(\)/);
+  assert.match(supabaseClient, /PGRST303/);
+  assert.match(supabaseClient, /runSupabaseReadWithSessionRecovery/);
+  providerScreens.forEach((screen) => assert.match(screen, /readBackendJson/));
+});
+
 test("ordinary verification commands contain no live provider invocation", async () => {
   const packageJson = JSON.parse(await readFile("package.json", "utf8"));
   const verification = [
