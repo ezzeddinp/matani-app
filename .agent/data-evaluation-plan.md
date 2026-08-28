@@ -4,7 +4,7 @@
 **Audience:** The developer, thesis advisor, reviewers, and AI agents working in this repo
 **Status:** Active — target pipeline specification; M1 contract artifacts exist, while
 production measurement behavior remains unimplemented unless marked `[As-built]`
-**Updated:** 2026-08-21
+**Updated:** 2026-08-28
 **Canonical for:** the engineering measurement contract, provider adapter, quality pipeline, persistence/provenance, cache identity, idempotency, fixtures, and Indonesia-specific masking/resolution behavior
 **Companion documents:** [`research-protocol.md`](research-protocol.md), [`project-architecture.md`](project-architecture.md), [`product-requirements.md`](product-requirements.md), [`implementation-plan.md`](implementation-plan.md), [`evidence-register.md`](evidence-register.md)
 
@@ -235,7 +235,7 @@ The pipeline's **persisted measurements** (§ 5) are the interface to the Python
 - **Availability analysis (HYP-01 / RQ1).** The feasibility study's availability measures (protocol § 4) are computed over persisted per-observation quality outcomes and polygon-level fractions (§ 4, § 5) — usable-observation fraction, gaps, wet/dry split, per-index valid-pixel counts, and PU accounting (EVID-010).
 - **Notebooks call tested package functions.** Notebooks are thin: they call functions in `research/src/matani_rs/` (acquisition, index computation, QA, comparison) rather than embedding algorithms ([`project-architecture.md`](project-architecture.md) § 3). If the same index/QA algorithm must run in both production and research, that is the ADR-03 trigger for a shared runtime — decided separately, not assumed here.
 
-**M1 implementation note (CODE, updated 2026-07-29).** `research/src/matani_rs/feasibility.py`
+**M1 implementation note (CODE, updated 2026-08-28).** `research/src/matani_rs/feasibility.py`
 and `research/scripts/run_feasibility.py` implement the deterministic report calculation;
 `research/tests/` verifies cadence withholding for fixture data and canonical
 geometry-hash stability. The committed fixture report demonstrates reproducible report
@@ -259,15 +259,36 @@ no `geometryPixelCount`, the evalscript emits a separate coverage output to deri
 polygon-source denominator; this derived value is never mislabeled as a provider
 `geometryPixelCount` (OBS-11).
 
-`research/lib/cdse-study.mjs` and
-`research/scripts/run-cdse-availability-study.mjs` add the checkpointed, explicitly
-enabled 12-calendar-month acquisition path. It enforces exactly two padi inputs, a
-72-request ceiling, per-request throttling, bounded 429/5xx retry, resume identity, and a
-privacy-minimized artifact. The 2025-07 → 2026-07 run completed for both candidates
-(OBS-12), but remains `prototype`: it does not supply representative multi-region sites,
-verified crop/boundary/consent, wet/dry labels, an approved HYP-03 threshold, source
-product identifiers, or independent raster comparison. It therefore cannot license a
-cadence or satisfy the M1 study acceptance by itself.
+`research/lib/m1-study-input.mjs`, `research/lib/m1-study-report.mjs`, and
+`research/scripts/run-cdse-availability-study.mjs` now add a versioned multi-site input
+contract around the checkpointed 12-calendar-month path. The contract accepts a dynamic
+field count and requires padi, site/region membership, private crop/boundary/consent/
+location-area verification references, and one BMKG-source-backed wet/dry label for
+every site-month (EVID-024/025). Fixture input is blocked from live calls. Provisional
+scope requires an explicit override; this permits acquisition but does not approve the
+sample. Preflight makes no network call and reports both the dynamic four-operation
+per-field-month plan (one Catalog lookup plus quality/NDVI/NDMI) and the bounded
+retry-attempt ceiling. Live execution requires an exact acknowledgement of that ceiling,
+fixing the former mismatch in which a "72-request ceiling" did not include retries.
+
+The privacy-minimized artifact now preserves non-identifying site/region and verification
+declarations, applies season labels, records intersecting Catalog product candidates
+(EVID-026), and
+groups acquisition/cloud/pixel/request/PU metrics per field and per site × season.
+Catalog candidates improve acquisition provenance but do not prove the Statistical API's
+exact mosaic selection. Numeric quality-passing, usable-observation, and gap
+metrics remain null until an advisor-approved provisional HYP-03 floor is present; even
+then cadence remains an explicit advisor determination rather than an automatic label.
+Backend contract tests cover multi-site validation, missing-consent rejection, fixture
+live-call rejection, dynamic preflight budgeting, and site-season gap calculation.
+
+The historical 2025-07 → 2026-07 run completed for both old candidates (OBS-12), but
+remains `prototype`: it does not supply representative multi-region sites, verified
+crop/boundary/consent, wet/dry labels, an approved HYP-03 threshold, source product
+identifiers, or independent raster comparison. It therefore cannot license a cadence or
+satisfy the M1 study acceptance by itself. The CDSE General User quota was rechecked on
+2026-08-28 (EVID-010); suitability for the final study still requires comparing that
+quota with the preflight budget and the completed study's measured request/PU totals.
 
 ---
 

@@ -32,7 +32,11 @@ import {
   type LahanThumbnail,
   type LahanWithInfo,
 } from "@/hooks/supabase";
-import { authenticatedBackendFetch } from "@/utils/backend-api";
+import {
+  authenticatedBackendFetch,
+  readBackendJson,
+  retainMostUsefulBackendError,
+} from "@/utils/backend-api";
 
 interface WeatherCardProps {
   location: string;
@@ -495,22 +499,14 @@ export default function HomeScreen() {
         for (const url of candidateUrls) {
           try {
             const response = await authenticatedBackendFetch(url);
-            if (!response.ok) {
-              lastErrorMessage = await response.text();
-              console.warn(
-                `⚠️ Weather endpoint responded with ${response.status} from ${url}`
-              );
-              continue;
-            }
-
-            data = await response.json();
+            data = await readBackendJson(response);
             console.log("Weather data fetched from", url);
             break outer;
           } catch (networkError) {
-            lastErrorMessage =
-              networkError instanceof Error
-                ? networkError.message
-                : String(networkError);
+            lastErrorMessage = retainMostUsefulBackendError(
+              lastErrorMessage,
+              networkError
+            );
             console.warn(
               `⚠️ Weather request network error for ${url}:`,
               lastErrorMessage

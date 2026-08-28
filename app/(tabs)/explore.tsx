@@ -3,7 +3,11 @@ import { ThemedView } from "@/components/themed-view";
 import { formatNdviValue } from "@/constants/ndvi";
 import { API_BASE_CANDIDATES } from "@/hooks/config";
 import { LahanWithInfo, lahanService, supabase } from "@/hooks/supabase";
-import { authenticatedBackendFetch } from "@/utils/backend-api";
+import {
+  authenticatedBackendFetch,
+  readBackendJson,
+  retainMostUsefulBackendError,
+} from "@/utils/backend-api";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Location from "expo-location";
@@ -831,24 +835,21 @@ export default function ExploreScreen() {
               if (!candidateUrls.includes(apiUrl)) candidateUrls.push(apiUrl);
             }
           });
-          let response: Response | null = null;
+          let payload: unknown = null;
           let lastErrorMessage = "";
           for (const url of candidateUrls) {
             try {
               const candidateResponse = await authenticatedBackendFetch(url);
-              if (!candidateResponse.ok) {
-                const message = await candidateResponse.text();
-                lastErrorMessage = message || `NDVI request failed with status ${candidateResponse.status}`;
-                continue;
-              }
-              response = candidateResponse;
+              payload = await readBackendJson(candidateResponse);
               break;
             } catch (networkError) {
-              lastErrorMessage = networkError instanceof Error ? networkError.message : String(networkError);
+              lastErrorMessage = retainMostUsefulBackendError(
+                lastErrorMessage,
+                networkError
+              );
             }
           }
-          if (!response) throw new Error(lastErrorMessage || "NDVI request failed for all endpoints");
-          const payload = await response.json();
+          if (!payload) throw new Error(lastErrorMessage || "NDVI request failed for all endpoints");
           if (!Array.isArray(payload) || payload.length === 0) { ndviStatisticCache.set(bboxKey, null); return null; }
           const latestEntry = payload[payload.length - 1] as Partial<NdviStatistic>;
           if (typeof latestEntry?.ndvi_mean !== "number" || Number.isNaN(latestEntry.ndvi_mean)) {
@@ -1194,21 +1195,23 @@ export default function ExploreScreen() {
         }
       });
       try {
-        let response: Response | null = null;
+        let data: { summary?: unknown } | null = null;
         let lastErrorMessage = "";
         for (const url of candidateUrls) {
-          try { response = await authenticatedBackendFetch(url, requestOptions); }
+          try {
+            const response = await authenticatedBackendFetch(url, requestOptions);
+            data = await readBackendJson<{ summary?: unknown }>(response);
+          }
           catch (networkError) {
-            lastErrorMessage = networkError instanceof Error ? networkError.message : String(networkError);
+            lastErrorMessage = retainMostUsefulBackendError(
+              lastErrorMessage,
+              networkError
+            );
             continue;
           }
-          if (response.ok) break;
-          const message = await response.text();
-          lastErrorMessage = message || `Request failed with status ${response.status}`;
-          response = null;
+          break;
         }
-        if (!response) throw new Error(lastErrorMessage || "Ringkasan lahan tidak dapat dimuat.");
-        const data = await response.json();
+        if (!data) throw new Error(lastErrorMessage || "Ringkasan lahan tidak dapat dimuat.");
         const summary = typeof data?.summary === "string" ? data.summary.trim() : "";
         lahanSummarySignatureRef.current = signature;
         setLahanSummaryText(summary);

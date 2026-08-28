@@ -34,6 +34,37 @@ if (!supabaseUrl || !supabasePublishableKey) {
 
 export const supabase = createClient(supabaseUrl, supabasePublishableKey);
 
+type SupabaseReadError = {
+  code?: string;
+  message?: string;
+};
+
+type SupabaseReadResult = {
+  data: unknown;
+  error: SupabaseReadError | null;
+};
+
+const isJwtIssuedInFutureError = (error: SupabaseReadError | null) =>
+  error?.code === "PGRST303" &&
+  error.message?.toLowerCase().includes("jwt issued at future");
+
+export const runSupabaseReadWithSessionRecovery = async <
+  TResult extends SupabaseReadResult,
+>(operation: () => PromiseLike<TResult>): Promise<TResult> => {
+  const firstResult = await operation();
+  if (!isJwtIssuedInFutureError(firstResult.error)) {
+    return firstResult;
+  }
+
+  const { data, error } = await supabase.auth.refreshSession();
+  if (error || !data.session) {
+    return firstResult;
+  }
+
+  await new Promise((resolve) => setTimeout(resolve, 1_000));
+  return operation();
+};
+
 const LAHAN_THUMBNAIL_BUCKET =
   process.env.EXPO_PUBLIC_SUPABASE_LAHAN_THUMBNAIL_BUCKET || "lahan-thumbnails";
 
@@ -264,10 +295,12 @@ export const lahanService = {
     const baseSelect =
       "id, name, geojson, area_ha, thumbnail_url, category, centroid, created_at, updated_at";
 
-    const { data, error } = await supabase
-      .from("lahan_with_info")
-      .select(baseSelect)
-      .eq("user_id", userId);
+    const { data, error } = await runSupabaseReadWithSessionRecovery(() =>
+      supabase
+        .from("lahan_with_info")
+        .select(baseSelect)
+        .eq("user_id", userId)
+    );
 
     if (!error) {
       return data;
@@ -284,10 +317,13 @@ export const lahanService = {
         .filter((part) => part !== "thumbnail_url" && part !== "category")
         .join(", ");
 
-      const { data: fallbackData, error: fallbackError } = await supabase
-        .from("lahan_with_info")
-        .select(fallbackSelect)
-        .eq("user_id", userId);
+      const { data: fallbackData, error: fallbackError } =
+        await runSupabaseReadWithSessionRecovery(() =>
+          supabase
+            .from("lahan_with_info")
+            .select(fallbackSelect)
+            .eq("user_id", userId)
+        );
 
       if (fallbackError) {
         throw fallbackError;
@@ -317,11 +353,13 @@ export const lahanService = {
     const baseSelect =
       "id, name, geojson, area_ha, thumbnail_url, category, centroid, created_at, updated_at";
 
-    const { data, error } = await supabase
-      .from("lahan_with_info")
-      .select(baseSelect)
-      .eq("id", id)
-      .maybeSingle();
+    const { data, error } = await runSupabaseReadWithSessionRecovery(() =>
+      supabase
+        .from("lahan_with_info")
+        .select(baseSelect)
+        .eq("id", id)
+        .maybeSingle()
+    );
 
     if (!error) {
       return data as LahanDetail | null;
@@ -338,11 +376,14 @@ export const lahanService = {
         .filter((part) => part !== "thumbnail_url" && part !== "category")
         .join(", ");
 
-      const { data: fallbackData, error: fallbackError } = await supabase
-        .from("lahan_with_info")
-        .select(fallbackSelect)
-        .eq("id", id)
-        .maybeSingle();
+      const { data: fallbackData, error: fallbackError } =
+        await runSupabaseReadWithSessionRecovery(() =>
+          supabase
+            .from("lahan_with_info")
+            .select(fallbackSelect)
+            .eq("id", id)
+            .maybeSingle()
+        );
 
       if (fallbackError) {
         throw fallbackError;

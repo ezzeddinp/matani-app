@@ -3,7 +3,7 @@
 **Document type:** Product requirements document
 **Audience:** The developer, thesis advisor, reviewers, and AI agents working in this repo
 **Status:** Active
-**Updated:** 2026-08-21
+**Updated:** 2026-08-26
 **Canonical for:** Feature behavior, scope tags, and product invariants
 **Companion documents:** [`product-brief.md`](product-brief.md), [`project-architecture.md`](project-architecture.md), [`design-guidelines.md`](design-guidelines.md), [`research-protocol.md`](research-protocol.md), [`data-evaluation-plan.md`](data-evaluation-plan.md), [`implementation-plan.md`](implementation-plan.md)
 
@@ -77,6 +77,7 @@ Full positioning lives in [`product-brief.md`](product-brief.md) § 5; the opera
 - Invalid/empty credentials produce an inline error, never a session.
 - A successful login yields a Supabase session and routes into the tab group.
 - No password or token is logged or surfaced in a client-visible error.
+- A `PGRST303` future-issued JWT rejection on a field read triggers one bounded session refresh and one retry; it never loops indefinitely.
 
 **Current-fidelity note.** Provider-backed mobile requests now attach the active Supabase
 access token and the backend verifies it before quota admission
@@ -101,7 +102,7 @@ enforced separately by RLS.
 
 **Acceptance criteria.** The card shows current conditions for the resolved location; on total provider failure it shows an error/empty state (`weatherError`, `index.tsx:381`), never fabricated weather.
 
-**Current-fidelity note.** Open-Meteo-only routing is implemented; provider failure returns an unavailable/error state with no direct-client bypass.
+**Current-fidelity note.** Open-Meteo-only routing is implemented; provider failure returns an unavailable/error state with no direct-client bypass. Provider screens accept JSON backend responses only, classify Vercel-protection/non-JSON responses as unavailable, and can try the current Metro LAN host during Expo Go development (`utils/backend-api.ts`, `hooks/config.ts`, CODE; OBS-16).
 
 ### PRD-05 · Home dashboard — latest observation cards · [As-built]
 

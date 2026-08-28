@@ -5,6 +5,8 @@ export const CDSE_TOKEN_URL =
   "https://identity.dataspace.copernicus.eu/auth/realms/CDSE/protocol/openid-connect/token";
 export const CDSE_STATISTICS_URL =
   "https://sh.dataspace.copernicus.eu/statistics/v1";
+export const CDSE_CATALOG_URL =
+  "https://sh.dataspace.copernicus.eu/catalog/v1/search";
 export const CRS84 =
   "http://www.opengis.net/def/crs/OGC/1.3/CRS84";
 
@@ -291,6 +293,17 @@ export const buildStatisticalRequest = ({
   };
 };
 
+export const buildCatalogRequest = ({ geometry, from, to }) => {
+  validatePilotGeometry(geometry);
+  assertWindow(from, to);
+  return {
+    collections: ["sentinel-2-l2a"],
+    datetime: `${from}/${to}`,
+    intersects: geometry,
+    limit: 100,
+  };
+};
+
 export const buildPreflightReport = ({ fields, from, to }) => {
   if (!Array.isArray(fields) || fields.length < 1 || fields.length > 2) {
     throw new Error("pilot-requires-one-or-two-fields");
@@ -394,6 +407,7 @@ export const summarizeResponses = ({
   qualityResponse,
   ndviResponse,
   ndmiResponse,
+  catalogResponse,
   quota,
 }) => {
   const projection = projectGeometryToLocalUtm(field.geometry);
@@ -458,6 +472,31 @@ export const summarizeResponses = ({
     }
   }
 
+  for (const feature of catalogResponse?.features ?? []) {
+    const acquiredAt = feature?.properties?.datetime;
+    if (!feature?.id || !acquiredAt) continue;
+    const matching = [...byInterval.values()].find(
+      (row) =>
+        acquiredAt >= row.acquisition_interval.from &&
+        acquiredAt < row.acquisition_interval.to,
+    );
+    if (!matching) continue;
+    if (!matching.source_product_candidates) {
+      matching.source_product_candidates = [];
+    }
+    matching.source_product_candidates.push({
+      id: feature.id,
+      acquired_at: acquiredAt,
+    });
+  }
+  for (const row of byInterval.values()) {
+    row.source_product_candidates = (row.source_product_candidates ?? []).sort(
+      (left, right) => left.acquired_at.localeCompare(right.acquired_at),
+    );
+    row.source_product_identity_status =
+      "catalog-candidates-not-statistical-selection-proof";
+  }
+
   return {
     execution: "bounded-live-smoke",
     data_state: "prototype",
@@ -468,6 +507,19 @@ export const summarizeResponses = ({
         .digest("hex"),
       category: field.category,
       area_ha: field.area_ha,
+      ...(field.site_id ? { site_id: field.site_id } : {}),
+      ...(field.region ? { region: field.region } : {}),
+      ...(field.verification
+        ? {
+            verification_declarations: Object.fromEntries(
+              Object.entries(field.verification).map(([name, value]) => [
+                name,
+                { status: value.status, method: value.method },
+              ]),
+            ),
+            verification_evidence_references_omitted: true,
+          }
+        : {}),
       geometry_hash: geometryHash(field.geometry),
       identifiers_omitted_from_output: true,
       geometry_omitted_from_output: true,
@@ -484,7 +536,7 @@ export const summarizeResponses = ({
     resolutions: { ndvi_metres: 10, ndmi_metres: 20, quality_metres: 20 },
     resampling: { method: "NEAREST", status: "pilot-provisional" },
     versions: PILOT_VERSIONS,
-    requests: 3,
+    requests: catalogResponse ? 4 : 3,
     quota,
     observations: [...byInterval.values()].sort((a, b) =>
       a.acquisition_interval.from.localeCompare(b.acquisition_interval.from),
@@ -492,7 +544,12 @@ export const summarizeResponses = ({
     limitations: [
       "Pilot output is prototype, not a persisted provenance-complete Matani measurement.",
       "HYP-03 has no validated valid-pixel reliability floor; quality is not marked passed.",
-      "Product/acquisition identity and independent raster comparison are not included.",
+      ...(catalogResponse
+        ? [
+            "Catalog product IDs are intersecting candidates; the Statistical API response does not prove which candidate pixels entered its mosaic.",
+          ]
+        : ["Product/acquisition identity is not included."]),
+      "Independent raster comparison is not included.",
       "Crop identity, field-boundary accuracy, and consent are supplied externally and not proven by this request.",
     ],
   };
@@ -560,6 +617,69 @@ export const executeStatisticalRequest = async ({
     processingUnits:
       Number(response.headers.get("x-processingunits-spent")) || null,
   };
+};
+
+export const executeCatalogRequest = async ({
+  token,
+  request,
+  catalogUrl = CDSE_CATALOG_URL,
+  fetchImpl = fetch,
+}) => {
+  const response = await fetchImpl(catalogUrl, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify(request),
+    signal: AbortSignal.timeout(30_000),
+  });
+  const body = await responseJson(response, "cdse-catalog");
+  if (body?.context?.next || body?.links?.some((link) => link.rel === "next")) {
+    throw new Error("cdse-catalog-result-exceeds-bounded-100-item-page");
+  }
+  return {
+    body,
+    processingUnits:
+      Number(response.headers.get("x-processingunits-spent")) || null,
+  };
+};
+
+export const executeCatalogRequestWithRetry = async ({
+  maxAttempts = 5,
+  sleepImpl = (milliseconds) =>
+    new Promise((resolve) => setTimeout(resolve, milliseconds)),
+  ...request
+}) => {
+  let attempt = 0;
+  while (attempt < maxAttempts) {
+    attempt += 1;
+    try {
+      const result = await executeCatalogRequest(request);
+      return { ...result, attempts: attempt };
+    } catch (error) {
+      const retryable =
+        error?.statusCode === 429 ||
+        (error?.statusCode >= 500 && error?.statusCode <= 599);
+      if (!retryable || attempt >= maxAttempts) {
+        error.attempts = attempt;
+        throw error;
+      }
+      const providerDelay = Number(error.retryAfterSeconds) * 1000;
+      const exponentialDelay = 1000 * 2 ** (attempt - 1);
+      await sleepImpl(
+        Math.min(
+          15_000,
+          Math.max(
+            Number.isFinite(providerDelay) ? providerDelay : 0,
+            exponentialDelay,
+          ),
+        ),
+      );
+    }
+  }
+  throw new Error("unreachable-catalog-retry-state");
 };
 
 export const executeStatisticalRequestWithRetry = async ({

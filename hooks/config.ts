@@ -1,24 +1,28 @@
 import Constants from "expo-constants";
 import { Platform } from "react-native";
-const resolveHost = () => {
-  if (process.env.EXPO_PUBLIC_API_HOST) {
-    return process.env.EXPO_PUBLIC_API_HOST;
-  }
 
+const resolveManifestHost = () => {
   const hostUri = Constants.expoConfig?.hostUri ?? "";
   const manifestHost = hostUri ? hostUri.split(":")[0] : undefined;
   if (manifestHost) {
     return manifestHost;
   }
 
-  // 👇 fix di sini
   const manifestExtras =
     ((Constants as any).manifest2?.extra ??
       (Constants.expoConfig as any)?.extra) || {};
-
   const manifestExtraHost = manifestExtras.apiHost;
-  if (manifestExtraHost) {
-    return String(manifestExtraHost);
+  return manifestExtraHost ? String(manifestExtraHost) : undefined;
+};
+
+const resolveHost = () => {
+  if (process.env.EXPO_PUBLIC_API_HOST) {
+    return process.env.EXPO_PUBLIC_API_HOST;
+  }
+
+  const manifestHost = resolveManifestHost();
+  if (manifestHost) {
+    return manifestHost;
   }
 
   return Platform.OS === "android" ? "10.0.2.2" : "localhost";
@@ -59,6 +63,10 @@ const localBaseUrl = `${protocol}://${host}${port ? `:${port}` : ""}`;
 export const BASE_URL = publicApiUrl ?? localBaseUrl;
 
 const candidates = new Set<string>([BASE_URL]);
+const manifestHost = resolveManifestHost();
+if (manifestHost) {
+  candidates.add(`${protocol}://${manifestHost}${port ? `:${port}` : ""}`);
+}
 if (publicApiUrl && publicApiUrl !== localBaseUrl) {
   candidates.add(localBaseUrl);
 }
