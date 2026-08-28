@@ -3,7 +3,7 @@
 **Document type:** Architecture document
 **Audience:** The developer, thesis advisor, reviewers, and AI agents working in this repo
 **Status:** Active
-**Updated:** 2026-08-26
+**Updated:** 2026-08-28
 **Canonical for:** As-built and target architecture, **current measurement provenance (canonical wording — § 2)**, trust boundaries, provider decisions, Architecture Decision Records (ADRs), free-tier constraints, security risks, verification baseline, migration triggers
 **Companion documents:** [`evidence-register.md`](evidence-register.md), [`context-dump.md`](context-dump.md), [`data-evaluation-plan.md`](data-evaluation-plan.md), [`research-protocol.md`](research-protocol.md), [`product-requirements.md`](product-requirements.md), [`implementation-plan.md`](implementation-plan.md)
 
@@ -208,7 +208,9 @@ that produces it.
 research/
   pyproject.toml           # packaged, dependency-pinned workspace
   src/matani_rs/           # tested core: acquisition, index computation, QA, comparison
-  lib/cdse-pilot.mjs       # bounded external-Node exact-polygon pilot contract
+  lib/cdse-pilot.mjs       # bounded external-Node exact-polygon/provider contract
+  lib/m1-study-*.mjs       # private manifest validation + site-season report builder
+  contracts/               # measurement contract + labeled M1 manifest fixture
   scripts/                 # fixture analysis + explicitly enabled live pilot entrypoint
   notebooks/               # analysis narratives that CALL tested package functions
   tests/                   # unit/integration tests over src/matani_rs
@@ -228,6 +230,15 @@ separates quality/10 m NDVI/20 m NDMI calls. Ordinary tests remain network-free 
 ADR-09. On 2026-07-29 the bounded pilot and a checkpointed 12-month two-polygon
 acquisition completed against CDSE (OBS-11/12). Those artifacts remain `prototype`, not
 `measured`: they do not pass M1 representativeness or M2 persistence/provenance gates.
+
+The 2026-08-28 M1 study path adds research-only multi-site orchestration around that
+pilot contract: a private remote-assisted manifest, no-network preflight, dynamic
+request/retry ceiling, field and site × season reporting, and one CDSE Catalog lookup per
+field-month for intersecting Sentinel-2 L2A candidate IDs (EVID-026). The Catalog lookup
+uses the same OAuth trust boundary and remains explicitly enabled/out-of-band under
+ADR-09. Candidate IDs improve provenance but do not prove the Statistical API's exact
+mosaic selection; production persistence and independent raster comparison remain M2/M3
+work. This does not alter the canonical current-product provenance wording in § 2.
 
 ---
 
@@ -531,7 +542,7 @@ checked date and must be rechecked before any decision that depends on them.
 
 | Concern | Constraint | Provenance |
 |---------|-----------|------------|
-| Satellite (CDSE Sentinel Hub) | Bounded live access on the free "General User" tier; monthly + per-minute quota. **Perishable — recheck before deployment.** | EVID-010 (checked 2026-07-29); auth EVID-011; capability EVID-012 |
+| Satellite (CDSE Sentinel Hub) | Bounded live access on the free "General User" tier; monthly + per-minute quota. **Perishable — recheck before deployment.** | EVID-010 (checked 2026-08-28); auth EVID-011; capability EVID-012/026 |
 | Weather (default) | Open-Meteo free tier: **non-commercial, rate-limited, CC BY 4.0 attribution**, no uptime guarantee. **Perishable.** | EVID-021 (checked 2026-07-23) |
 | Supabase | **Local Supabase via CLI + Docker** for normal development; **hosted Supabase Free only** for shared device testing, demos, and pilots. | DEC-03/DEC-05 |
 | Backend hosting | **Vercel Hobby**, within its personal / non-commercial usage limits. | DEC-03 |
@@ -568,12 +579,12 @@ vulnerabilities. The root production audit retains 11 moderate advisories solely
 Expo's transitive `xcode` → `uuid` tooling chain; npm's proposed forced resolution would
 downgrade the SDK-pinned `expo-splash-screen`, so it was not applied.
 
-**Current local verification (2026-08-21).** `npm run lint`, `npm run typecheck`,
+**Current local verification (2026-08-28).** `npm run lint`, `npm run typecheck`,
 `npm run typecheck:backend`, `npm test`, and `npm run test:backend` exit 0. The runs
-contain zero lint errors/warnings, 5 fixture-only root artifact tests, and 21 backend
+contain zero lint errors/warnings, 7 fixture-only root artifact tests, and 26 backend
 tests covering the protected provider boundary, weather/NDVI route contracts, sanitized
 provider failure behavior, plus exact-polygon/UTM-grid/masking/pixel-accounting/retry and
-12-month-study contracts (OBS-13). The lint script now calls
+multi-site 12-month-study contracts (OBS-17). The lint script now calls
 ESLint directly with `--no-cache`, and backend test files are excluded from the backend
 build type-check because they import the sibling research workspace. `npm run
 test:research` did not run on this workstation because Python 3 is absent; its earlier

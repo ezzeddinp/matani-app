@@ -3,7 +3,9 @@ import test from "node:test";
 
 import {
   buildPreflightReport,
+  buildCatalogRequest,
   buildStatisticalRequest,
+  executeCatalogRequest,
   executeStatisticalRequestWithRetry,
   geometryHash,
   projectGeometryToLocalUtm,
@@ -33,6 +35,7 @@ test("pilot requests use exact polygon geometry and per-index native grids", () 
   const ndvi = buildStatisticalRequest({ ...common, output: "ndvi" });
   const ndmi = buildStatisticalRequest({ ...common, output: "ndmi" });
   const quality = buildStatisticalRequest({ ...common, output: "quality" });
+  const catalog = buildCatalogRequest(common);
   assert.notDeepEqual(ndvi.input.bounds.geometry, smallField);
   assert.equal(
     ndvi.input.bounds.properties.crs,
@@ -57,6 +60,31 @@ test("pilot requests use exact polygon geometry and per-index native grids", () 
   assert.match(
     quality.aggregation.evalscript,
     /return \{ quality: \[cloudShadow, invalid\], dataMask: \[sample\.dataMask\] \}/,
+  );
+  assert.deepEqual(catalog.intersects, smallField);
+  assert.deepEqual(catalog.collections, ["sentinel-2-l2a"]);
+  assert.equal(catalog.limit, 100);
+});
+
+test("CDSE catalog rejects an incomplete paginated provenance page", async () => {
+  await assert.rejects(
+    () =>
+      executeCatalogRequest({
+        token: "test-token",
+        request: {},
+        fetchImpl: async () =>
+          new Response(
+            JSON.stringify({
+              features: [],
+              links: [{ rel: "next", href: "https://example.invalid/next" }],
+            }),
+            {
+              status: 200,
+              headers: { "content-type": "application/json" },
+            },
+          ),
+      }),
+    /catalog-result-exceeds-bounded-100-item-page/,
   );
 });
 
@@ -197,7 +225,15 @@ test("response summary keeps per-index counts separate and withholds passed stat
         ),
       ],
     },
-    quota: { requests: 3 },
+    catalogResponse: {
+      features: [
+        {
+          id: "S2B_MSIL2A_FIXTURE_PRODUCT",
+          properties: { datetime: "2026-06-04T03:21:00Z" },
+        },
+      ],
+    },
+    quota: { requests: 4 },
   });
   const observation = report.observations[0];
   assert.equal(observation.ndvi_stats.valid_pixel_count, 17);
@@ -207,6 +243,13 @@ test("response summary keeps per-index counts separate and withholds passed stat
   assert.equal(observation.ndvi_valid_pixel_fraction, 17 / 18);
   assert.equal(observation.ndmi_valid_pixel_fraction, 4 / 5);
   assert.equal(observation.quality_decision, "not-evaluated-hyp-03");
+  assert.deepEqual(observation.source_product_candidates, [
+    {
+      id: "S2B_MSIL2A_FIXTURE_PRODUCT",
+      acquired_at: "2026-06-04T03:21:00Z",
+    },
+  ]);
+  assert.equal(report.requests, 4);
   assert.equal(report.data_state, "prototype");
 });
 

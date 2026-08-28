@@ -26,8 +26,8 @@ This is the canonical **order of engineering work** for the Matani thesis. Read 
 
 - **M0: current local/hosted gates pass; current remote CI and external credential
   confirmation remain.**
-  The 2026-08-21 audit re-verified scoped lint, root and backend type-checks, 5/5 root
-  tests, and 21/21 backend tests (OBS-13). The Python research suite could not be re-run
+  The 2026-08-28 audit re-verified scoped lint, root and backend type-checks, 7/7 root
+  tests, and 26/26 backend tests (OBS-17). The Python research suite could not be re-run
   because Python 3 is absent on the audit workstation; its earlier result is historical.
   Protected backend routes, disabled-by-default
   Gemini, clean DB reset/reapply, pgTAP, generated types, placeholder Expo config, and
@@ -59,6 +59,16 @@ This is the canonical **order of engineering work** for the Matani thesis. Read 
   regions, target N, numeric HYP-03 reliability floors, pre-registered tolerances, and the
   M1-versus-M3 placement of independent raster comparison remain explicitly open; they are
   not treated as approval or as M1 completion.
+  The 2026-08-28 implementation removes the study runner's former two-field limit and
+  adds a tested `m1-study-input-v1` remote-assisted manifest, dynamic request/retry
+  budgeting, no-network preflight, verification declaration gates, site-specific monthly
+  season labels, and field plus site × season reporting. This makes the approved-input
+  study executable once the thesis team supplies its private evidence-backed polygons;
+  it does not supply those polygons, consent records, advisor decisions, quality floors,
+  exact Statistical API mosaic-selection provenance, independent raster comparison, or
+  a cadence outcome. The
+  current CDSE quota was rechecked (EVID-010), but final suitability remains contingent on
+  the actual approved sample budget and completed-run PU totals. M1 therefore remains open.
 
 ---
 

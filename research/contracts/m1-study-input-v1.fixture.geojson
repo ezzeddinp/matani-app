@@ -1,0 +1,150 @@
+{
+  "type": "FeatureCollection",
+  "matani_m1": {
+    "contract_version": "m1-study-input-v1",
+    "dataset_state": "fixture",
+    "verification_mode": "remote-assisted",
+    "scope_approval": {
+      "status": "provisional"
+    },
+    "quality_policy": {
+      "status": "open-hyp-03"
+    },
+    "sites": [
+      {
+        "site_id": "fixture-karawang-a",
+        "region": "Jawa Barat",
+        "season_labels": {
+          "2025-07": "dry",
+          "2025-08": "dry",
+          "2025-09": "dry",
+          "2025-10": "dry",
+          "2025-11": "wet",
+          "2025-12": "wet",
+          "2026-01": "wet",
+          "2026-02": "wet",
+          "2026-03": "wet",
+          "2026-04": "wet",
+          "2026-05": "dry",
+          "2026-06": "dry"
+        },
+        "season_source": {
+          "type": "fixture-only-not-bmkg-evidence",
+          "reference": "fixture://replace-with-private-bmkg-zom-reference",
+          "checked_at": "2026-08-28"
+        }
+      },
+      {
+        "site_id": "fixture-demak-a",
+        "region": "Jawa Tengah",
+        "season_labels": {
+          "2025-07": "dry",
+          "2025-08": "dry",
+          "2025-09": "dry",
+          "2025-10": "dry",
+          "2025-11": "dry",
+          "2025-12": "wet",
+          "2026-01": "wet",
+          "2026-02": "wet",
+          "2026-03": "wet",
+          "2026-04": "wet",
+          "2026-05": "dry",
+          "2026-06": "dry"
+        },
+        "season_source": {
+          "type": "fixture-only-not-bmkg-evidence",
+          "reference": "fixture://replace-with-private-bmkg-zom-reference",
+          "checked_at": "2026-08-28"
+        }
+      }
+    ]
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "fixture-field-small",
+        "category": "padi",
+        "area_ha": 0.2,
+        "site_id": "fixture-karawang-a",
+        "verification": {
+          "crop_identity": {
+            "status": "fixture-only",
+            "method": "fixture-owner-confirmation",
+            "reference": "fixture://crop-identity"
+          },
+          "boundary": {
+            "status": "fixture-only",
+            "method": "fixture-owner-confirmation",
+            "reference": "fixture://boundary"
+          },
+          "consent": {
+            "status": "fixture-only",
+            "method": "fixture-digital-form",
+            "reference": "fixture://consent"
+          },
+          "location_area": {
+            "status": "fixture-only",
+            "method": "fixture-geometry-check",
+            "reference": "fixture://location-area"
+          }
+        }
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [107.3000, -6.3000],
+            [107.3010, -6.3000],
+            [107.3010, -6.3010],
+            [107.3000, -6.3010],
+            [107.3000, -6.3000]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "fixture-field-large",
+        "category": "padi",
+        "area_ha": 1.2,
+        "site_id": "fixture-demak-a",
+        "verification": {
+          "crop_identity": {
+            "status": "fixture-only",
+            "method": "fixture-owner-confirmation",
+            "reference": "fixture://crop-identity"
+          },
+          "boundary": {
+            "status": "fixture-only",
+            "method": "fixture-owner-confirmation",
+            "reference": "fixture://boundary"
+          },
+          "consent": {
+            "status": "fixture-only",
+            "method": "fixture-digital-form",
+            "reference": "fixture://consent"
+          },
+          "location_area": {
+            "status": "fixture-only",
+            "method": "fixture-geometry-check",
+            "reference": "fixture://location-area"
+          }
+        }
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [110.6000, -6.8000],
+            [110.6020, -6.8000],
+            [110.6020, -6.8020],
+            [110.6000, -6.8020],
+            [110.6000, -6.8000]
+          ]
+        ]
+      }
+    }
+  ]
+}

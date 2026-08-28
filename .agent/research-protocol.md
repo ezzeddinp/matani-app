@@ -147,6 +147,17 @@ descriptive gaps in OBS-12 do not license a monitoring cadence, and M1 remains o
 A fixture row, dry-run request, successful HTTP response, nominal revisit, or these two
 unverified polygons alone cannot satisfy this section.
 
+**Execution-readiness update (2026-08-28; CODE).** The study runner now accepts a
+versioned multi-site remote-assisted manifest with a dynamic field count. It rejects a
+live input unless each field declares referenced verification for padi identity, exact
+boundary, consent, and location/area; fixture input can only preflight. Each site must
+carry a source reference and one wet/dry label for every study month, using the BMKG
+onset/ZOM basis (EVID-024/025). Reports group descriptive metrics per field and per site
+× season. Quality-passing, usable-observation, and gap results stay withheld while the
+numeric HYP-03 floor is open, and cadence always requires a recorded determination.
+This closes an execution-tooling gap only: no approved sample, human verification,
+provider result, or advisor decision is created by the validator.
+
 ---
 
 ## 5 · Ground-truth / reference measurements

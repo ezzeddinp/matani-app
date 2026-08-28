@@ -4,18 +4,25 @@ import process from "node:process";
 
 import {
   buildStatisticalRequest,
+  buildCatalogRequest,
+  CDSE_CATALOG_URL,
   CDSE_STATISTICS_URL,
   CDSE_TOKEN_URL,
+  executeCatalogRequestWithRetry,
   executeStatisticalRequestWithRetry,
   fetchCdseToken,
   summarizeResponses,
-  validatePilotGeometry,
 } from "../lib/cdse-pilot.mjs";
+import { buildCalendarMonthWindows } from "../lib/cdse-study.mjs";
 import {
-  buildCalendarMonthWindows,
-  buildStudyArtifact,
-  studyIdentity,
-} from "../lib/cdse-study.mjs";
+  assertM1LiveAuthorization,
+  normalizeM1StudyInput,
+} from "../lib/m1-study-input.mjs";
+import {
+  buildM1StudyArtifact,
+  buildM1StudyPreflightArtifact,
+  m1StudyIdentity,
+} from "../lib/m1-study-report.mjs";
 
 const args = process.argv.slice(2);
 const value = (name) => {
@@ -27,13 +34,6 @@ const fail = (message) => {
   process.exit(1);
 };
 
-if (!args.includes("--allow-live")) {
-  fail("Live availability study requires --allow-live.");
-}
-if (value("--confirm-max-requests") !== "72") {
-  fail("Explicitly acknowledge the 72-request ceiling with --confirm-max-requests 72.");
-}
-
 const inputPath = value("--input");
 const outputPath = value("--output");
 const from = value("--from");
@@ -43,24 +43,64 @@ if (!inputPath || !outputPath || !from || !to) {
 }
 
 const source = JSON.parse(await fs.readFile(inputPath, "utf8"));
-const features = source.type === "FeatureCollection" ? source.features : source;
-if (!Array.isArray(features) || features.length !== 2) {
-  fail("The bounded study runner requires exactly two padi pilot fields.");
-}
-const fields = features.map((feature) => {
-  validatePilotGeometry(feature.geometry);
-  if (String(feature.properties?.category).toLowerCase() !== "padi") {
-    fail("M1 thesis availability input is padi-only.");
-  }
-  return {
-    id: feature.properties.id,
-    category: "padi",
-    area_ha: Number(feature.properties.area_ha),
-    geometry: feature.geometry,
-  };
-});
 const windows = buildCalendarMonthWindows(from, to);
-const identity = studyIdentity({ fields, from, to });
+let studyInput;
+try {
+  studyInput = normalizeM1StudyInput({ source, windows });
+} catch (error) {
+  fail(`M1 input validation failed: ${error.message}`);
+}
+const fields = studyInput.fields;
+const maxAttemptsPerRequest = Number(
+  value("--max-attempts-per-request") ?? "3",
+);
+if (
+  !Number.isInteger(maxAttemptsPerRequest) ||
+  maxAttemptsPerRequest < 1 ||
+  maxAttemptsPerRequest > 5
+) {
+  fail("--max-attempts-per-request must be an integer from 1 through 5.");
+}
+const plannedRequestOperations = windows.length * fields.length * 4;
+const requestAttemptCeiling =
+  plannedRequestOperations * maxAttemptsPerRequest;
+const identity = m1StudyIdentity({ fields, from, to, studyInput });
+
+if (args.includes("--preflight-only")) {
+  const artifact = buildM1StudyPreflightArtifact({
+    identity,
+    from,
+    to,
+    windows,
+    studyInput,
+    plannedRequestOperations,
+    confirmedRequestAttemptCeiling: null,
+    maxAttemptsPerRequest,
+  });
+  await fs.mkdir(path.dirname(outputPath), { recursive: true });
+  await fs.writeFile(outputPath, `${JSON.stringify(artifact, null, 2)}\n`, "utf8");
+  console.log(
+    `Preflight passed for ${fields.length} fields across ${studyInput.sites.length} sites; ${plannedRequestOperations} operations and at most ${requestAttemptCeiling} attempts if live.`,
+  );
+  process.exit(0);
+}
+
+if (!args.includes("--allow-live")) {
+  fail("Live availability study requires --allow-live; use --preflight-only for no network.");
+}
+try {
+  assertM1LiveAuthorization({
+    input: studyInput,
+    allowProvisionalScope: args.includes("--allow-provisional-scope"),
+  });
+} catch (error) {
+  fail(`Live study authorization failed: ${error.message}`);
+}
+if (value("--confirm-max-request-attempts") !== String(requestAttemptCeiling)) {
+  fail(
+    `Explicitly acknowledge the ${requestAttemptCeiling}-attempt ceiling (${plannedRequestOperations} planned operations × ${maxAttemptsPerRequest} attempts) with --confirm-max-request-attempts ${requestAttemptCeiling}.`,
+  );
+}
 
 let monthlyReports = [];
 try {
@@ -101,13 +141,15 @@ const throttle = async () => {
 };
 
 const save = async () => {
-  const artifact = buildStudyArtifact({
+  const artifact = buildM1StudyArtifact({
     identity,
     from,
     to,
     windows,
-    fieldCount: fields.length,
     monthlyReports,
+    studyInput,
+    plannedRequestOperations,
+    confirmedRequestAttemptCeiling: requestAttemptCeiling,
   });
   artifact.checkpoint = { monthly_reports: monthlyReports };
   await fs.mkdir(path.dirname(outputPath), { recursive: true });
@@ -123,7 +165,8 @@ for (const window of windows) {
       qualityResponse: {},
       ndviResponse: {},
       ndmiResponse: {},
-      quota: { requests: 3 },
+      catalogResponse: { features: [] },
+      quota: { requests: 4 },
     });
     const key = `${probe.field.field_reference_hash}:${window.from}:${window.to}`;
     if (completed.has(key)) continue;
@@ -131,6 +174,21 @@ for (const window of windows) {
     const responses = {};
     const processingUnits = {};
     const attempts = {};
+    await throttle();
+    const catalogResult = await executeCatalogRequestWithRetry({
+      token,
+      request: buildCatalogRequest({
+        geometry: field.geometry,
+        from: window.from,
+        to: window.to,
+      }),
+      catalogUrl: process.env.SENTINEL_CATALOG_URL || CDSE_CATALOG_URL,
+      maxAttempts: maxAttemptsPerRequest,
+    });
+    lastRequestAt = Date.now();
+    responses.catalog = catalogResult.body;
+    processingUnits.catalog = catalogResult.processingUnits;
+    attempts.catalog = catalogResult.attempts;
     for (const output of ["quality", "ndvi", "ndmi"]) {
       await throttle();
       const result = await executeStatisticalRequestWithRetry({
@@ -143,6 +201,7 @@ for (const window of windows) {
         }),
         statisticsUrl:
           process.env.SENTINEL_STATISTICS_URL || CDSE_STATISTICS_URL,
+        maxAttempts: maxAttemptsPerRequest,
       });
       lastRequestAt = Date.now();
       responses[output] = result.body;
@@ -157,6 +216,7 @@ for (const window of windows) {
         qualityResponse: responses.quality,
         ndviResponse: responses.ndvi,
         ndmiResponse: responses.ndmi,
+        catalogResponse: responses.catalog,
         quota: {
           requests: Object.values(attempts).reduce(
             (sum, current) => sum + current,
@@ -164,14 +224,12 @@ for (const window of windows) {
           ),
           attempts_by_request: attempts,
           processing_units_by_request: processingUnits,
-          processing_units_total: Object.values(processingUnits).every(
+          processing_units_total: Object.values(processingUnits)
+            .filter(Number.isFinite)
+            .reduce((sum, current) => sum + current, 0),
+          processing_units_complete: Object.values(processingUnits).every(
             Number.isFinite,
-          )
-            ? Object.values(processingUnits).reduce(
-                (sum, current) => sum + current,
-                0,
-              )
-            : null,
+          ),
         },
       }),
     );
@@ -184,4 +242,6 @@ for (const window of windows) {
 }
 
 await save();
-console.log(`Wrote privacy-minimized 12-month study artifact: ${outputPath}`);
+console.log(
+  `Wrote privacy-minimized multi-site 12-month study artifact: ${outputPath}`,
+);
