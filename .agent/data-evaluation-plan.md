@@ -2,9 +2,9 @@
 
 **Document type:** Engineering data pipeline specification
 **Audience:** The developer, thesis advisor, reviewers, and AI agents working in this repo
-**Status:** Active — target pipeline specification; M1 contract artifacts exist, while
-production measurement behavior remains unimplemented unless marked `[As-built]`
-**Updated:** 2026-08-28
+**Status:** Active — M2 implemented and verified locally; hosted deployment/persistence
+remains unverified unless explicitly marked
+**Updated:** 2026-08-30
 **Canonical for:** the engineering measurement contract, provider adapter, quality pipeline, persistence/provenance, cache identity, idempotency, fixtures, and Indonesia-specific masking/resolution behavior
 **Companion documents:** [`research-protocol.md`](research-protocol.md), [`project-architecture.md`](project-architecture.md), [`product-requirements.md`](product-requirements.md), [`implementation-plan.md`](implementation-plan.md), [`evidence-register.md`](evidence-register.md)
 
@@ -15,34 +15,38 @@ production measurement behavior remains unimplemented unless marked `[As-built]`
 This is the **engineering realization** of the research standard. Read it this way:
 
 - **Research validity is not decided here.** [`research-protocol.md`](research-protocol.md) owns *why and whether* — the research questions, hypotheses, unit of analysis, quality/masking *requirements*, and threats to validity. This document owns *how the code satisfies those requirements*: the measurement contract, adapter boundary, quality pipeline, persistence schema, cache identity, idempotency, and fixtures. Where the protocol states a rule, this document links to it and specifies the mechanism — it never re-derives the rule or re-argues the research.
-- **`[As-built]` vs `[Thesis]` is load-bearing.** A heading or claim tagged `[As-built]` describes code that exists today (cited to `file:line`). A heading or claim tagged `[Thesis]` describes **target behavior that is not implemented** — it is a specification, not a report. Nothing in a `[Thesis]` section may be read as already built. The only `[As-built]` section is § 1.
+- **Implementation qualifiers are load-bearing.** `[As-built local]` means code and local
+  verification exist; it does not imply hosted migration, backend deployment, physical
+  device behavior, or scientific validation. `[Thesis]` remains an unimplemented or
+  research-evaluation requirement.
 - **External facts are cited, never restated.** Every externally sourced figure carries an `EVID-*` / `OBS-*` ID from [`evidence-register.md`](evidence-register.md); decisions carry `DEC-*` (from [`context-dump.md`](context-dump.md)) and architecture decisions carry `ADR-*` (from [`project-architecture.md`](project-architecture.md)); hypotheses carry `HYP-*` (from [`research-protocol.md`](research-protocol.md)). This document does not re-copy quota numbers, SCL class ids, or band resolutions — it cites the ID.
 - **The canonical provenance paragraph lives elsewhere.** The single source of truth for what the satellite pipeline does today is [`project-architecture.md`](project-architecture.md) § 2 (Current measurement provenance). § 1 below links to it and does not restate it.
-- **Physical design is frozen for M2, not deployed.** § 5 remains the canonical logical
-  fields list. DEC-21 and § 9 close the four M1 engineering choices in a reviewable
-  contract and migration-ready draft; no production measurement table or worker exists
-  until M2 applies and tests them.
+- **Physical design is implemented locally, not hosted.** § 5 owns the logical contract;
+  the sole physical schema is the versioned M2 migration. OBS-22 proves clean local
+  application and DB behavior. Hosted application remains an explicit gate.
 
 ---
 
-## 1 · As-built summary `[As-built]`
+## 1 · As-built summary `[As-built local]`
 
-The satellite path today is a prototype request wired to the field-list surface, computing over a bounding box on a fixed date window through the CDSE-configured provider route, and persisting nothing as a measurement. Missing or failed retrieval now produces an explicit unavailable state rather than a synthetic substitute. The **canonical wording and the `file:line` evidence** for this live in [`project-architecture.md`](project-architecture.md) § 2 (Current measurement provenance) — it is not restated here; this document defers to it and specifies the target that replaces it.
+The repository contains the M2 adapter, worker, migration, privileged persistence RPCs,
+mobile request/read path, fixture tests, DB tests, and bounded live smoke (OBS-22/23).
+The **canonical current-product wording** remains
+[`project-architecture.md`](project-architecture.md) § 2. Hosted Supabase/backend/device
+deployment has not passed, so local implementation is not called production-ready.
 
-### As-built gaps this plan closes
+### Current implementation and deployment gates
 
-| Gap `[As-built]` | Where | Target `[Thesis]` | Owner |
-|------------------|-------|-------------------|-------|
-| **Fixed acquisition window** — hard-coded 2025-09-01 → 2025-09-05 in both the data filter and the aggregation | `backend/api/ndvi/utils.js:65-77` | Caller-supplied acquisition window bounded by policy (§ 2, § 6) | ADR-06 |
-| **Bounding box, not polygon** — queries a bbox, defaulting to a hard-coded Jakarta bbox when none is supplied | `backend/api/ndvi/utils.js:49` | Statistics computed over the actual field polygon geometry (§ 2, § 4); bbox is never the measurement geometry (EVID-012, protocol § 7) | ADR-06 |
-| **No cloud masking beyond `dataMask`** — evalscript passes `dataMask` through but never consults the Scene Classification Layer; no cloud/cirrus/shadow exclusion | `backend/api/ndvi/utils.js:12,15,22` | SCL-driven masking at the polygon level (§ 4), contrast EVID-008 / EVID-012 | ADR-06 |
-| **No persistence** — fetched results become transient UI overrides (`ndviOverrides` state), never rows | `app/(tabs)/explore.tsx:1143-1150,1421,1426` | Provenance-complete measurement records written by the worker (§ 5) | ADR-06, ADR-07 |
-| **No production measurement history** — synthetic substitution has been removed, but provider results remain transient and dated legacy rows lack complete provenance | `app/(tabs)/explore.tsx:1276-1289`; `app/detail-lahan-page.tsx:212-239` | A measurement passes quality and is persisted, is recorded as rejected with a reason, or is `unavailable` (§ 2, § 4); history reads provenance-complete M2 rows | ADR-06, ADR-12, ADR-14 |
-| **Provider migration is not a production measurement adapter** — CDSE endpoint defaults are applied, but the bbox prototype still calls the provider directly and lacks the stable M2 adapter/persistence contract | `backend/sentinelAuth.js`, `backend/api/ndvi/utils.js`; OBS-11 is out-of-band research evidence | CDSE Sentinel Hub behind the stable provider adapter (§ 3), with the measurement semantics unchanged above it | ADR-02, ADR-08 |
+| Item | Local state | Hosted state |
+|------|-------------|--------------|
+| Exact polygon, dynamic ≤31-day window, SCL mask, native grids | Implemented in `backend/measurement/`; fixture and live-smoke verified (OBS-22/23) | Backend deployment unverified |
+| Durable jobs, provenance, stats, RLS, idempotency | Migration and 26/26 pgTAP pass from empty local DB (OBS-22) | Migration not applied; CLI is not linked |
+| App save/request/read/detail polling | Implemented in `explore.tsx`, `index.tsx`, `detail-lahan-page.tsx`, `utils/backend-api.ts` (CODE) | Public backend/admin key/device smoke unverified |
+| Legacy bbox route and `lahan_health` | Retained for compatibility but removed from M2 measurement surfaces | Must not be used as measurement data |
 
 ---
 
-## 2 · Measurement contract `[Thesis]`
+## 2 · Measurement contract `[As-built local]`
 
 A **Matani measurement** is the atomic output of the pipeline and the unit the research analyses consume. It corresponds to the protocol's primary unit of analysis — the *field × acquisition observation* ([`research-protocol.md`](research-protocol.md) § 2).
 
@@ -70,14 +74,17 @@ It is **never replaced** by a synthesized value on a measurement surface. This r
 
 ---
 
-## 3 · Provider adapter `[Thesis]`
+## 3 · Provider adapter `[As-built local]`
 
 The satellite provider sits behind an **adapter with a stable internal contract** (ADR-08), so the CDSE migration (ADR-02) and any future provider change are localized and do not alter measurement semantics. The measurement contract (§ 2) and quality pipeline (§ 4) depend on the adapter's internal contract, never on `services.sentinel-hub.com` or CDSE specifics.
 
 ### Adapter responsibilities
 
 - **Authentication** — OAuth2 client-credentials against the CDSE identity endpoint: a registered OAuth client (`client_id` + `client_secret`) is exchanged for a bearer access token, and the token is **reused within its validity** rather than re-fetched per request (EVID-011). The `client_secret` is a server-side secret and must never ship in the Expo client (EVID-018; rotation/reissue tracked in [`project-architecture.md`](project-architecture.md) § 5.3).
-- **Statistical API request construction** — build the polygon-geometry + evalscript + `dataMask` request that computes per-index statistics and excludes masked pixels (EVID-012). The evalscript reads the SCL band to drive exclusion (§ 4); the API does **not** filter clouds on its own (EVID-012 limitation).
+- **Catalog + Process request construction** — discover the latest intersecting L2A
+  acquisition, then send the exact projected polygon in two native-grid Process requests:
+  NDVI at 10 m and NDMI at 20 m. Each returns raster + `userdata`; persistence requires
+  strict source-identity agreement across both (ADR-15; EVID-028; OBS-23).
 - **Error taxonomy** — the adapter normalizes provider outcomes into a fixed internal set so the pipeline reacts to categories, not raw provider payloads:
   - `timeout` — no response within the bound.
   - `rate-limit` — provider throttling (e.g. HTTP 429 on the token or statistics endpoint; token over-fetching is a documented 429 source, EVID-011).
@@ -96,7 +103,7 @@ The adapter exposes hooks to account **requests and processing units (PU)** cons
 
 ---
 
-## 4 · Quality pipeline `[Thesis]`
+## 4 · Quality pipeline `[As-built local]`
 
 This section is the **engineering realization** of the research quality and masking rules — [`research-protocol.md`](research-protocol.md) § 8 (quality/masking), § 9 (resolution/small fields), § 10 (topography). The protocol owns the rules; this section owns the code that satisfies them and the reasons persisted with each decision.
 
@@ -117,11 +124,21 @@ Quality is assessed over **each field's own polygon**, never the tile. Tile-leve
 
 ### Per-index valid-pixel counts
 
-Valid-pixel counts are computed **independently** for NDVI (B04/B08, 10 m) and NDMI (B08/B11, with B11 at 20 m) — EVID-009. A field can hold enough valid NDVI pixels but too few valid NDMI pixels; the two counts are separate fields in the record (§ 5) and separate reliability inputs for HYP-03 (protocol § 9, § 12). B11 resampled to a 10 m grid for NDMI **does not create real 10 m spatial detail** — the underlying information stays 20 m; the resampling method is recorded (§ 5) and **no claim of upsampled resolution is made** (protocol § 9).
+Valid-pixel counts are computed **independently** for NDVI (B04/B08 on a 10 m output
+grid) and NDMI (B08/B11 on a 20 m output grid) — EVID-009. A field can hold enough valid
+NDVI pixels but too few valid NDMI pixels; the two counts are separate fields in the
+record (§ 5) and RQ3 reports them descriptively per acquisition (DEC-29). The adapter uses
+`NEAREST` where provider resampling is required and records that choice; it makes no claim
+of additional spatial detail.
+
+For the advisor-approved M1 run, the manifest records provisional reliability floors of
+**9 valid NDVI pixels** and **3 valid NDMI pixels** (DEC-27). These values drive
+`passed`/`too-few-valid-pixels` adjudication for this study; they remain provisional
+operational parameters rather than validated universal reliability thresholds (DEC-29).
 
 ### Rice-water rule (HYP-05)
 
-The crop/phenology-aware water handling is a **research rule owned by the protocol** (§ 8, HYP-05) and only *referenced* here: no blanket water masking inside rice (padi) polygons, because flooding/transplanting is legitimate low-NDVI phenology, not stress (EVID-016); permanent water *outside* the polygon is excluded by geometry. The engineering obligation is that the **masking configuration is versioned** — a masking-config version is stored with every measurement (§ 5) so a change in masking never silently alters historical values. The rule remains **HYP-05 until field-validated** (protocol § 8); the versioning scheme itself is an open decision (§ 9). Link, do not duplicate: the rule text is protocol § 8.
+The crop/phenology-aware water handling is a **research rule owned by the protocol** (§ 8, HYP-05) and only *referenced* here: no blanket water masking inside rice (padi) polygons, because flooding/transplanting is legitimate low-NDVI phenology, not stress (EVID-016); permanent water *outside* the polygon is excluded by geometry. The engineering obligation is that the **masking configuration is versioned** — a masking-config version is stored with every measurement (§ 5) so a change in masking never silently alters historical values. The rule remains **HYP-05 until field-validated** (protocol § 8); M2 implements masking version `s2l2a-scl-rice-v1` under DEC-31, without treating that implementation choice as field validation. Link, do not duplicate: the rule text is protocol § 8.
 
 ### Rejection reasons (enumerated and persisted)
 
@@ -133,6 +150,9 @@ Every non-passing outcome carries one enumerated reason, persisted with the reco
 - `no-valid-pixels` — an acquisition existed but no pixel survived masking.
 - `geometry-unusable` — polygon degenerate, or field cannot be separated from permanent water/built structure at Sentinel-2 resolution (flagged, not dropped — protocol § 3, § 8).
 - `provider-unavailable` — the adapter returned `timeout` / `rate-limit` / `provider-error` (§ 3).
+- `provider-response-invalid` — the returned multipart/raster contract cannot be parsed.
+- `source-identity-missing` / `source-identity-mismatch` — raster provenance is absent or
+  differs between the native-grid responses.
 
 ### Honest unavailable outcome
 
@@ -140,13 +160,15 @@ When no quality-passing observation exists for a field/window, the pipeline reco
 
 ---
 
-## 5 · Persistence and provenance `[Thesis]`
+## 5 · Persistence and provenance `[As-built local]`
 
 The pipeline persists a **provenance-complete measurement record** — every value carries its origin, so `measured` is distinguishable from `unavailable` and never confused with synthetic (`AGENTS.md` § Vocabulary; [`project-architecture.md`](project-architecture.md) § 3 provenance contract).
 
 ### Required fields (logical schema)
 
-This is a **logical** required-fields list. The physical design (types, table split, indexes, JSONB vs columns) is an implementation task (§ 9), not fixed here.
+This is the canonical **logical** required-fields list. Its physical realization lives
+only in `supabase/migrations/20260830000100_m2_measurement_pipeline.sql`; duplicating an
+executable schema in the research contract is prohibited (§ 9).
 
 | Field | Purpose |
 |-------|---------|
@@ -177,7 +199,7 @@ This is a **logical** required-fields list. The physical design (types, table sp
 
 ### Relation to the existing `lahan_health` table (insufficient)
 
-The as-built `lahan_health` table stores only `id, lahan_id, user_id, ndvi_score, ndmi_score, status, captured_at, created_at, updated_at` (`supabase_setup.sql`, table `public.lahan_health`). It is **insufficient as a measurement record** because it carries **a single scalar score per index with no provenance**: no acquisition window or product identifiers, no geometry/geometry-hash, no provider/mission/collection/processing-level, no CRS/resolution/resampling method, no masking-config version, no polygon-level cloud fraction or per-index valid-pixel counts, and no enumerated rejection reason. A `status` text field cannot distinguish `measured` from `unavailable` from a synthesized value. It therefore cannot satisfy the provenance contract and cannot back RQ1–RQ3.
+The as-built `lahan_health` table stores only `id, lahan_id, user_id, ndvi_score, ndmi_score, status, captured_at, created_at, updated_at` (`supabase_setup.sql`, table `public.lahan_health`). It is **insufficient as a measurement record** because it carries **a single scalar score per index with no provenance**: no acquisition window or product identifiers, no geometry/geometry-hash, no provider/mission/collection/processing-level, no CRS/resolution/resampling method, no masking-config version, no polygon-level cloud fraction or per-index valid-pixel counts, and no enumerated rejection reason. A `status` text field cannot distinguish `measured` from `unavailable` from a synthesized value. It therefore cannot satisfy the provenance contract or back active RQ1/RQ3.
 
 ### Relation to versioned migrations (ADR-07)
 
@@ -185,7 +207,7 @@ The measurement record is introduced through **versioned, ordered Supabase migra
 
 ---
 
-## 6 · Cache identity and idempotency `[Thesis]`
+## 6 · Cache identity and idempotency `[As-built local]`
 
 An **equivalent measurement request must be idempotent**. Two requests are equivalent when they share the same **geometry hash + acquisition window + processing-config version** (evalscript/masking/algorithm versions). This realizes the ADR-06 worker boundary: rendering a screen never triggers repeated processing — screens read persisted measurements ([`project-architecture.md`](project-architecture.md) § 3 governing principle).
 
@@ -195,7 +217,8 @@ An **equivalent measurement request must be idempotent**. Two requests are equiv
   - **New acquisitions extend history** — a later acquisition in a new window produces a **new** record; it does not overwrite an earlier observation.
   - **Reprocessing with a new processing-config version creates new records** — changing the evalscript or masking-config version yields a new measurement under the new version, and **never overwrites** the provenance of the value produced under the old version. Historical values remain reproducible under the config that produced them (this is why the masking-config version is a stored field, § 4, § 5).
 
-The concrete geometry-hash definition and the masking-config versioning scheme are open decisions (§ 9).
+The concrete geometry-hash and processing-version decisions are implemented in
+`backend/measurement/geometry.js` and `cdse-process-adapter.js` (§ 9; OBS-22).
 
 ---
 
@@ -231,7 +254,7 @@ Testing is **fixture-first** (ADR-09 / DEC-09): ordinary development and CI **ne
 The pipeline's **persisted measurements** (§ 5) are the interface to the Python research workspace (`research/`, DEC-05; [`project-architecture.md`](project-architecture.md) § 3). The workspace consumes measurements; it does not re-open the live pipeline on every run.
 
 - **Dataset snapshots + checksums.** Analyses run against declarative snapshots of the persisted measurements (`research/data-manifests/`), each with a checksum, so a figure or table is reproducible from a fixed, identified input set — not from a live query whose result drifts.
-- **API-vs-independent raster comparison (HYP-02 / RQ2).** The workspace independently computes NDVI/NDMI from raster samples over the **same geometry, acquisition, and masking rules** and compares them to the Statistical API values persisted by the pipeline. Identical masking-config and resampling provenance (§ 5) is what makes the comparison fair; residual disagreement must be attributable to documented differences (resampling, `dataMask`/SCL, aggregation), not unexplained divergence (protocol § 12, HYP-02).
+- **Optional independent raster comparison (retired HYP-02 / RQ2).** DEC-26 removes API-vs-raster agreement from M1 acceptance and the active thesis evaluation. It remains an optional M3/future-work extension only. If a later thesis-team/advisor-approved scope decision reactivates it, the workspace must compute NDVI/NDMI over the **same geometry, acquisition, masking rules, masking-config version, and resampling provenance** as the persisted Statistical API values. Until then it is not part of the active measurement contract or definition of done.
 - **Availability analysis (HYP-01 / RQ1).** The feasibility study's availability measures (protocol § 4) are computed over persisted per-observation quality outcomes and polygon-level fractions (§ 4, § 5) — usable-observation fraction, gaps, wet/dry split, per-index valid-pixel counts, and PU accounting (EVID-010).
 - **Notebooks call tested package functions.** Notebooks are thin: they call functions in `research/src/matani_rs/` (acquisition, index computation, QA, comparison) rather than embedding algorithms ([`project-architecture.md`](project-architecture.md) § 3). If the same index/QA algorithm must run in both production and research, that is the ADR-03 trigger for a shared runtime — decided separately, not assumed here.
 
@@ -240,6 +263,16 @@ and `research/scripts/run_feasibility.py` implement the deterministic report cal
 `research/tests/` verifies cadence withholding for fixture data and canonical
 geometry-hash stability. The committed fixture report demonstrates reproducible report
 shape only. It is not a 12-month provider observation and cannot license cadence.
+
+**Approved M1 result and review (OBS-19/20, DEC-29; updated 2026-08-30).** The live
+Teluknaga study completed 12/12 field-months, 48 provider operations, and 86 acquisition
+intervals; 32 pass and 54 fail the provisional 9/3 floors. The advisor-approved scoped
+cadence is dry monthly and wet no defensible cadence. DEC-28/ADR-15 finalizes the M2
+source-provenance path; DEC-29 approves the active RQ wording. M2 subsequently implements
+the amended two-native-grid Process path locally (DEC-31; OBS-22/23).
+
+M1 is formally closed under `M1-CLOSURE-2026-08-30` (DEC-30). The M2 schema/worker/app
+path is locally implemented, but hosted deployment and remote persistence are not claimed.
 
 `research/lib/cdse-pilot.mjs` and `research/scripts/run-cdse-pilot.mjs` additionally
 implement the explicitly enabled, out-of-band pilot boundary from § 7. The runner accepts
@@ -266,9 +299,10 @@ field count and requires padi, site/region membership, private crop/boundary/con
 location-area verification references, and one BMKG-source-backed wet/dry label for
 every site-month (EVID-024/025). Fixture input is blocked from live calls. Provisional
 scope requires an explicit override; this permits acquisition but does not approve the
-sample. Preflight makes no network call and reports both the dynamic four-operation
+sample. Preflight makes no network call and records both the dynamic four-operation
 per-field-month plan (one Catalog lookup plus quality/NDVI/NDMI) and the bounded
-retry-attempt ceiling. Live execution requires an exact acknowledgement of that ceiling,
+`request_attempt_ceiling` in its JSON artifact. Live execution requires an exact
+acknowledgement of that ceiling,
 fixing the former mismatch in which a "72-request ceiling" did not include retries.
 
 The privacy-minimized artifact now preserves non-identifying site/region and verification
@@ -276,36 +310,48 @@ declarations, applies season labels, records intersecting Catalog product candid
 (EVID-026), and
 groups acquisition/cloud/pixel/request/PU metrics per field and per site × season.
 Catalog candidates improve acquisition provenance but do not prove the Statistical API's
-exact mosaic selection. Numeric quality-passing, usable-observation, and gap
-metrics remain null until an advisor-approved provisional HYP-03 floor is present; even
-then cadence remains an explicit advisor determination rather than an automatic label.
+exact mosaic selection. Numeric quality-passing, usable-observation, and gap metrics are
+computed only when the advisor-approved provisional 9/3 policy is present; cadence remains
+an explicit advisor determination rather than an automatic label.
 Backend contract tests cover multi-site validation, missing-consent rejection, fixture
 live-call rejection, dynamic preflight budgeting, and site-season gap calculation.
 
 The historical 2025-07 → 2026-07 run completed for both old candidates (OBS-12), but
-remains `prototype`: it does not supply representative multi-region sites, verified
-crop/boundary/consent, wet/dry labels, an approved HYP-03 threshold, source product
-identifiers, or independent raster comparison. It therefore cannot license a cadence or
-satisfy the M1 study acceptance by itself. The CDSE General User quota was rechecked on
-2026-08-28 (EVID-010); suitability for the final study still requires comparing that
-quota with the preflight budget and the completed study's measured request/PU totals.
+remains `prototype`: it does not use the advisor-approved Teluknaga manifest, verified
+crop/boundary/consent, wet/dry labels, approved provisional floors, or exact source
+product/mosaic identity. It therefore cannot license a cadence or satisfy the M1 study
+acceptance by itself. The approved Teluknaga manifest and completed report supersede that
+input-only state for M1 (OBS-19; DEC-27/29/30). Independent raster comparison remains
+outside the active thesis under DEC-26. The CDSE General User quota was rechecked on
+2026-08-28 and the completed study/live-smoke consumption was recorded (EVID-010;
+OBS-19/23).
 
 ---
 
-## 9 · M1 engineering decisions closed; M2 application pending
+## 9 · M2 physical realization and deployment state
 
-DEC-21 / ADR-12 closes the four choices below. The detailed machine-readable contract is
-`research/contracts/measurement-contract-v1.json`; the SQL beside it is a
-**migration-ready draft**, deliberately not placed in `supabase/migrations/` before M2.
+DEC-21 / ADR-12 closed the original choices; DEC-31 implements and amends them. The
+machine-readable contract is `research/contracts/measurement-contract-v1.json`. The SQL
+beside it is a non-executable pointer; the versioned migration is the sole physical schema.
 
-- **Physical schema:** typed measurement rows plus typed per-index child rows;
-  `lahan_health` remains read-only legacy during M2 migration/backfill.
-- **Worker runtime:** external Node worker behind the explicit ADR-06 job boundary.
+- **Physical schema:** durable jobs, typed measurement rows, typed per-index child rows,
+  privileged completion/failure RPCs, owner-select RLS, and a security-invoker read view;
+  `lahan_health` remains read-only legacy.
+- **Worker runtime:** authenticated Node backend worker behind the ADR-06 job boundary;
+  the database stores durable state while the current worker executes in the request
+  process. A separately scheduled deployment is not claimed.
 - **Geometry identity:** SHA-256 over the canonical EPSG:4326 exterior ring rounded to
   seven decimal places, with canonical orientation/start; an analysis buffer is outside
   the identity.
 - **Processing versions:** separate algorithm, processing, and masking identifiers;
   semantic changes produce a version bump and non-destructive reprocessing.
+- **Provider request amendment:** two same-acquisition Process responses preserve NDVI
+  10 m and NDMI 20 m output grids; each raster carries same-response `userdata`, and
+  strict source-identity matching is mandatory before persistence (ADR-15).
 
-These are engineering decisions, not evidence that M2 is implemented or that any stored
-row is `measured`.
+OBS-22 proves local schema/worker/client behavior and OBS-23 proves the bounded live
+provider adapter. Formal M2 PASS still requires applying the migration to hosted Supabase,
+configuring a server-only admin key and CDSE credentials in the public backend deployment,
+and demonstrating an authenticated hosted job persisted/read on the app. Until then,
+`measured` is a valid row state in the implemented schema, not a claim that the currently
+configured hosted project already contains such a row.

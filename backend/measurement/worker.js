@@ -1,0 +1,89 @@
+import { geometryHash, validateFieldGeometry } from "./geometry.js";
+import { MEASUREMENT_VERSIONS } from "./cdse-process-adapter.js";
+
+const safeErrorCode = (error) => {
+  const message = error instanceof Error ? error.message : String(error);
+  if (message.startsWith("cdse-")) return "provider-unavailable";
+  if (message.startsWith("process-")) return "provider-response-invalid";
+  if (message.startsWith("geometry-") || message.startsWith("polygon-")) {
+    return "geometry-unusable";
+  }
+  return "measurement-processing-failed";
+};
+
+const safeErrorMessage = (error) => {
+  const code = safeErrorCode(error);
+  if (code === "provider-unavailable") return "Satellite provider was unavailable.";
+  if (code === "provider-response-invalid") return "Satellite provider response was invalid.";
+  if (code === "geometry-unusable") return "Field geometry could not be processed.";
+  return "Measurement processing failed.";
+};
+
+export const createMeasurementWorker = ({ admin, provider } = {}) => ({
+  async request({ lahanId, userId, from, to, idempotencyKey }) {
+    const field = await admin.loadField({ lahanId, userId });
+    const geometry = validateFieldGeometry(field.geojson);
+    const cacheIdentity = [
+      lahanId,
+      geometryHash(geometry),
+      from,
+      to,
+      MEASUREMENT_VERSIONS.algorithm,
+      MEASUREMENT_VERSIONS.evalscript,
+      MEASUREMENT_VERSIONS.masking,
+    ].join(":");
+    const effectiveIdempotencyKey = idempotencyKey === `initial:${lahanId}`
+      ? idempotencyKey
+      : cacheIdentity;
+    const enqueued = await admin.enqueue({
+      lahanId,
+      userId,
+      from,
+      to,
+      idempotencyKey: effectiveIdempotencyKey,
+    });
+    const queuedJob = Array.isArray(enqueued) ? enqueued[0] : enqueued;
+    if (!queuedJob?.id) {
+      const error = new Error("MEASUREMENT_JOB_ENQUEUE_INVALID");
+      error.statusCode = 503;
+      throw error;
+    }
+    const jobFrom = queuedJob.request_window_start ?? from;
+    const jobTo = queuedJob.request_window_end ?? to;
+    const claim = await admin.claim({ jobId: queuedJob.id, userId });
+    const job = claim?.job ?? null;
+    if (!claim?.claimed || !job?.id) {
+      return {
+        jobId: job?.id ?? null,
+        status: job?.status ?? "unavailable",
+        observationId: null,
+        qualityStatus: null,
+        rejectionReason: job?.error_code ?? null,
+        reused: true,
+      };
+    }
+
+    try {
+      const result = await provider.measure({ geometry, from: jobFrom, to: jobTo });
+      const observationId = await admin.complete({ jobId: job.id, result });
+      return {
+        jobId: job.id,
+        status: "succeeded",
+        observationId,
+        qualityStatus: result.quality_status,
+        rejectionReason: result.rejection_reason,
+        acquisitionStart: result.acquisition_start,
+        reused: false,
+      };
+    } catch (error) {
+      await admin.fail({
+        jobId: job.id,
+        errorCode: safeErrorCode(error),
+        errorMessage: safeErrorMessage(error),
+      });
+      const routed = new Error(safeErrorCode(error));
+      routed.statusCode = error?.statusCode === 429 ? 429 : 502;
+      throw routed;
+    }
+  },
+});

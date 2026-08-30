@@ -1,5 +1,9 @@
 # Matani M1 live CDSE evidence
 
+> **Scope note (2026-08-28):** DEC-26 makes independent raster comparison optional
+> M3/future work rather than an M1 acceptance criterion. Its absence below remains a true
+> description of this historical run, but it no longer blocks M1.
+
 **Checked:** 2026-07-29  
 **Data state:** provider-backed `prototype`  
 **Claim allowed:** no `measured` or product-cadence claim

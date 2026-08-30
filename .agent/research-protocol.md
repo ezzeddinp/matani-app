@@ -3,7 +3,7 @@
 **Document type:** Research protocol
 **Audience:** The developer, thesis advisor, reviewers, and AI agents working in this repo
 **Status:** Active — draft pending advisor review
-**Updated:** 2026-08-28
+**Updated:** 2026-08-30
 **Canonical for:** Research questions, hypotheses, methodology, and validity of the Sentinel-2 NDVI/NDMI monitoring evaluation, and the thesis paper's system-evaluation track (§ 16)
 **Companion documents:** [`evidence-register.md`](evidence-register.md), [`data-evaluation-plan.md`](data-evaluation-plan.md), [`project-architecture.md`](project-architecture.md), [`implementation-plan.md`](implementation-plan.md), [`product-requirements.md`](product-requirements.md)
 
@@ -18,40 +18,41 @@ This protocol is the single canonical home for **what the thesis is trying to le
 - **Decisions are cited by `DEC-*`.** Product and thesis decisions live in [`context-dump.md`](context-dump.md) § 5. This protocol implements and elaborates them; it does not re-decide them.
 - **Hypotheses are typed `HYP-*` and defined here.** Every falsifiable claim this thesis intends to test is registered in § 1 with an ID, a directional statement, and an explicit falsification criterion (§ 12). A `HYP-*` is a *question the data will answer*, never a finding — do not cite a HYP as if it were established.
 - **Nothing here claims the current code is thesis-ready.** The synthetic production fallback has been removed (DEC-24), but the satellite path remains bbox-based, fixed-window, transient, and non-provenance-safe; this protocol defines the standard the work must reach.
-- **The RQ set is provisional.** The research questions in § 1 are candidate framings consistent with the thesis focus (DEC-01). The **final RQ set requires advisor approval** — treat § 1 as a proposal to that conversation, not a settled contract.
+- **The active RQ wording below is advisor-approved as relayed by the developer on 2026-08-30.** Any later substantive change requires a new advisor review.
 
 ---
 
 ## 1 · Research questions and hypotheses
 
-The thesis deliverable is a **padi-only, observation-first mobile DSS** (GROW workflow; DEC-14/24), authored by the three-person thesis team (DEC-17). Its evaluation backbone is the reliability of dated Sentinel-2 NDVI/NDMI observations, so RQ1–RQ3 remain the standard the pipeline must meet. Crop-health classification and diagnosis are outside the claim surface; there are no non-rice strata (DEC-24). The paper's system-evaluation track is recorded in § 16 and never substitutes for measurement evaluation. **The final RQ wording still requires advisor approval.**
+The thesis deliverable is a **padi-only, observation-first mobile DSS** (GROW workflow; DEC-14/24), authored by the three-person thesis team (DEC-17). Its active measurement-evaluation backbone is the reliability of dated Sentinel-2 NDVI/NDMI observations through RQ1 and RQ3. RQ2 is set aside as optional M3/future work and is not an M1 or active-thesis requirement (DEC-26). Crop-health classification and diagnosis are outside the claim surface; there are no non-rice strata (DEC-24). The paper's system-evaluation track is recorded in § 16 and never substitutes for measurement evaluation. The active RQ wording below was approved by the advisor as relayed on 2026-08-30.
 
-### Candidate research questions
+### Approved active research questions
 
-- **RQ1 — Usable-observation cadence.** Over a representative sample of Indonesian smallholder fields, what fraction of nominal Sentinel-2 acquisitions yield *quality-passing* NDVI/NDMI observations at the polygon level, and what monitoring cadence is therefore defensible — potentially differing by region and by wet/dry season? This directly separates nominal 5-day revisit (EVID-006) from usable cadence, which persistent tropical cloud cover erodes (EVID-015).
-- **RQ2 — Statistical API vs independent processing.** How do polygon-level NDVI/NDMI statistics returned by the Sentinel Hub Statistical API (EVID-012) compare with values independently computed from raster samples over the same geometry, acquisition, and masking rules? This tests whether the API's aggregated statistics are a trustworthy measurement surface or introduce systematic bias.
-- **RQ3 — Field size vs valid-pixel sufficiency and index reliability.** How does field size affect the number of valid pixels available per index and the resulting reliability, given that NDVI uses 10 m bands (B04/B08) and NDMI's SWIR input (B11) is 20 m native (EVID-009)? Because ≈62% of Indonesian land-using farmers are *petani gurem* controlling <0.5 ha (EVID-013), small fields are the population of interest, not an edge case.
+- **RQ1 — Usable-observation cadence.** Within the approved padi study field in Teluknaga, Banten, what proportion of Sentinel-2 acquisitions produces quality-passing polygon-level NDVI and NDMI observations, and what monitoring cadence is defensible during the locally labelled wet and dry seasons? This directly separates nominal revisit (EVID-006) from locally usable cadence, which cloud conditions can erode (EVID-015); it does not support a nationwide cadence claim (DEC-27).
+- **RQ2 — Retired from active scope; optional future work.** The earlier proposal compared polygon-level Statistical API values with independently processed raster samples over identical geometry, acquisition, and masking rules. DEC-26 removes this comparison from M1 and from the active thesis evaluation. The identifier remains reserved so historical material cannot be mistaken for current scope; reactivation requires a new thesis-team/advisor-approved decision.
+- **RQ3 — Teluknaga field pixel sufficiency and limitations.** For the approved Teluknaga padi field, how many valid NDVI and NDMI pixels are available per acquisition under the provisional quality floors, and what measurement limitations arise from the field's size and Sentinel-2 spatial resolution?
 
 ### Hypotheses
 
 All hypotheses are unvalidated until the evaluation is run; each has an explicit falsification criterion in § 12.
 
-- **HYP-01 — Usable-observation cadence (supports RQ1).** For representative Indonesian smallholder fields, the rate of quality-passing polygon-level observations is materially lower than the nominal acquisition rate, such that no single fixed cadence (weekly/biweekly/monthly) is defensible nationwide; the defensible cadence varies by region and season and can only be set from the feasibility study (§ 4), never from EVID-006. *Directional prior, not a finding.*
-- **HYP-02 — API-vs-independent agreement (supports RQ2).** Polygon-level NDVI/NDMI from the Statistical API agrees with independently processed raster samples within a bounded, reportable error (bias and RMSE) when identical geometry, acquisition, and masking are applied; residual disagreement is attributable to documented differences (resampling of B11, dataMask/SCL handling, aggregation), not to unexplained divergence.
-- **HYP-03 — Minimum usable field size (supports RQ3).** There exists an empirically determined minimum field size below which valid-pixel counts (per index, computed independently for NDVI and NDMI) are too few for a reliable polygon statistic, and this threshold is *larger* for NDMI than for NDVI because of B11's coarser 20 m resolution (EVID-009). No universal threshold is assumed in advance — it is estimated from data.
+- **HYP-01 — Usable-observation cadence (supports RQ1).** For the Teluknaga study site, the rate of quality-passing polygon-level observations is materially lower than the nominal acquisition rate and differs between wet and dry months; a site-specific cadence can only be set from the feasibility study (§ 4), never from EVID-006. *Directional prior, not a finding; no nationwide inference is permitted under DEC-27.*
+- **HYP-02 — Retired from active scope with RQ2.** The earlier API-vs-independent agreement hypothesis is not evaluated for M1 or the active thesis under DEC-26. Its identifier and former comparison intent are retained only for traceability and optional M3/future work.
+- **HYP-03 — Retired from active inferential scope.** The approved one-field RQ3 is descriptive and limitation-focused; it does not estimate a general field-size threshold or a population-level size effect. DEC-27's 9-NDVI/3-NDMI floors remain provisional operational availability floors, not validated universal thresholds. A multi-field size-effect hypothesis remains future work unless separately approved.
 - **HYP-04 — Retired historical threshold set.** The former 0.60/0.20/0.00 NDVI severity bands were removed from code and are not tested as a thesis hypothesis after DEC-24. The ID remains reserved so historical documents cannot be mistaken for current scope.
 - **HYP-05 — Crop/phenology-aware water masking (supports the quality rules in § 8).** A masking rule that does *not* blanket-mask water inside rice polygons — treating flooding/transplanting as legitimate low-NDVI phenology (EVID-016) rather than as invalid or stressed — produces more agronomically faithful rice observations than a naive "mask all water" rule. Remains HYP until validated against ground observations of paddy flooding state (§ 5); the rule itself is versioned (§ 8).
 - **HYP-06 — Retired with RQ4.** Product and thesis outputs do not infer crop condition from index dynamics (DEC-24).
-- **HYP-07 — Weather risk-score heuristic (as-built UI heuristic, not validated; DEC-16).** The client-side weather score remains a prototype weather-context indicator, not an agronomic diagnosis or crop-damage prediction. It is secondary to RQ1–RQ3 and is not evidence about NDVI/NDMI measurement validity.
+- **HYP-07 — Weather risk-score heuristic (as-built UI heuristic, not validated; DEC-16).** The client-side weather score remains a prototype weather-context indicator, not an agronomic diagnosis or crop-damage prediction. It is secondary to active RQ1/RQ3 and is not evidence about NDVI/NDMI measurement validity.
 
-**Open for advisor decision:** final RQ1–RQ3 wording, sites, sample size, quality thresholds, and evaluation tolerances. RQ4/HYP-06 and active HYP-04 testing are removed by DEC-24.
+**Open for advisor decision:** target N beyond the currently approved manifest and remaining evaluation tolerances. The active RQ1/RQ3 wording was approved as relayed on 2026-08-30. Teluknaga and the provisional 9/3 quality floors are approved by DEC-27. RQ2/HYP-02 are set aside by DEC-26; RQ4/HYP-06 and active HYP-04 testing are removed by DEC-24.
 
-**M1 decision-status checkpoint (2026-08-28; DEC-25).** The relayed advisor response
-confirms staged sampling by region × season, site-specific seasonal labeling as the
-operational method, and cadence reporting per site × season. This checkpoint does not
-approve the final RQ wording, final regions, target N, numeric HYP-03 reliability floors,
-pre-registered tolerances, or whether independent raster comparison closes in M1 or is
-formally moved to M3; those items remain open until explicitly decided and recorded.
+**M1 scope/quality checkpoint (2026-08-29; DEC-25/26/27).** A dated advisor WhatsApp
+decision accepts Teluknaga, Banten as the thesis's single study region because of the
+available timeline and thesis-team capacity, and approves provisional floors of 9 valid
+NDVI pixels and 3 valid NDMI pixels. Site-specific monthly labels and cadence reporting
+per wet/dry season remain mandatory. This approval makes the constrained study executable;
+it does not make one region nationally representative. Final active RQ wording, target N
+beyond the approved manifest, and remaining pre-registered tolerances stay open. On 2026-08-30 the advisor relayed agreement with the proposed final RQ1/RQ3 wording and with retaining RQ2 only as optional future work; this closes the RQ-wording review item but does not create a broader sample or new tolerance values (DEC-29).
 
 ---
 
@@ -67,7 +68,7 @@ Choosing the unit of analysis fixes what one row of the evaluation dataset *is* 
 | **Crop cycle** | one planting→harvest sequence on a field | aggregation for phenology (§ 13) |
 | **Farmer (petani)** | one consenting participant | consent / privacy / higher cluster |
 
-**Primary unit of analysis: the field × acquisition observation** — one polygon's quality-assessed NDVI/NDMI statistics for one acquisition date. Justification: RQ1 (usable fraction and cadence), RQ2 (API vs independent), and RQ3 (size vs valid-pixel sufficiency) are all evaluated per observation — each observation either passes quality or does not, has an API value and an independent value, and has per-index valid-pixel counts. This is the finest grain at which all three RQs are simultaneously defined.
+**Primary unit of analysis: the field × acquisition observation** — one polygon's quality-assessed NDVI/NDMI statistics for one acquisition date. Justification: active RQ1 measures usable fraction/cadence and RQ3 describes per-acquisition pixel sufficiency/limitations for the same approved field. Each observation either passes quality or does not and has independent per-index valid-pixel counts.
 
 **Clustering / non-independence (must be handled in analysis).** Observations are **not independent**: many observations are nested within one field, and many fields are nested within one region and one crop type. Repeated observations of the same field share its geometry, terrain, and adjacency; fields in the same region share weather and cloud regimes. Naive pooling would understate uncertainty and inflate significance. The analysis must account for this structure (e.g. cluster-robust standard errors or mixed/hierarchical models with field and region as grouping levels), and per-stratum reporting (§ 12) is preferred over a single pooled headline number. The specific estimator is an analysis-plan detail; the *requirement* to handle clustering is canonical here.
 
@@ -75,18 +76,15 @@ Choosing the unit of analysis fixes what one row of the evaluation dataset *is* 
 
 ## 3 · Study sites and inclusion / exclusion criteria
 
-### Candidate regions
+### Approved thesis region
 
-Representative candidate regions spanning Indonesia's major agroclimatic and cropping contexts:
-
-- **Java** — dominant rice/maize smallholding, intensive and fragmented.
-- **Sumatra** — mixed estate/smallholder, incl. coffee highlands and lowland crops.
-- **Kalimantan** — including peat/mixed landscapes with heavy cloud regimes.
-- **Sulawesi** — rice and tree crops (incl. coffee/cocoa contexts).
-- **Bali / Nusa Tenggara** — terraced rice and a drier east providing wet/dry-season contrast.
-- **Papua — open decision.** Included **only if** it falls within the intended research population; its inclusion is explicitly an **open decision requiring advisor approval**, weighed against access, consent, and coverage feasibility.
-
-Sites within these regions are selected to give contrast on the axes the RQs care about: cloud regime (RQ1), field size (RQ3), crop and phenology (§ 13), and terrain (§ 10). Final site selection depends on the feasibility study (§ 4) and consent (§ 14).
+- **Teluknaga, Banten** is the single advisor-approved M1 study region (DEC-27). The
+  thesis team has onsite access there, and every included field still requires verified
+  padi identity, exact boundary, consent, and location/area evidence.
+- Wet/dry comparisons use dated site-specific BMKG ZOM labels, not a fixed Java or
+  Indonesia-wide calendar (DEC-25; EVID-024/025).
+- The constrained design can support a Teluknaga site/season feasibility result only.
+  It cannot estimate variation across Indonesian regions or license a national cadence.
 
 ### Field inclusion criteria
 
@@ -102,7 +100,7 @@ Sites within these regions are selected to give contrast on the axes the RQs car
 - Crop not verified as padi.
 - Fields whose geometry cannot be reliably separated from permanent water or built structures at Sentinel-2 resolution (flagged, not silently dropped — see § 8, § 9).
 
-Small fields are **not** an exclusion criterion. Because *petani gurem* <0.5 ha dominate the population (EVID-013), excluding small fields would evaluate a population the product does not serve; instead small-field reliability is a research question (RQ3) and any size threshold is an empirical outcome (HYP-03), not an entry filter.
+Small fields are **not** an exclusion criterion. RQ3 reports the observed pixel sufficiency and resolution limitations of the approved Teluknaga field. The one-field design does not estimate a universal minimum field size or a cross-field size effect (DEC-29).
 
 ---
 
@@ -112,7 +110,7 @@ Small fields are **not** an exclusion criterion. Because *petani gurem* <0.5 ha 
 
 ### Design
 
-A **bounded 12-month retrospective availability study** over the representative study sites (§ 3). Retrospective (using the historical archive) so it can run before the live acquisition pipeline is fully built, and 12 months so it spans a full wet/dry seasonal cycle. Unit: per field (or per representative polygon) per site.
+A **bounded 12-month retrospective availability study** over the approved Teluknaga site (§ 3). Retrospective (using the historical archive) so it can run before the live acquisition pipeline is fully built, and 12 months so it spans a full locally labeled wet/dry seasonal cycle. Unit: per included field per site. Results are site-specific and are not generalized to Indonesia (DEC-27).
 
 ### Measures (per field / site, over the 12-month window)
 
@@ -128,7 +126,7 @@ A **bounded 12-month retrospective availability study** over the representative 
 
 ### Outcome
 
-The **defensible product monitoring cadence** — weekly / biweekly / monthly / event-based — stated **per location and per season**, possibly differing across sites. This outcome, and only this outcome, licenses any cadence claim elsewhere in the repo (product-requirements.md, product-brief.md). Until it exists, cadence is stated as *unknown / to be determined by the feasibility study*. The mechanics of running the study (queries, batching, PU budgeting, persistence) are specified in [`data-evaluation-plan.md`](data-evaluation-plan.md); this section owns the *research requirement* and its forbidden-until-supported constraint.
+The **defensible Teluknaga monitoring cadence** — weekly / biweekly / monthly / event-based — stated separately for locally labeled wet and dry months. This outcome, and only this outcome, licenses a Teluknaga-specific cadence claim elsewhere in the repo (product-requirements.md, product-brief.md); it never licenses a national cadence (DEC-27). Until it exists, cadence is stated as *unknown / to be determined by the feasibility study*. The mechanics of running the study (queries, batching, PU budgeting, persistence) are specified in [`data-evaluation-plan.md`](data-evaluation-plan.md); this section owns the *research requirement* and its forbidden-until-supported constraint.
 
 **Execution status (2026-07-29).** The tested calculation workspace and input/output
 contract exist under `research/`, and a labeled fixture run proves the report can be
@@ -139,10 +137,10 @@ geometry was projected to a local UTM metre grid; SCL masking, separate 10 m NDV
 20 m NDMI counts, request/PU accounting, retry, and checkpoint/resume were exercised
 against live provider responses (OBS-11/12).
 
-This is a **limited provider-backed prototype study**, not the representative study
-required by this section. Both polygons are in one area; crop identity, boundary
-fidelity, consent, and representativeness remain unverified; wet/dry-season
-stratification and an advisor-approved HYP-03 threshold are absent. Consequently the
+This is a **limited provider-backed prototype study**, not the advisor-approved Teluknaga
+study required by this section. Its two historical polygons lack the current manifest's
+verified crop identity, boundary, consent, location/area, site-specific wet/dry labels,
+and advisor-approved HYP-03 floors. Consequently the
 descriptive gaps in OBS-12 do not license a monitoring cadence, and M1 remains open.
 A fixture row, dry-run request, successful HTTP response, nominal revisit, or these two
 unverified polygons alone cannot satisfy this section.
@@ -153,10 +151,24 @@ live input unless each field declares referenced verification for padi identity,
 boundary, consent, and location/area; fixture input can only preflight. Each site must
 carry a source reference and one wet/dry label for every study month, using the BMKG
 onset/ZOM basis (EVID-024/025). Reports group descriptive metrics per field and per site
-× season. Quality-passing, usable-observation, and gap results stay withheld while the
-numeric HYP-03 floor is open, and cadence always requires a recorded determination.
+× season. Quality-passing, usable-observation, and gap results use the advisor-approved
+provisional 9/3 HYP-03 floors (DEC-27), and cadence always requires a recorded determination.
 This closes an execution-tooling gap only: no approved sample, human verification,
 provider result, or advisor decision is created by the validator.
+
+**Approved-study result and review update (2026-08-30; OBS-19/20, DEC-29).** The
+approved Teluknaga manifest completed 12/12 field-months over 2025-07-01 → 2026-07-01.
+The report contains 86 acquisition intervals: 32 pass the provisional 9/3 floors and 54
+are rejected. The evidence-backed cadence is monthly for locally labelled dry months and
+no defensible cadence for locally labelled wet months. The advisor relayed approval of
+that cadence, the final RQ wording above, and RQ2's optional-future-work status. These
+results remain scoped to the approved field and do not make the M1 Statistical API output
+a production `measured` dataset.
+
+**M1 closure.** The feasibility/research-contract milestone is closed under
+`M1-CLOSURE-2026-08-30` (DEC-30). This closure licenses only the scoped dry/wet
+cadence conclusion and the finalized M2 contract; it does not imply production persistence,
+crop-health validity, a national cadence, or completed M2 behavior.
 
 ---
 
@@ -192,12 +204,12 @@ This is a **three-person group thesis with no field team** (DEC-17). Crop/stage/
 
 ### Target N and power — stated honestly
 
-No fabricated power analysis is offered. A credible target N and any power statement depend on inputs that **do not yet exist**: the advisor-approved RQ set (§ 1), the feasibility study's usable-observation rates (§ 4), the achievable ground-truth volume (§ 5), and the CDSE PU budget (EVID-010). Consequently:
-
-- The **RQ2** comparison (API vs independent) can reach a relatively large observation N cheaply, because it needs no ground truth — every quality-passing observation contributes a paired value.
-- The **RQ1/RQ3** analyses are bounded by number of fields and by usable-observation availability.
-
-A concrete target N and any power/precision targets will be set **after** the feasibility study and advisor approval, and recorded here at that point. Until then, claiming a specific N or statistical power would be unsupported.
+The advisor-approved active scope contains **one verified Teluknaga padi field** observed
+across the 12-month acquisition calendar (DEC-27/29). Its temporal field × acquisition
+records support the scoped RQ1 and descriptive RQ3; they do **not** provide statistical
+power for a cross-field size effect, a universal minimum field size, or national
+generalization. No fabricated population-level power claim is made. Expanding field N or
+restoring an inferential size-effect question requires a new advisor-approved scope.
 
 ---
 
@@ -241,14 +253,14 @@ The evalscript/`dataMask` mechanics that implement SCL-driven exclusion (EVID-01
 
 ## 9 · Spatial resolution and small fields
 
-Field size interacts with pixel size to determine whether a polygon statistic is even meaningful (RQ3, HYP-03).
+Field size interacts with pixel size to determine whether a polygon statistic is meaningful; approved RQ3 describes that limitation for the Teluknaga field without estimating a population-level size effect (DEC-29).
 
 - **Pixel footprints.** NDVI uses B04 (Red) and B08 (NIR) at **10 m** native resolution — a pixel covers ≈100 m². NDMI's SWIR input B11 is **20 m** native — a pixel covers ≈400 m² (band resolutions: EVID-009). A 0.5 ha field (5,000 m²) is on the order of tens of NDVI pixels but only ~12 NDMI pixels before any masking or boundary loss.
 - **Boundary-pixel mixing.** Pixels straddling the field edge mix the crop with roads, irrigation, buildings, and adjacent farms; the coarser B11 mixes over a larger footprint. Boundary mixing is a primary error source for small fields.
 - **Independent valid-pixel counts per index.** NDVI and NDMI valid-pixel counts are computed and reported **separately** (§ 4, § 12) because the 10 m/20 m mismatch means a field can have enough valid NDVI pixels but too few valid NDMI pixels.
 - **Inward buffer, conditionally.** An inward buffer to drop boundary pixels is applied **only when the field is large enough** to retain a sufficient interior sample; on the smallest fields a buffer would erase the field. Whether and how much to buffer is size-dependent and recorded per observation.
 - **No false spatial detail.** B11 (20 m) resampled to a 10 m grid for NDMI does **not** create real 10 m spatial detail; the underlying information stays 20 m. The resampling choice is recorded (a CODE-*/data-evaluation-plan fact), and no claim of upsampled spatial resolution is made.
-- **Minimum usable field size is empirical (HYP-03).** No universal minimum-size threshold is invented; it is estimated from the data, separately per index, and reported with uncertainty.
+- **No universal minimum-size claim.** The provisional 9-NDVI/3-NDMI valid-pixel floors classify the approved observations under DEC-27. With one field they cannot establish a universal minimum field size; such a claim is outside the active thesis under DEC-29.
 - **Small fields are the population.** Because ≈62% of Indonesian land-using farmers are *petani gurem* <0.5 ha (EVID-013), small-field reliability is the central question, not a corner case — its difficulty is a finding to report, not a reason to exclude (§ 3).
 
 ---
@@ -276,9 +288,9 @@ Beyond size, terrain and cropping pattern degrade optical index reliability in e
 
 ### Agreement metrics
 
-- **RQ2 (API vs independent):** paired-value agreement over the same observations — **bias (mean signed difference)**, **MAE**, **RMSE**, **correlation**, and a **Bland–Altman** analysis (mean-difference and limits of agreement) to expose any magnitude-dependent bias. Reported separately for NDVI and NDMI.
+- **RQ2 (inactive optional future work):** if reactivated by a new scope decision, paired-value agreement over the same observations would use **bias (mean signed difference)**, **MAE**, **RMSE**, **correlation**, and a **Bland–Altman** analysis, reported separately for NDVI and NDMI. None is required for M1 or the active thesis (DEC-26).
 - **RQ1 (usable cadence):** usable-observation fraction, usable observations/month, and gap statistics (median/longest), per site and season (§ 4).
-- **RQ3 (size vs sufficiency):** valid-pixel count and a reliability indicator as a function of field size, per index, with the size threshold (HYP-03) estimated with uncertainty.
+- **RQ3 (approved-field sufficiency and limitations):** independent NDVI/NDMI valid-pixel counts per acquisition, pass/reject outcome under the provisional floors, and descriptive limitations attributable to the approved field's size and Sentinel-2 resolution.
 
 ### Uncertainty
 
@@ -289,9 +301,9 @@ Beyond size, terrain and cropping pattern degrade optical index reliability in e
 
 Each hypothesis has a result that would falsify it:
 
-- **HYP-01** is falsified if usable-observation rates are high and stable enough across sites and seasons that a single fixed cadence *is* defensible nationwide (i.e. cloud loss does not materially erode nominal revisit).
-- **HYP-02** is falsified if API and independently processed values diverge beyond a pre-registered tolerance (bias/RMSE) that cannot be explained by documented differences (resampling, dataMask/SCL, aggregation) — indicating the API statistic is not a trustworthy measurement surface as used.
-- **HYP-03** is falsified if index reliability shows no systematic dependence on field size down to the smallest fields (no identifiable minimum), or if NDVI and NDMI thresholds do not order as predicted.
+- **HYP-01** is falsified if usable-observation rates at Teluknaga are high and stable across wet and dry months such that one fixed site-specific cadence is defensible (i.e. cloud loss does not materially erode nominal revisit there).
+- **HYP-02** has no active falsification run under DEC-26. If a later scope decision reactivates it, its criterion must be pre-registered before comparison; historical wording is not an active thesis commitment.
+- **HYP-03** has no active falsification run after DEC-29 narrowed RQ3 to a descriptive one-field question. A future multi-field size-effect study must pre-register its own hypothesis and tolerances before collection.
 - **HYP-05** is falsified if crop/phenology-aware water handling produces rice observations no more agronomically faithful than a naive blanket-water-mask rule, judged against ground flooding-state observations (§ 5).
 
 Pre-registering these tolerances and criteria (with the advisor) before running the evaluation is the intended practice; the specific numeric tolerances are set at that point and recorded here.
@@ -320,7 +332,7 @@ Security implementation (RLS policies, secrets hygiene per DEC-13, trust boundar
 
 ## 15 · Threats to validity and generalizability
 
-- **Site- and farmer-selection bias.** Sites and consenting farmers are not a random national sample; convenience/access shapes the sample and limits external validity. Reported per stratum (§ 12) to make the covered contexts explicit.
+- **Site- and farmer-selection bias.** Teluknaga and its consenting participants are an access-constrained, advisor-approved case, not a random national sample; this sharply limits external validity. Reporting stays field- and season-specific so the covered context is explicit (DEC-27).
 - **Seasonal coverage.** The 12-month feasibility window (§ 4) captures one wet/dry cycle; inter-annual variability (unusually wet/dry years) is uncontrolled and a monitoring-cadence result is conditional on the observed year.
 - **Single-country scope.** Findings are for Indonesian smallholder conditions (DEC-01); they are not claimed to generalize to other countries or agroclimates.
 - **Provider dependence.** Results depend on CDSE Sentinel Hub Statistical API semantics and the free-tier quota (EVID-010, EVID-012), on L2A/SCL product behavior (EVID-008), and on OAuth2 access (EVID-011). Provider changes can invalidate cost, cadence, or method assumptions.

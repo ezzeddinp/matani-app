@@ -43,6 +43,10 @@ backend/.env
 # typescript
 *.tsbuildinfo
 
+# Python research runtime
+__pycache__/
+*.py[cod]
+
 app-example
 
 # generated native folders

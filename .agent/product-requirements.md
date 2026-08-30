@@ -3,7 +3,7 @@
 **Document type:** Product requirements document
 **Audience:** The developer, thesis advisor, reviewers, and AI agents working in this repo
 **Status:** Active
-**Updated:** 2026-08-26
+**Updated:** 2026-08-30
 **Canonical for:** Feature behavior, scope tags, and product invariants
 **Companion documents:** [`product-brief.md`](product-brief.md), [`project-architecture.md`](project-architecture.md), [`design-guidelines.md`](design-guidelines.md), [`research-protocol.md`](research-protocol.md), [`data-evaluation-plan.md`](data-evaluation-plan.md), [`implementation-plan.md`](implementation-plan.md)
 
@@ -44,15 +44,14 @@ The invariants below are **product-wide constraints** that no feature may violat
 - **INV-08 — Cadence claims require the feasibility study.** No monitoring-cadence promise (weekly/biweekly/monthly/etc.) is made anywhere in the product until the Indonesia feasibility study supports it, per site and season. Nominal 5-day revisit (EVID-006) is an acquisition cadence, not a usable one ([`research-protocol.md`](research-protocol.md) § 4; DEC-12).
 - **INV-09 — Observation only, never diagnosis.** NDVI/NDMI values may be shown by acquisition date and summarized descriptively, but the product may not convert them into crop-health, pest, disease, stress, harvest, yield, or improvement/decline labels. HYP-04 is retired from the active UI and research claim surface (DEC-24).
 
-### Invariants the as-built app currently does not satisfy
+### Invariants and deployment qualification
 
-DEC-24 closes the production synthetic-substitution and synthetic-detail defects: provider failure now yields unavailable, and the detail timeline plots only stored dated rows. The satellite path still does not satisfy **INV-03 or INV-04** because it has no provenance-complete writer or quality accounting. Stored legacy rows are not promoted to `measured`; the single source of truth is [`project-architecture.md`](project-architecture.md) § Current measurement provenance.
-
-Concretely: Ladang cards show stored legacy values or a transient provider snapshot and render unavailable on failure; no simulation utility remains. Field detail reads `lahan_health`, requires a stored date for every plotted point, and contains no derived diagnosis. Nothing writes a `measured` provenance record, so INV-03/04 remain open until M2.
-
-These remaining provenance/quality gaps are scheduled for M2 (see [`implementation-plan.md`](implementation-plan.md)).
-
-**Home dashboard:** cards show only a latest NDVI value, record date, and fixture/prototype state; absence renders an unavailable state. No severity or health label is computed (DEC-24).
+The locally verified M2 path is designed to satisfy INV-01–06 and INV-09: only
+provenance-complete passed values become visible numbers, quality and per-index counts are
+shown, and absence/rejection remains honest (OBS-22/23). The configured hosted product has
+not passed migration/backend/device deployment, so this is not yet evidence that a user
+can obtain a remote measurement. The canonical qualification is
+[`project-architecture.md`](project-architecture.md) § Current measurement provenance.
 
 ---
 
@@ -106,14 +105,18 @@ enforced separately by RLS.
 
 ### PRD-05 · Home dashboard — latest observation cards · [As-built]
 
-**Behavior.** Home field cards read the newest legacy `lahan_health` row and show only its NDVI value, stored observation date, and `fixture`/`prototype` state. No severity or health classification is computed. Absence renders an explicit unavailable state.
+**Behavior.** Home field cards read the newest owner-visible
+`measurement_observations` row. A quality-passing row shows its raw NDVI value and true
+acquisition date; rejected/unavailable/no-row states show no fabricated number. No
+severity or health classification is computed.
 
 **Acceptance criteria.**
 - A field with a dated persisted row shows its latest raw NDVI value and data state.
 - A field without one shows the honest no-data state — **not** a synthesized value.
 - No health, stress, improvement, or decline label is derived from the value (INV-09).
 
-**Current-fidelity note.** No code writes provenance-complete measurement rows; `lahan_health` remains a read-only legacy source. A row is never called `measured`.
+**Current-fidelity note.** The read path and local writer exist; hosted data remains empty
+until the M2 migration/backend configuration/deployment gates pass (OBS-22).
 
 ### PRD-06 · Field management — map, polygon drawing, search, geocode · [As-built]
 
@@ -130,7 +133,7 @@ enforced separately by RLS.
 is per-platform + per-API key restriction, not secrecy (EVID-019;
 [`project-architecture.md`](project-architecture.md) § 5.3). The M0 backend bounds the
 current bbox prototype. Exact-polygon vertex/area/self-intersection validation applies to
-the M2 measurement request, which does not exist yet
+the M2 measurement request, which is implemented locally
 ([`project-architecture.md`](project-architecture.md) § 5.1; valid-polygon requirement
 [`research-protocol.md`](research-protocol.md) § 3).
 
@@ -147,20 +150,26 @@ the M2 measurement request, which does not exist yet
 
 ### PRD-08 · Ladang field cards — latest observation · [As-built]
 
-**Behavior.** Each saved field shows the newest stored legacy value when available. If it lacks NDVI/NDMI, the screen may request the current bbox/fixed-window prototype and show the transient response as `prototype`. Missing geometry, empty provider data, and provider errors produce `unavailable`; there is no synthetic fallback and no severity classification (DEC-24).
+**Behavior.** Each saved field reads the newest persisted M2 observation. Saving a field
+explicitly requests one authenticated initial measurement job; rendering does not invoke
+the legacy bbox route. Passed rows show raw indices/acquisition date, while rejected,
+failed, or absent rows remain unavailable. There is no synthetic fallback or diagnosis.
 
-**Acceptance criteria (as-built).** A card shows raw NDVI/NDMI, date, and state when available; otherwise it remains empty/unavailable. It never diagnoses or fabricates.
-
-**Acceptance criteria ([Thesis], M2 target).**
+**Acceptance criteria.**
 - A field shows a `measured` value only when a provenance-complete observation exists; otherwise it shows an honest `unavailable` state (INV-01/02/06).
 - The displayed date is the acquisition date (INV-05).
 - Valid-pixel/quality state is visible (INV-04).
 
-**Current-fidelity note.** INV-06 synthetic substitution is closed. The transient bbox/fixed-window response still lacks polygon-exact provenance and persistence, so INV-03/04 remain open. Canonical wording: [`project-architecture.md`](project-architecture.md) § Current measurement provenance.
+**Current-fidelity note.** Local code satisfies the request/read contract and tests; the
+hosted/backend/device path remains unverified. Canonical wording:
+[`project-architecture.md`](project-architecture.md) § Current measurement provenance.
 
 ### PRD-09 · Field edit / delete / notes · [As-built]
 
-**Behavior.** A field can be renamed/edited, deleted, and annotated with notes. Notes are CRUD against `lahan_notes`: insert (`explore.tsx:1463`), update (`explore.tsx:1475`), delete (`explore.tsx:1508`), all owner-scoped by `user_id`. Deleting a field cascades: it removes the field's `lahan_health` and `lahan_notes` rows scoped to the user (`explore.tsx:1555-1556`).
+**Behavior.** A field can be renamed/edited, deleted, and annotated with notes. Notes are
+owner-scoped CRUD against `lahan_notes`. Deleting a field relies on database cascades for
+notes, legacy rows, jobs, measurements, and per-index stats; the client does not perform
+partial manual cleanup.
 
 **Acceptance criteria.**
 - All note and field mutations are owner-scoped (RLS-enforced; [`project-architecture.md`](project-architecture.md) § 1.3, § 5.2).
@@ -190,11 +199,18 @@ the mobile surface remains non-blocking when the summary is unavailable
 
 ### PRD-11 · Field detail — NDVI/NDMI time series · [As-built]
 
-**Behavior.** The field-detail screen reads all stored legacy rows for one field, orders them by `captured_at`, and provides an NDVI/NDMI segmented time-series chart, raw latest/minimum/maximum values, and a dated chronology. Rows without a valid observation date or index value are omitted. Empty history renders an unavailable state.
+**Behavior.** The field-detail screen reads saved metadata, persisted
+`measurement_observations`, and the latest durable job. It polls while queued/processing,
+plots only quality-passing values, and lists acquisition date, quality status, rejection
+reason, and separate NDVI/NDMI valid-pixel counts. A retry action explicitly requests a
+job. Metadata remains visible if observation/job reads fail.
 
-**Current-fidelity note.** The simulator module and all derived pest/disease/stress/harvest logic are deleted (DEC-24). Legacy rows remain `fixture` or `prototype`, never `measured`, because the M2 provenance writer does not exist.
+**Current-fidelity note.** The local provenance writer/read path exists and no legacy row
+is promoted. Hosted availability remains subject to the deployment gates in OBS-22.
 
-**Acceptance criteria.** Plot only stored values with their observation dates; do not interpolate gaps; label fixture/prototype state; show honest empty state; derive no diagnosis or condition class. M2 replaces legacy rows with provenance-complete `measured` observations without changing this observation-first interaction.
+**Acceptance criteria.** Plot only stored passing values with true acquisition dates; do
+not interpolate gaps; surface quality and per-index counts; show honest empty/query/job
+error states without hiding a loaded field; derive no diagnosis or condition class.
 
 ### PRD-12 · Weather · [As-built]
 
@@ -220,13 +236,15 @@ the mobile surface remains non-blocking when the summary is unavailable
 
 ### PRD-15 · Profile · [As-built]
 
-**Behavior.** The profile tab (`app/(tabs)/profile.tsx`) shows the authenticated user's profile and their actual saved-field count/area, and offers sign-out. Notification capability is explicitly unavailable. The statistics tab does not display metadata-derived NDVI, alert, health, productivity, or monitoring-efficiency figures because no verified event/measurement writer exists. Achievement cards are labeled product previews based only on account age and saved-field count; they are not persisted credentials or agronomic assessments (DEC-20).
+**Behavior.** The profile tab (`app/(tabs)/profile.tsx`) shows the authenticated user's profile and their actual saved-field count/area, and offers sign-out. Notification capability is explicitly unavailable. The statistics tab does not display metadata-derived NDVI, alert, health, productivity, or monitoring-efficiency figures because those event/aggregate contracts are not implemented; DEC-31's local measurement writer only supplies provenance-complete dated observations and remains hosted-deployment pending. Achievement cards are labeled product previews based only on account age and saved-field count; they are not persisted credentials or agronomic assessments (DEC-20/31; OBS-22).
 
 **Acceptance criteria.** Profile reflects the current session's user; sign-out clears the session and returns to the auth flow; a signed-out user cannot read another user's profile or fields (RLS; EVID-020). Unsupported notifications, usage events, measurement averages, productivity metrics, and expertise badges are unavailable or explicitly preview-only.
 
-### PRD-16 · Measurement pipeline · [Thesis]
+### PRD-16 · Measurement pipeline · [As-built local; hosted pending]
 
-**Behavior (contract only — engineering detail in [`data-evaluation-plan.md`](data-evaluation-plan.md)).** The target replaces the labeled-fixture-fallback prototype (PRD-08, PRD-11) with a controlled, persisted, provenance-safe pipeline. Product-level behavior contract:
+**Behavior.** The implemented local path replaces the legacy prototype on current
+measurement surfaces with a controlled, persisted, provenance-safe pipeline. Engineering
+detail and deployment qualification live in [`data-evaluation-plan.md`](data-evaluation-plan.md).
 
 - **Request/refresh, not render-triggered.** Opening a screen never triggers satellite processing; measurement is an explicit request served by an idempotent controlled worker, and screens **read the persisted result** (ADR-06; [`project-architecture.md`](project-architecture.md) § 3 governing principle).
 - **Provenance-complete persistence.** Every stored measurement carries acquisition window, polygon geometry, provider, quality flags, valid-pixel counts per index, and masking rule-set version (INV-03; [`project-architecture.md`](project-architecture.md) § 3 provenance contract).
@@ -240,7 +258,9 @@ the mobile surface remains non-blocking when the summary is unavailable
 - Every `measured` value is reproducible from its stored provenance (INV-03).
 - No cadence claim appears anywhere until the feasibility study licenses it (INV-08; [`research-protocol.md`](research-protocol.md) § 4).
 
-**Current-fidelity note.** None built yet. This is the central [Thesis] deliverable (M2), gated by M0 (security/verification foundation) and M1 (feasibility study). The satellite provider migrates to CDSE Sentinel Hub free tier (ADR-02 / DEC-04); acquisition runs behind a controlled worker (ADR-06); fixtures stand in for providers in dev/CI (ADR-09 / DEC-09).
+**Current-fidelity note.** Local implementation and bounded live adapter smoke pass
+(OBS-22/23). Formal M2 acceptance remains open until hosted migration, backend secrets,
+public deployment, and one authenticated app persistence/read smoke pass.
 
 ### PRD-17 · Weather risk score card · [As-built] · HYP-07
 
@@ -278,24 +298,22 @@ Milestones (from [`product-brief.md`](product-brief.md) § 4; roadmap in [`imple
 | PRD-02 Splash/routing | [As-built] | — | DEC-03 | M0 | `app/index.tsx`, `app/splash.tsx:111-121` |
 | PRD-03 Onboarding | [As-built] | — | — | M4 (wire or remove) | `app/onboarding.tsx` |
 | PRD-04 Home weather card | [As-built] | INV-06 | ADR-04 / DEC-07; ADR-10 / DEC-20 | Implemented | `app/(tabs)/index.tsx`, `backend/api/weather/route.js` |
-| PRD-05 Home field cards | [As-built] | INV-01, INV-03, INV-05, INV-09 | DEC-24 | M2 persistence | `app/(tabs)/index.tsx`, `constants/ndvi.ts` |
+| PRD-05 Home field cards | [As-built local] | INV-01, INV-03, INV-05, INV-09 | DEC-24/31 | M2 hosted gate | `app/(tabs)/index.tsx`, `measurement_observations` |
 | PRD-06 Field map/draw/search | [As-built] | — | ADR-01 / DEC-03; EVID-019 | M0 (geometry limits) | `app/(tabs)/explore.tsx` (map, `:720` Nominatim, `:662,778` geocode) |
 | PRD-07 Field creation/area | [As-built] | INV-03 | DEC-03; DEC-24 | M2 (equal-area) | `app/(tabs)/explore.tsx`, `supabase/migrations/20260821000100_padi_only_scope.sql` |
-| PRD-08 Ladang NDVI cards | [As-built] | **INV-03, INV-04, INV-05, INV-06** | ADR-02/06/14; DEC-24 | **M2 persistence** | `app/(tabs)/explore.tsx`; arch § 2 |
+| PRD-08 Ladang NDVI cards | [As-built local] | **INV-03, INV-04, INV-05, INV-06** | ADR-02/06/14/15; DEC-24/31 | **M2 hosted gate** | `app/(tabs)/explore.tsx`; arch § 2 |
 | PRD-09 Edit/delete/notes | [As-built] | — | ADR-07; EVID-020 | M0 (RLS tests) | `app/(tabs)/explore.tsx:1463,1475,1508,1555`, `supabase_setup.sql` |
 | PRD-10 AI data summary | [As-built] | INV-07, INV-09 | ADR-05/14; DEC-08/24 | Implemented; remains outside measurement | `app/(tabs)/explore.tsx`, `backend/config.js`, `backend/api/ai/route.js` |
-| PRD-11 Field detail | [As-built] | **INV-03, INV-05, INV-06, INV-09** | ADR-06/14; DEC-24 | **M2 persistence** | `app/detail-lahan-page.tsx` |
+| PRD-11 Field detail | [As-built local] | **INV-03, INV-04, INV-05, INV-06, INV-09** | ADR-06/14/15; DEC-24/31 | **M2 hosted gate** | `app/detail-lahan-page.tsx` |
 | PRD-12 Weather | [As-built] | INV-06 | ADR-04 / DEC-07; ADR-10 / DEC-20; EVID-021 | Implemented provider path | `app/(tabs)/weather.tsx`, `backend/api/weather/route.js` |
 | PRD-13 Education | [As-built] | — | — | — | `app/(tabs)/education.tsx`, `constants/education.ts:24`, `app/detail-education-page.tsx` |
 | PRD-14 Notifications | [As-built] | INV-08 | DEC-12 | M4 (post-thesis) | `app/notifications.tsx` |
 | PRD-15 Profile | [As-built] | — | DEC-20; EVID-020 | M0 | `app/(tabs)/profile.tsx` |
-| PRD-16 Measurement pipeline | [Thesis] | **INV-01–INV-06, INV-08** | ADR-02/06/08/09; DEC-04/05/09/12 | **M1→M2→M3** | target — `research/`, backend worker; [`data-evaluation-plan.md`](data-evaluation-plan.md) |
+| PRD-16 Measurement pipeline | [As-built local] | **INV-01–INV-06, INV-08** | ADR-02/06/08/09/15; DEC-04/05/09/12/31 | **M2 hosted gate** | `backend/measurement/`, M2 migration; [`data-evaluation-plan.md`](data-evaluation-plan.md) |
 | PRD-17 Weather risk score | [As-built] | INV-06 | DEC-16; HYP-07 | M4 (calibration post-thesis) | `app/(tabs)/weather.tsx:474-510` |
 
-**Invariant coverage.** INV-01/02/06/09 hold because prototype/fixture surfaces are
-explicitly labeled, missing data is never synthesized, and no health diagnosis is
-derived. INV-03/04/05 remain unsatisfied on PRD-08/11 until PRD-16 persists
-provenance-complete quality-gated measurements. INV-07 holds: Gemini is non-blocking and disabled by
-default. INV-08 holds because no cadence claim is made; the fixture-only M1 run does not
-license one. INV-09 holds because health/severity labels and diagnostic derivations are
-absent from the observation surfaces.
+**Invariant coverage.** Local M2 code enforces INV-01–06/09 through typed persistence,
+quality-gated values, acquisition dates, and honest absence (OBS-22/23). Hosted/device
+compliance remains unverified until deployment. INV-07 holds because Gemini is optional
+and disabled by default. INV-08 holds because UI copy makes no cadence promise beyond the
+advisor-reviewed M1 outcome.

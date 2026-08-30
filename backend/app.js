@@ -3,9 +3,13 @@ import cors from "cors";
 import express from "express";
 
 import aiRoute from "./api/ai/route.js";
+import { createMeasurementRouter } from "./api/measurements/route.js";
 import ndviRoute from "./api/ndvi/utils.js";
 import weatherRoute from "./api/weather/route.js";
 import { loadConfig } from "./config.js";
+import { createCdseProcessAdapter } from "./measurement/cdse-process-adapter.js";
+import { createSupabaseMeasurementAdmin } from "./measurement/supabase-admin.js";
+import { createMeasurementWorker } from "./measurement/worker.js";
 import {
   createAuthMiddleware,
   createInFlightGuard,
@@ -18,10 +22,33 @@ import {
 export const createApp = ({
   config = loadConfig(),
   verifyAccessToken = verifySupabaseAccessToken,
-  routers = { ndvi: ndviRoute, weather: weatherRoute, ai: aiRoute },
+  routers,
   now = Date.now,
 } = {}) => {
   const app = express();
+  const resolvedRouters = routers ?? (() => {
+    const admin = createSupabaseMeasurementAdmin({
+      supabaseUrl: config.supabaseUrl,
+      adminKey: config.supabaseAdminKey,
+    });
+    const provider = createCdseProcessAdapter({
+      catalogUrl: config.sentinelCatalogUrl,
+      processUrl: config.sentinelProcessUrl,
+      providerTimeoutMs: config.measurementProviderTimeoutMs,
+      maxProviderAttempts: config.measurementProviderMaxAttempts,
+      ndviValidPixelFloor: config.ndviValidPixelFloor,
+      ndmiValidPixelFloor: config.ndmiValidPixelFloor,
+    });
+    return {
+      ndvi: ndviRoute,
+      weather: weatherRoute,
+      ai: aiRoute,
+      measurements: createMeasurementRouter({
+        worker: createMeasurementWorker({ admin, provider }),
+        maxWindowDays: config.measurementMaxWindowDays,
+      }),
+    };
+  })();
   const quota = createQuotaObserver();
   app.locals.quotaSnapshot = quota.snapshot;
 
@@ -64,9 +91,12 @@ export const createApp = ({
     createInFlightGuard(),
     quota.middleware,
   ];
-  app.use("/ndvi", ...protectedMiddleware, routers.ndvi);
-  app.use("/weather", ...protectedMiddleware, routers.weather);
-  app.use("/ai", ...protectedMiddleware, routers.ai);
+  app.use("/ndvi", ...protectedMiddleware, resolvedRouters.ndvi);
+  app.use("/weather", ...protectedMiddleware, resolvedRouters.weather);
+  app.use("/ai", ...protectedMiddleware, resolvedRouters.ai);
+  if (resolvedRouters.measurements) {
+    app.use("/measurements", ...protectedMiddleware, resolvedRouters.measurements);
+  }
 
   app.use((error, _req, res, _next) => {
     const status = error?.statusCode === 403 ? 403 : 500;

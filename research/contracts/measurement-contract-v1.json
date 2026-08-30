@@ -1,14 +1,30 @@
 {
   "contractVersion": "measurement-v1",
-  "status": "migration-ready-draft; M2 remains gated by M1 acceptance",
+  "status": "implemented and locally verified for M2; hosted migration and backend secret/deployment remain external gates",
   "physicalSchema": {
-    "strategy": "typed measurement table plus typed per-index child rows",
-    "legacyTable": "lahan_health remains read-only legacy until M2 migration and backfill",
+    "strategy": "durable measurement_jobs plus typed measurements and typed per-index child rows",
+    "asBuiltMigration": "supabase/migrations/20260830000100_m2_measurement_pipeline.sql",
+    "legacyTable": "lahan_health remains read-only legacy and is not a measured-data source",
     "provenanceExtension": "jsonb for provider-specific non-canonical metadata only"
   },
   "workerRuntime": {
-    "strategy": "external Node worker using the shared provider adapter",
-    "reason": "acquisition must be explicit, bounded, idempotent, and independent of UI rendering"
+    "strategy": "authenticated Node backend worker; Catalog discovers the latest acquisition, then two same-acquisition Process API requests preserve NDVI 10 m and NDMI 20 m native output grids",
+    "responsePerNativeGrid": "each Process request returns its raster and userdata source metadata together",
+    "crossRequestInvariant": "both native-grid responses must have identical scene IDs, data paths, product IDs, acquisition interval, and provider service version",
+    "reason": "acquisition, grid, source identity, persistence, retry, and idempotency must be explicit and independent of UI rendering"
+  },
+  "sourceIdentity": {
+    "strategy": "same-response CDSE Process API userdata for each native-grid raster, followed by strict source-identity matching",
+    "requiredFields": [
+      "source_product_ids",
+      "provider_scene_ids",
+      "provider_data_paths",
+      "provider_service_version"
+    ],
+    "productIdDerivation": "extract the .SAFE product identifier from each provider dataPath and retain the original dataPath plus shId in provider_provenance",
+    "missingIdentityOutcome": "unavailable:source-identity-missing",
+    "mismatchedIdentityOutcome": "unavailable:source-identity-mismatch",
+    "catalogRole": "availability discovery only; Catalog candidates are never persisted as proof of selected source pixels"
   },
   "geometryHash": {
     "algorithm": "sha256",
@@ -19,11 +35,12 @@
   },
   "processingGrid": {
     "sourceGeometry": "validated EPSG:4326 GeoJSON Polygon",
-    "strategy": "project the exact polygon to its local UTM CRS before metre-based aggregation",
+    "strategy": "project the exact polygon to its local UTM CRS before metre-based processing",
     "crsProvenanceRequired": true,
     "ndviResolutionMetres": 10,
     "ndmiResolutionMetres": 20,
     "qualityResolutionMetres": 20,
+    "resamplingMethod": "NEAREST",
     "bboxSubstitutionAllowed": false
   },
   "pixelAccounting": {
@@ -32,22 +49,25 @@
     "validPixelCountRequired": true,
     "validPixelFractionRequired": true,
     "providerGeometryPixelCountNullable": true,
-    "derivedCoverageMustNotBeLabeledProviderGeometryPixelCount": true
+    "derivedCoverageMustNotBeLabeledProviderGeometryPixelCount": true,
+    "provisionalFloors": { "ndvi": 9, "ndmi": 3 }
   },
   "processingVersions": {
     "algorithm": "ndvi-ndmi-v1",
-    "evalscript": "s2l2a-statistics-v1",
+    "evalscript": "s2l2a-process-native-grids-v2",
     "masking": "s2l2a-scl-rice-v1",
-    "versionBumpRule": "bump when formula, SCL inclusion, rice-water handling, resolution, resampling, or aggregation semantics change"
+    "versionBumpRule": "bump when formula, SCL inclusion, rice-water handling, source-selection/mosaicking, resolution, resampling, aggregation, or pixel-accounting semantics change"
   },
   "qualityStatus": ["passed", "rejected", "unavailable"],
   "rejectionReasons": [
-    "clouded",
     "too-few-valid-pixels",
     "no-acquisition-in-window",
     "no-valid-pixels",
     "geometry-unusable",
-    "provider-unavailable"
+    "source-identity-missing",
+    "source-identity-mismatch",
+    "provider-unavailable",
+    "provider-response-invalid"
   ],
-  "hypothesesRemainUnvalidated": ["HYP-03", "HYP-04", "HYP-05", "HYP-07"]
+  "activeUnvalidatedHypotheses": ["HYP-05", "HYP-07"]
 }

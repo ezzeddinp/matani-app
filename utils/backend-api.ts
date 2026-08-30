@@ -1,4 +1,5 @@
 import { supabase } from "@/hooks/supabase";
+import { API_BASE_CANDIDATES } from "@/hooks/config";
 
 export const BACKEND_DEPLOYMENT_PROTECTED = "BACKEND_DEPLOYMENT_PROTECTED";
 export const BACKEND_NON_JSON_RESPONSE = "BACKEND_NON_JSON_RESPONSE";
@@ -116,4 +117,50 @@ export const authenticatedBackendFetch = async (
   }
 
   return fetchWithAccessToken(input, init, refreshed.session.access_token);
+};
+
+export type MeasurementRequestResult = {
+  jobId: string | null;
+  status: "queued" | "processing" | "succeeded" | "failed" | "unavailable";
+  observationId: string | null;
+  qualityStatus: "passed" | "rejected" | "unavailable" | null;
+  rejectionReason: string | null;
+  acquisitionStart?: string | null;
+  reused: boolean;
+};
+
+export const requestLahanMeasurement = async (
+  lahanId: string,
+  options: { initial?: boolean } = {}
+): Promise<MeasurementRequestResult> => {
+  let lastError: unknown = new Error("MEASUREMENT_BACKEND_UNAVAILABLE");
+  const seen = new Set<string>();
+  const idempotencyKey = options.initial
+    ? `initial:${lahanId}`
+    : `refresh:${lahanId}`;
+  for (const baseUrl of API_BASE_CANDIDATES) {
+    const normalized = baseUrl.replace(/\/$/, "");
+    const candidates = [`${normalized}/measurements/request`];
+    if (!/\/api\/?$/.test(normalized)) {
+      candidates.push(`${normalized}/api/measurements/request`);
+    }
+    for (const url of candidates) {
+      if (seen.has(url)) continue;
+      seen.add(url);
+      try {
+        const response = await authenticatedBackendFetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Idempotency-Key": idempotencyKey,
+          },
+          body: JSON.stringify({ lahanId }),
+        });
+        return await readBackendJson<MeasurementRequestResult>(response);
+      } catch (error) {
+        lastError = error;
+      }
+    }
+  }
+  throw lastError;
 };

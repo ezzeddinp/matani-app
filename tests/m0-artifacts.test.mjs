@@ -32,14 +32,47 @@ test("latest scope migration accepts only padi without relabeling legacy crops",
   assert.doesNotMatch(migration, /category\s*=\s*'padi'/i);
 });
 
-test("field detail reads stored observations and contains no synthetic diagnosis", async () => {
+test("field detail reads M2 measurements and contains no synthetic diagnosis", async () => {
   const detail = await readFile("app/detail-lahan-page.tsx", "utf8");
-  assert.match(detail, /from\("lahan_health"\)/);
+  assert.match(detail, /from\("measurement_observations"\)/);
+  assert.match(detail, /from\("measurement_jobs"\)/);
   assert.match(detail, /Deret waktu observasi/);
+  assert.match(detail, /setDetail\(field\)/);
+  assert.match(detail, /if \(observationResult\.error\)/);
+  assert.match(detail, /Jalankan pengukuran/);
   assert.doesNotMatch(
     detail,
     /buildNdviSeries|computeSynthetic|pestPressure|diseaseRisk|stressIndex/
   );
+});
+
+test("M2 migration enforces durable jobs, provenance, RLS, and idempotency", async () => {
+  const migration = await readFile(
+    "supabase/migrations/20260830000100_m2_measurement_pipeline.sql",
+    "utf8"
+  );
+  for (const table of ["measurement_jobs", "measurements", "measurement_index_stats"]) {
+    assert.match(migration, new RegExp(`create table public\\.${table}`, "i"));
+    assert.match(migration, new RegExp(`alter table public\\.${table} enable row level security`, "i"));
+  }
+  assert.match(migration, /unique \(user_id, idempotency_key\)/i);
+  assert.match(migration, /measurements_source_identity_check/i);
+  assert.match(migration, /create view public\.measurement_observations[\s\S]*security_invoker/i);
+  assert.match(migration, /grant execute[\s\S]*to service_role/i);
+  assert.doesNotMatch(migration, /grant (insert|update|delete)[\s\S]*to authenticated/i);
+});
+
+test("field save requests persisted measurement and has no render-triggered bbox prototype", async () => {
+  const explore = await readFile("app/(tabs)/explore.tsx", "utf8");
+  const backendClient = await readFile("utils/backend-api.ts", "utf8");
+  assert.match(
+    explore,
+    /requestLahanMeasurement\(savedEntry\.id, \{ initial: true \}\)/,
+  );
+  assert.match(explore, /from\("measurement_observations"\)/);
+  assert.doesNotMatch(explore, /fetchNdviStatistic|createNdviRecordFromStatistic/);
+  assert.match(backendClient, /\/measurements\/request/);
+  assert.match(backendClient, /Idempotency-Key/);
 });
 
 test("field map remains pannable and keeps drawing actions at the top", async () => {
@@ -61,6 +94,9 @@ test("mobile provider calls reject protected HTML and recover stale sessions", a
   );
 
   assert.match(backendClient, /BACKEND_DEPLOYMENT_PROTECTED/);
+  assert.match(supabaseClient, /process\.env\.EXPO_PUBLIC_SUPABASE_URL/);
+  assert.match(supabaseClient, /process\.env\.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY/);
+  assert.doesNotMatch(supabaseClient, /NEXT_PUBLIC_SUPABASE/);
   assert.match(backendClient, /content-type/);
   assert.match(backendClient, /refreshSession\(\)/);
   assert.match(config, /resolveManifestHost\(\)/);

@@ -9,13 +9,16 @@
     "dev": "node index.js",
     "build": "tsc",
     "typecheck": "tsc --noEmit",
-    "test": "node --test test/**/*.test.js"
+    "test": "node --test test/**/*.test.js",
+    "smoke:m2:live": "node scripts/run-m2-live-smoke.mjs"
   },
   "dependencies": {
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
-    "node-fetch": "^3.3.2"
+    "geotiff": "^3.0.5",
+    "node-fetch": "^3.3.2",
+    "proj4": "^2.21.0"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",

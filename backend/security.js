@@ -126,6 +126,18 @@ export const createRequestValidator = (config) => (req, res, next) => {
       return res.status(400).json({ error: "invalid_lahan_cards" });
     }
   }
+  if (req.baseUrl === "/measurements") {
+    const lahanId = req.body?.lahanId;
+    if (
+      req.method !== "POST" ||
+      typeof lahanId !== "string" ||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+        lahanId,
+      )
+    ) {
+      return res.status(400).json({ error: "invalid_measurement_request" });
+    }
+  }
   return next();
 };
 

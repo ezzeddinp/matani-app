@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   ImageBackground,
@@ -15,8 +15,9 @@ import Svg, { Circle, G, Line, Polyline, Text as SvgText } from "react-native-sv
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { lahanService, supabase, type LahanDetail } from "@/hooks/supabase";
+import { requestLahanMeasurement } from "@/utils/backend-api";
 
-type ObservationState = "fixture" | "prototype";
+type ObservationState = "measured" | "unavailable";
 type IndexKey = "ndvi" | "ndmi";
 
 type ObservationRecord = {
@@ -27,6 +28,10 @@ type ObservationRecord = {
   status: string | null;
   captured_at: string | null;
   created_at: string | null;
+  rejection_reason?: string | null;
+  ndvi_valid_pixel_count?: number | null;
+  ndmi_valid_pixel_count?: number | null;
+  data_state?: string | null;
 };
 
 type TimelinePoint = {
@@ -35,6 +40,10 @@ type TimelinePoint = {
   ndvi: number | null;
   ndmi: number | null;
   state: ObservationState;
+  qualityStatus: string;
+  rejectionReason: string | null;
+  ndviValidPixelCount: number | null;
+  ndmiValidPixelCount: number | null;
 };
 
 const PADI_IMAGE = require("@/assets/foto-ladang/padi.jpg");
@@ -55,11 +64,9 @@ const resolveTimestamp = (record: ObservationRecord) => record.captured_at;
 
 const resolveState = (status: string | null): ObservationState => {
   const normalized = status?.trim().toLowerCase();
-  return ["fixture", "synthetic", "simulated", "simulation"].includes(
-    normalized ?? ""
-  )
-    ? "fixture"
-    : "prototype";
+  return normalized === "passed" || normalized === "rejected"
+    ? "measured"
+    : "unavailable";
 };
 
 const formatValue = (value: number | null) =>
@@ -167,7 +174,7 @@ function ObservationChart({
             cx={point.x}
             cy={point.y}
             r={5}
-            fill={point.state === "fixture" ? "#F59E0B" : "#FFFFFF"}
+            fill={point.state === "unavailable" ? "#F59E0B" : "#FFFFFF"}
             stroke={indexKey === "ndvi" ? "#15803D" : "#0369A1"}
             strokeWidth={3}
           />
@@ -192,9 +199,17 @@ export default function DetailLahanPage() {
   const [activeIndex, setActiveIndex] = useState<IndexKey>("ndvi");
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [observationErrorMessage, setObservationErrorMessage] = useState<string | null>(
+    null
+  );
+  const [jobStatus, setJobStatus] = useState<string | null>(null);
+  const [jobErrorCode, setJobErrorCode] = useState<string | null>(null);
+  const [refreshTick, setRefreshTick] = useState(0);
+  const [isRequestingMeasurement, setIsRequestingMeasurement] = useState(false);
 
   useEffect(() => {
     let active = true;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
 
     const load = async () => {
       if (!fieldId) {
@@ -204,16 +219,28 @@ export default function DetailLahanPage() {
       }
 
       try {
-        setIsLoading(true);
+        if (refreshTick === 0) setIsLoading(true);
         setErrorMessage(null);
-        const [field, observationResult] = await Promise.all([
+        setObservationErrorMessage(null);
+        if (refreshTick === 0) {
+          setDetail(null);
+          setObservations([]);
+        }
+        const [field, observationResult, jobResult] = await Promise.all([
           lahanService.getLahanDetail(fieldId),
           supabase
-            .from("lahan_health")
-            .select("id,lahan_id,ndvi_score,ndmi_score,status,captured_at,created_at")
+            .from("measurement_observations")
+            .select("id,lahan_id,ndvi_score,ndmi_score,status,rejection_reason,captured_at,created_at,ndvi_valid_pixel_count,ndmi_valid_pixel_count,data_state")
             .eq("lahan_id", fieldId)
             .order("captured_at", { ascending: true, nullsFirst: false })
             .order("created_at", { ascending: true }),
+          supabase
+            .from("measurement_jobs")
+            .select("status,error_code,created_at,updated_at")
+            .eq("lahan_id", fieldId)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle(),
         ]);
 
         if (!active) return;
@@ -221,7 +248,31 @@ export default function DetailLahanPage() {
           setErrorMessage("Data lahan tidak ditemukan.");
           return;
         }
-        if (observationResult.error) throw observationResult.error;
+
+        setDetail(field);
+        const latestJob = jobResult.data as
+          | { status?: string | null; error_code?: string | null }
+          | null;
+        setJobStatus(latestJob?.status ?? null);
+        setJobErrorCode(latestJob?.error_code ?? null);
+        if (jobResult.error) {
+          console.error("Gagal memuat status job pengukuran:", jobResult.error);
+          setObservationErrorMessage(
+            "Status job pengukuran gagal dimuat. Metadata lahan tetap tersedia."
+          );
+        }
+        if (["queued", "processing"].includes(latestJob?.status ?? "")) {
+          retryTimer = setTimeout(() => {
+            if (active) setRefreshTick((value) => value + 1);
+          }, 4_000);
+        }
+        if (observationResult.error) {
+          console.error("Gagal memuat riwayat observasi lahan:", observationResult.error);
+          setObservationErrorMessage(
+            "Riwayat observasi gagal dimuat. Batas dan metadata lahan tetap tersimpan."
+          );
+          return;
+        }
 
         const timeline = (observationResult.data as ObservationRecord[])
           .map((record) => {
@@ -233,29 +284,50 @@ export default function DetailLahanPage() {
               ndvi: parseValue(record.ndvi_score),
               ndmi: parseValue(record.ndmi_score),
               state: resolveState(record.status),
+              qualityStatus: record.status ?? "unavailable",
+              rejectionReason: record.rejection_reason ?? null,
+              ndviValidPixelCount: parseValue(record.ndvi_valid_pixel_count),
+              ndmiValidPixelCount: parseValue(record.ndmi_valid_pixel_count),
             } satisfies TimelinePoint;
           })
-          .filter((point): point is TimelinePoint => point !== null)
-          .filter((point) => point.ndvi !== null || point.ndmi !== null);
+          .filter((point): point is TimelinePoint => point !== null);
 
-        setDetail(field);
         setObservations(timeline);
       } catch (error) {
         if (!active) return;
-        console.error("Gagal memuat deret waktu lahan:", error);
-        setErrorMessage("Deret waktu lahan tidak dapat dimuat.");
+        console.error("Gagal memuat data lahan:", error);
+        setErrorMessage("Data lahan tidak dapat dimuat.");
       } finally {
-        if (active) setIsLoading(false);
+        if (active && refreshTick === 0) setIsLoading(false);
       }
     };
 
     void load();
     return () => {
       active = false;
+      if (retryTimer) clearTimeout(retryTimer);
     };
-  }, [fieldId]);
+  }, [fieldId, refreshTick]);
 
-  const latest = observations.at(-1) ?? null;
+  const retryMeasurement = useCallback(async () => {
+    if (!fieldId || isRequestingMeasurement) return;
+    try {
+      setIsRequestingMeasurement(true);
+      await requestLahanMeasurement(fieldId);
+      setRefreshTick((value) => value + 1);
+    } catch (error) {
+      console.error("Gagal meminta pengukuran lahan:", error);
+      setObservationErrorMessage(
+        "Job pengukuran belum dapat dijalankan. Periksa backend dan konfigurasi server."
+      );
+    } finally {
+      setIsRequestingMeasurement(false);
+    }
+  }, [fieldId, isRequestingMeasurement]);
+
+  const latest = observations.findLast(
+    (point) => point.ndvi !== null || point.ndmi !== null
+  ) ?? null;
   const activeValues = useMemo(
     () =>
       observations
@@ -263,7 +335,9 @@ export default function DetailLahanPage() {
         .filter((value): value is number => value !== null),
     [activeIndex, observations]
   );
-  const fixtureCount = observations.filter((point) => point.state === "fixture").length;
+  const unavailableCount = observations.filter(
+    (point) => point.state === "unavailable"
+  ).length;
 
   if (isLoading) {
     return (
@@ -385,12 +459,37 @@ export default function DetailLahanPage() {
           <Text style={styles.sectionTitle}>Observasi per tanggal</Text>
           {observations.length === 0 ? (
             <View style={styles.emptyTimeline}>
-              <Ionicons name="calendar-outline" size={30} color="#94A3B8" />
-              <Text style={styles.emptyTimelineTitle}>Belum ada riwayat observasi</Text>
-              <Text style={styles.emptyTimelineText}>
-                Pipeline pengukuran belum menulis riwayat provenance-complete. Matani
-                menampilkan keadaan kosong ini tanpa membuat data pengganti.
+              <Ionicons
+                name={observationErrorMessage ? "cloud-offline-outline" : "calendar-outline"}
+                size={30}
+                color="#94A3B8"
+              />
+              <Text style={styles.emptyTimelineTitle}>
+                {observationErrorMessage
+                  ? "Riwayat observasi gagal dimuat"
+                  : ["queued", "processing"].includes(jobStatus ?? "")
+                  ? "Pengukuran sedang diproses"
+                  : "Belum ada riwayat observasi"}
               </Text>
+              <Text style={styles.emptyTimelineText}>
+                {observationErrorMessage ??
+                  (["queued", "processing"].includes(jobStatus ?? "")
+                    ? "Matani sedang mengambil raster Sentinel-2 dan menghitung pixel valid. Halaman ini memeriksa hasil secara otomatis."
+                    : `Batas lahan tersimpan, tetapi belum ada acquisition yang lolos kualitas${jobErrorCode ? ` (${jobErrorCode})` : ""}. Matani tidak membuat data pengganti.`)}
+              </Text>
+              {!(["queued", "processing"].includes(jobStatus ?? "")) && (
+                <TouchableOpacity
+                  style={styles.backAction}
+                  onPress={() => void retryMeasurement()}
+                  disabled={isRequestingMeasurement}
+                >
+                  {isRequestingMeasurement ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <Text style={styles.backActionText}>Jalankan pengukuran</Text>
+                  )}
+                </TouchableOpacity>
+              )}
             </View>
           ) : (
             observations
@@ -401,7 +500,7 @@ export default function DetailLahanPage() {
                   <View
                     style={[
                       styles.timelineDot,
-                      point.state === "fixture" && styles.timelineDotFixture,
+                      point.state === "unavailable" && styles.timelineDotFixture,
                     ]}
                   />
                   <View style={styles.timelineCopy}>
@@ -410,14 +509,18 @@ export default function DetailLahanPage() {
                       <Text
                         style={[
                           styles.stateLabel,
-                          point.state === "fixture" && styles.stateLabelFixture,
+                          point.state === "unavailable" && styles.stateLabelFixture,
                         ]}
                       >
-                        {point.state === "fixture" ? "FIXTURE" : "PROTOTIPE"}
+                        {point.qualityStatus.toUpperCase()}
                       </Text>
                     </View>
                     <Text style={styles.timelineValues}>
                       NDVI {formatValue(point.ndvi)}   NDMI {formatValue(point.ndmi)}
+                    </Text>
+                    <Text style={styles.timelineValues}>
+                      Pixel valid: NDVI {point.ndviValidPixelCount ?? "--"} · NDMI {point.ndmiValidPixelCount ?? "--"}
+                      {point.rejectionReason ? ` · ${point.rejectionReason}` : ""}
                     </Text>
                   </View>
                 </View>
@@ -428,9 +531,9 @@ export default function DetailLahanPage() {
         <View style={styles.provenanceBand}>
           <Ionicons name="shield-checkmark-outline" size={20} color="#92400E" />
           <Text style={styles.provenanceText}>
-            {fixtureCount > 0
-              ? `${fixtureCount} titik berstatus fixture dan bukan observasi satelit.`
-              : "Rekaman legacy masih berstatus prototipe karena provenance pengukuran belum lengkap."}
+            {unavailableCount > 0
+              ? `${unavailableCount} acquisition ditolak/tidak tersedia dan tidak ditampilkan sebagai nilai.`
+              : "Nilai pada halaman ini berasal dari measurement CDSE yang tersimpan dengan provenance sumber."}
           </Text>
         </View>
       </ScrollView>

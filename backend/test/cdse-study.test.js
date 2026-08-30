@@ -254,6 +254,7 @@ test("M1 preflight exposes dynamic budget without geometry or live calls", () =>
   });
   assert.equal(artifact.network_called, false);
   assert.equal(artifact.request_budget.planned_request_operations, 96);
+  assert.equal(artifact.request_budget.request_attempt_ceiling, 288);
   assert.equal(artifact.fields[0].geometry, undefined);
   assert.equal(
     artifact.fields[0].verification_evidence_references_omitted,

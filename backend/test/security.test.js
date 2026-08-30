@@ -34,7 +34,11 @@ const createRouters = ({ delayMs = 0 } = {}) => {
   weather.get("/", (_req, res) => res.json({ source: "fixture" }));
   const ai = express.Router();
   ai.post("/summary", (_req, res) => res.json({ source: "fixture" }));
-  return { ndvi, weather, ai };
+  const measurements = express.Router();
+  measurements.post("/request", (req, res) =>
+    res.json({ source: "fixture", lahanId: req.body.lahanId })
+  );
+  return { ndvi, weather, ai, measurements };
 };
 
 const withServer = async (options, run) => {
@@ -80,6 +84,34 @@ test("request schema and bbox area limits reject invalid provider requests", asy
     assert.equal((await fetch(`${baseUrl}/weather?lat=999&lon=106`, { headers })).status, 400);
     assert.equal((await fetch(`${baseUrl}/ndvi?bbox=invalid`, { headers })).status, 400);
     assert.equal((await fetch(`${baseUrl}/ndvi?bbox=100,-10,110,0`, { headers })).status, 413);
+    assert.equal(
+      (
+        await fetch(`${baseUrl}/measurements/request`, {
+          method: "POST",
+          headers: { ...headers, "Content-Type": "application/json" },
+          body: JSON.stringify({ lahanId: "not-a-uuid" }),
+        })
+      ).status,
+      400,
+    );
+  });
+});
+
+test("measurement requests are authenticated and admitted with a valid field id", async () => {
+  await withServer({}, async (baseUrl) => {
+    const response = await fetch(`${baseUrl}/measurements/request`, {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer valid-token",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ lahanId: "00000000-0000-4000-8000-000000000002" }),
+    });
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), {
+      source: "fixture",
+      lahanId: "00000000-0000-4000-8000-000000000002",
+    });
   });
 });
 

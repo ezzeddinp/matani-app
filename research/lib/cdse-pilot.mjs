@@ -7,6 +7,8 @@ export const CDSE_STATISTICS_URL =
   "https://sh.dataspace.copernicus.eu/statistics/v1";
 export const CDSE_CATALOG_URL =
   "https://sh.dataspace.copernicus.eu/catalog/v1/search";
+export const CDSE_PROCESS_URL =
+  "https://sh.dataspace.copernicus.eu/process/v1";
 export const CRS84 =
   "http://www.opengis.net/def/crs/OGC/1.3/CRS84";
 
@@ -301,6 +303,72 @@ export const buildCatalogRequest = ({ geometry, from, to }) => {
     datetime: `${from}/${to}`,
     intersects: geometry,
     limit: 100,
+  };
+};
+
+const sourceProvenanceEvalscript = () =>
+  [
+    "//VERSION=3",
+    "function setup() {",
+    "  return {",
+    '    input: [{ bands: ["dataMask"], metadata: ["bounds"] }],',
+    "    mosaicking: Mosaicking.ORBIT,",
+    '    output: { id: "default", bands: 1, sampleType: "UINT8" }',
+    "  };",
+    "}",
+    "function evaluatePixel(samples) {",
+    "  return [samples && samples.length && samples[0].dataMask ? 1 : 0];",
+    "}",
+    "function updateOutputMetadata(scenes, inputMetadata, outputMetadata) {",
+    "  const orbits = scenes && scenes.orbits ? scenes.orbits : [];",
+    "  outputMetadata.userData = {",
+    "    serviceVersion: inputMetadata.serviceVersion,",
+    "    orbits: orbits.map(function (orbit) {",
+    "      return {",
+    "        dateFrom: orbit.dateFrom,",
+    "        dateTo: orbit.dateTo,",
+    "        tiles: (orbit.tiles || []).map(function (tile) {",
+    "          return { date: tile.date, shId: tile.shId, dataPath: tile.dataPath };",
+    "        })",
+    "      };",
+    "    })",
+    "  };",
+    "}",
+  ].join("\n");
+
+export const buildProcessProvenanceRequest = ({ geometry, from, to }) => {
+  validatePilotGeometry(geometry);
+  assertWindow(from, to);
+  const projection = projectGeometryToLocalUtm(geometry);
+  return {
+    input: {
+      bounds: {
+        geometry: projection.geometry,
+        properties: { crs: projection.processing_crs },
+      },
+      data: [
+        {
+          type: "sentinel-2-l2a",
+          dataFilter: {
+            timeRange: { from, to },
+            mosaickingOrder: "mostRecent",
+          },
+          processing: {
+            upsampling: "NEAREST",
+            downsampling: "NEAREST",
+            harmonizeValues: true,
+          },
+        },
+      ],
+    },
+    output: {
+      resx: 20,
+      resy: 20,
+      responses: [
+        { identifier: "userdata", format: { type: "application/json" } },
+      ],
+    },
+    evalscript: sourceProvenanceEvalscript(),
   };
 };
 
@@ -630,7 +698,7 @@ export const executeCatalogRequest = async ({
     headers: {
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
-      Accept: "application/json",
+      Accept: "application/geo+json",
     },
     body: JSON.stringify(request),
     signal: AbortSignal.timeout(30_000),
@@ -644,6 +712,65 @@ export const executeCatalogRequest = async ({
     processingUnits:
       Number(response.headers.get("x-processingunits-spent")) || null,
   };
+};
+
+export const executeProcessProvenanceRequest = async ({
+  token,
+  request,
+  processUrl = CDSE_PROCESS_URL,
+  fetchImpl = fetch,
+}) => {
+  const response = await fetchImpl(processUrl, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify(request),
+    signal: AbortSignal.timeout(30_000),
+  });
+  return {
+    body: await responseJson(response, "cdse-process-provenance"),
+    processingUnits:
+      Number(response.headers.get("x-processingunits-spent")) || null,
+  };
+};
+
+export const executeProcessProvenanceRequestWithRetry = async ({
+  maxAttempts = 3,
+  sleepImpl = (milliseconds) =>
+    new Promise((resolve) => setTimeout(resolve, milliseconds)),
+  ...request
+}) => {
+  let attempt = 0;
+  while (attempt < maxAttempts) {
+    attempt += 1;
+    try {
+      const result = await executeProcessProvenanceRequest(request);
+      return { ...result, attempts: attempt };
+    } catch (error) {
+      const retryable =
+        error?.statusCode === 429 ||
+        (error?.statusCode >= 500 && error?.statusCode <= 599);
+      if (!retryable || attempt >= maxAttempts) {
+        error.attempts = attempt;
+        throw error;
+      }
+      const providerDelay = Number(error.retryAfterSeconds) * 1000;
+      const exponentialDelay = 1000 * 2 ** (attempt - 1);
+      await sleepImpl(
+        Math.min(
+          15_000,
+          Math.max(
+            Number.isFinite(providerDelay) ? providerDelay : 0,
+            exponentialDelay,
+          ),
+        ),
+      );
+    }
+  }
+  throw new Error("unreachable-process-provenance-retry-state");
 };
 
 export const executeCatalogRequestWithRetry = async ({

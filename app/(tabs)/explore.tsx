@@ -6,6 +6,7 @@ import { LahanWithInfo, lahanService, supabase } from "@/hooks/supabase";
 import {
   authenticatedBackendFetch,
   readBackendJson,
+  requestLahanMeasurement,
   retainMostUsefulBackendError,
 } from "@/utils/backend-api";
 import { Ionicons } from "@expo/vector-icons";
@@ -96,31 +97,15 @@ type LahanCard = SavedLahanItem & {
   locationLabel: string | null;
 };
 
-type NdviStatistic = {
-  interval: string;
-  ndvi_min: number;
-  ndvi_max: number;
-  ndvi_mean: number;
-  ndvi_stdev: number;
-  ndmi_min?: number | null;
-  ndmi_max?: number | null;
-  ndmi_mean?: number | null;
-  ndmi_stdev?: number | null;
-};
-
-type NdviDataState = "fixture" | "prototype" | "unavailable";
+type NdviDataState = "measured" | "unavailable";
 
 const NDVI_DATA_STATE_META: Record<
   NdviDataState,
   { label: string; description: string }
 > = {
-  fixture: {
-    label: "Simulasi demo",
-    description: "Bukan pengukuran satelit",
-  },
-  prototype: {
-    label: "Data prototipe",
-    description: "Belum provenance-safe",
+  measured: {
+    label: "Terukur",
+    description: "Measurement tersimpan dengan provenance sumber",
   },
   unavailable: {
     label: "Tidak tersedia",
@@ -135,18 +120,11 @@ const FULL_MAP_HEIGHT = Math.max(
   SCREEN_HEIGHT * 0.85,
   COLLAPSED_MAP_HEIGHT + 140
 );
-const NDVI_BBOX_PADDING = 0.0004;
 const LAHAN_PAGE_SIZE = 5;
 const DEFAULT_LAHAN_THUMBNAIL = PADI_CATEGORY.thumbnail;
 const GEOCODE_CACHE_PRECISION = 4;
 const GEOCODE_RATE_LIMIT_COOLDOWN_MS = 5 * 60 * 1000;
 const RATE_LIMIT_LOG_INTERVAL_MS = 60 * 1000;
-
-let ndviFallbackWarningLogged = false;
-
-const ndviStatisticCache = new Map<string, NdviStatistic | null>();
-const ndviStatisticInflight = new Map<string, Promise<NdviStatistic | null>>();
-const ndviStatisticErrorCount = new Map<string, number>();
 
 const computePolygonCentroid = (points: LatLng[]): LatLng | null => {
   if (!Array.isArray(points) || points.length === 0) return null;
@@ -195,71 +173,6 @@ const getLahanColor = (id: string) => {
   return LAHAN_COLOR_PALETTE[index];
 };
 
-const clamp = (value: number, min: number, max: number) =>
-  Math.min(Math.max(value, min), max);
-
-const ensureSpread = (
-  minValue: number,
-  maxValue: number,
-  minimumSpread: number,
-  lowerBound: number,
-  upperBound: number
-) => {
-  if (!Number.isFinite(minValue) || !Number.isFinite(maxValue))
-    return [minValue, maxValue] as const;
-  if (maxValue - minValue >= minimumSpread)
-    return [minValue, maxValue] as const;
-  const midPoint = (maxValue + minValue) / 2;
-  const halfSpread = minimumSpread / 2;
-  const adjustedMin = clamp(midPoint - halfSpread, lowerBound, upperBound);
-  const adjustedMax = clamp(midPoint + halfSpread, lowerBound, upperBound);
-  return [adjustedMin, adjustedMax] as const;
-};
-
-const getBoundingBoxFromCoordinates = (
-  coordinates: LatLng[]
-): [number, number, number, number] | null => {
-  if (!Array.isArray(coordinates) || coordinates.length === 0) return null;
-  let minLat = Infinity, minLon = Infinity, maxLat = -Infinity, maxLon = -Infinity;
-  coordinates.forEach(({ latitude, longitude }) => {
-    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return;
-    minLat = Math.min(minLat, latitude);
-    minLon = Math.min(minLon, longitude);
-    maxLat = Math.max(maxLat, latitude);
-    maxLon = Math.max(maxLon, longitude);
-  });
-  if (!Number.isFinite(minLat) || !Number.isFinite(minLon) || !Number.isFinite(maxLat) || !Number.isFinite(maxLon))
-    return null;
-  const paddedMinLat = clamp(minLat - NDVI_BBOX_PADDING, -90, 90);
-  const paddedMinLon = clamp(minLon - NDVI_BBOX_PADDING, -180, 180);
-  const paddedMaxLat = clamp(maxLat + NDVI_BBOX_PADDING, -90, 90);
-  const paddedMaxLon = clamp(maxLon + NDVI_BBOX_PADDING, -180, 180);
-  const [adjustedMinLat, adjustedMaxLat] = ensureSpread(paddedMinLat, paddedMaxLat, 0.0008, -90, 90);
-  const [adjustedMinLon, adjustedMaxLon] = ensureSpread(paddedMinLon, paddedMaxLon, 0.0008, -180, 180);
-  return [adjustedMinLon, adjustedMinLat, adjustedMaxLon, adjustedMaxLat];
-};
-
-const createNdviRecordFromStatistic = (
-  lahanId: string,
-  stat: NdviStatistic | null
-): LahanHealthRecord | null => {
-  if (!stat || typeof stat.ndvi_mean !== "number" || Number.isNaN(stat.ndvi_mean))
-    return null;
-  const capturedDateIso = stat.interval ? `${stat.interval}T00:00:00Z` : null;
-  return {
-    id: `ndvi-${lahanId}-${stat.interval ?? Date.now()}`,
-    lahan_id: lahanId,
-    ndvi_score: stat.ndvi_mean,
-    ndmi_score:
-      typeof stat.ndmi_mean === "number" && Number.isFinite(stat.ndmi_mean)
-        ? stat.ndmi_mean
-        : null,
-    status: "prototype",
-    captured_at: capturedDateIso,
-    created_at: new Date().toISOString(),
-  };
-};
-
 const parseDateToTime = (value?: string | null) => {
   if (!value) return 0;
   const time = Date.parse(value);
@@ -271,13 +184,7 @@ const getNdviDataState = (
 ): NdviDataState => {
   if (!record) return "unavailable";
   const status = record.status?.trim().toLowerCase();
-  if (
-    status === "fixture" ||
-    status === "synthetic"
-  ) {
-    return "fixture";
-  }
-  return "prototype";
+  return status === "passed" ? "measured" : "unavailable";
 };
 
 const formatDisplayDate = (value?: string | null) => {
@@ -380,9 +287,6 @@ export default function ExploreScreen() {
   const [isSavingNote, setIsSavingNote] = useState(false);
   const [selectedNoteLahanId, setSelectedNoteLahanId] = useState<string | null>(null);
   const [isLahanPickerVisible, setIsLahanPickerVisible] = useState(false);
-  const [ndviOverrides, setNdviOverrides] = useState<Record<string, LahanHealthRecord | null | undefined>>({});
-  const [ndviFetchingMap, setNdviFetchingMap] = useState<Record<string, boolean>>({});
-  const ndviFetchAttemptedRef = useRef<Record<string, boolean>>({});
   const [scrollEnabled, setScrollEnabled] = useState(true);
   const mapRef = useRef<MapView>(null);
   const currentRegionRef = useRef<Region | null>(null);
@@ -532,7 +436,7 @@ export default function ExploreScreen() {
     if (!Array.isArray(targetIds) || targetIds.length === 0) { setLahanHealth([]); return; }
     try {
       const { data, error } = await supabase
-        .from("lahan_health")
+        .from("measurement_observations")
         .select("id,lahan_id,ndvi_score,ndmi_score,status,captured_at,created_at")
         .in("lahan_id", targetIds)
         .order("captured_at", { ascending: false, nullsFirst: true })
@@ -816,74 +720,6 @@ export default function ExploreScreen() {
     mapRef.current.animateToRegion(region, duration);
   }, []);
 
-  const fetchNdviStatistic = useCallback(
-    async (bbox: [number, number, number, number]): Promise<NdviStatistic | null> => {
-      const bboxKey = bbox.map((value) => value.toFixed(6)).join(",");
-      if (ndviStatisticCache.has(bboxKey)) return ndviStatisticCache.get(bboxKey) ?? null;
-      if (ndviStatisticInflight.has(bboxKey)) return ndviStatisticInflight.get(bboxKey) ?? null;
-      const request = (async () => {
-        try {
-          const searchParams = new URLSearchParams();
-          searchParams.set("bbox", bboxKey);
-          const candidateUrls: string[] = [];
-          API_BASE_CANDIDATES.forEach((baseUrl) => {
-            const normalised = baseUrl.replace(/\/$/, "");
-            const directUrl = `${normalised}/ndvi?${searchParams.toString()}`;
-            if (!candidateUrls.includes(directUrl)) candidateUrls.push(directUrl);
-            if (!/\/api\/?$/.test(normalised)) {
-              const apiUrl = `${normalised}/api/ndvi?${searchParams.toString()}`;
-              if (!candidateUrls.includes(apiUrl)) candidateUrls.push(apiUrl);
-            }
-          });
-          let payload: unknown = null;
-          let lastErrorMessage = "";
-          for (const url of candidateUrls) {
-            try {
-              const candidateResponse = await authenticatedBackendFetch(url);
-              payload = await readBackendJson(candidateResponse);
-              break;
-            } catch (networkError) {
-              lastErrorMessage = retainMostUsefulBackendError(
-                lastErrorMessage,
-                networkError
-              );
-            }
-          }
-          if (!payload) throw new Error(lastErrorMessage || "NDVI request failed for all endpoints");
-          if (!Array.isArray(payload) || payload.length === 0) { ndviStatisticCache.set(bboxKey, null); return null; }
-          const latestEntry = payload[payload.length - 1] as Partial<NdviStatistic>;
-          if (typeof latestEntry?.ndvi_mean !== "number" || Number.isNaN(latestEntry.ndvi_mean)) {
-            ndviStatisticCache.set(bboxKey, null); return null;
-          }
-          const result: NdviStatistic = {
-            interval: typeof latestEntry.interval === "string" ? latestEntry.interval : new Date().toISOString().split("T")[0],
-            ndvi_mean: latestEntry.ndvi_mean,
-            ndvi_min: typeof latestEntry.ndvi_min === "number" ? latestEntry.ndvi_min : latestEntry.ndvi_mean,
-            ndvi_max: typeof latestEntry.ndvi_max === "number" ? latestEntry.ndvi_max : latestEntry.ndvi_mean,
-            ndvi_stdev: typeof latestEntry.ndvi_stdev === "number" ? latestEntry.ndvi_stdev : 0,
-            ndmi_mean: typeof latestEntry.ndmi_mean === "number" ? latestEntry.ndmi_mean : null,
-            ndmi_min: typeof latestEntry.ndmi_min === "number" ? latestEntry.ndmi_min : null,
-            ndmi_max: typeof latestEntry.ndmi_max === "number" ? latestEntry.ndmi_max : null,
-            ndmi_stdev: typeof latestEntry.ndmi_stdev === "number" ? latestEntry.ndmi_stdev : null,
-          };
-          ndviStatisticCache.set(bboxKey, result);
-          return result;
-        } catch (error) {
-          const count = (ndviStatisticErrorCount.get(bboxKey) ?? 0) + 1;
-          ndviStatisticErrorCount.set(bboxKey, count);
-          if (__DEV__ && !ndviFallbackWarningLogged) { console.warn("⚠️ NDVI fetch fallback akan digunakan:", error); ndviFallbackWarningLogged = true; }
-          ndviStatisticCache.set(bboxKey, null);
-          return null;
-        } finally {
-          ndviStatisticInflight.delete(bboxKey);
-        }
-      })();
-      ndviStatisticInflight.set(bboxKey, request);
-      return request;
-    },
-    []
-  );
-
   const handleZoom = useCallback(
     (direction: "in" | "out") => {
       const baseRegion = currentRegionRef.current ?? {
@@ -1017,7 +853,17 @@ export default function ExploreScreen() {
       });
       loadSavedLahan();
       setShowSaveModal(false); setLahanName(""); clearActivePath();
-      Alert.alert("Sukses", `Lahan "${trimmedName}" berhasil disimpan!\nLuas: ${areaText} ha`);
+      if (savedEntry?.id) {
+        void requestLahanMeasurement(savedEntry.id, { initial: true })
+          .then(() => loadLahanHealth([savedEntry.id]))
+          .catch((measurementError) => {
+            console.warn("Pengukuran lahan belum dapat diproses:", measurementError);
+          });
+      }
+      Alert.alert(
+        "Lahan tersimpan",
+        `Lahan "${trimmedName}" berhasil disimpan.\nLuas: ${areaText} ha\n\nPengukuran NDVI/NDMI nyata sedang diproses; hasil hanya tampil jika acquisition dan kualitasnya tersedia.`
+      );
     } catch (error: any) {
       console.error("❌ Gagal menyimpan lahan:", error);
       const message =
@@ -1071,15 +917,10 @@ export default function ExploreScreen() {
         Number.isFinite(supabaseHealth.ndmi_score)
           ? supabaseHealth.ndmi_score
           : null;
-      const override = ndviOverrides[item.id];
-      const overrideNdmi =
-        typeof override?.ndmi_score === "number" && Number.isFinite(override.ndmi_score)
-          ? override.ndmi_score
-          : null;
       const latestHealth =
         supabaseNdvi !== null
-          ? { ...supabaseHealth!, ndvi_score: supabaseNdvi, ndmi_score: supabaseNdmi ?? overrideNdmi ?? null }
-          : override ?? undefined;
+          ? { ...supabaseHealth!, ndvi_score: supabaseNdvi, ndmi_score: supabaseNdmi }
+          : undefined;
       const centroid = computePolygonCentroid(item.coordinates ?? []);
       return {
         ...item,
@@ -1089,7 +930,7 @@ export default function ExploreScreen() {
         locationLabel: lahanLocationLabels[item.id] ?? null,
       };
     });
-  }, [lahanLocationLabels, latestHealthByLahan, ndviOverrides, savedLahan]);
+  }, [lahanLocationLabels, latestHealthByLahan, savedLahan]);
 
   const resolveLahanThumbnailSource = useCallback(
     (card: LahanCard): ImageSourcePropType => {
@@ -1103,8 +944,7 @@ export default function ExploreScreen() {
     if (lahanCards.length === 0) return null;
     let totalArea = 0, ndviSum = 0, ndviCount = 0, latestTimestamp = 0;
     const dataStateBreakdown: Record<NdviDataState, number> = {
-      fixture: 0,
-      prototype: 0,
+      measured: 0,
       unavailable: 0,
     };
     const cardsPayload = lahanCards.map((card) => {
@@ -1260,54 +1100,6 @@ export default function ExploreScreen() {
     return lahanNameLookup.get(selectedNoteLahanId)?.name ?? null;
   }, [lahanNameLookup, selectedNoteLahanId]);
 
-  useEffect(() => {
-    let isCancelled = false;
-    const lahanWithoutHealth = savedLahan.filter((item) => {
-      if (!item.coordinates || item.coordinates.length < 3) return false;
-      const supabaseHealth = latestHealthByLahan.get(item.id);
-      const hasObservationDate =
-        typeof supabaseHealth?.captured_at === "string" &&
-        !Number.isNaN(Date.parse(supabaseHealth.captured_at));
-      const hasNdvi =
-        hasObservationDate &&
-        typeof supabaseHealth?.ndvi_score === "number" &&
-        Number.isFinite(supabaseHealth.ndvi_score);
-      const hasNdmi =
-        hasObservationDate &&
-        typeof supabaseHealth?.ndmi_score === "number" &&
-        Number.isFinite(supabaseHealth.ndmi_score);
-      const isFetching = ndviFetchingMap[item.id];
-      const hasAttempted = ndviFetchAttemptedRef.current[item.id];
-      return (!hasNdvi || !hasNdmi) && !isFetching && !hasAttempted;
-    });
-    if (lahanWithoutHealth.length === 0) return () => { isCancelled = true; };
-    lahanWithoutHealth.forEach((lahan) => {
-      ndviFetchAttemptedRef.current[lahan.id] = true;
-      const bbox = getBoundingBoxFromCoordinates(lahan.coordinates);
-      if (!bbox) {
-        setNdviOverrides((prev) => ({ ...prev, [lahan.id]: null }));
-        return;
-      }
-      setNdviFetchingMap((prev) => ({ ...prev, [lahan.id]: true }));
-      fetchNdviStatistic(bbox)
-        .then((stat) => {
-          if (isCancelled) return;
-          const recordFromApi = createNdviRecordFromStatistic(lahan.id, stat);
-          setNdviOverrides((prev) => ({ ...prev, [lahan.id]: recordFromApi }));
-        })
-        .catch((error) => {
-          if (isCancelled) return;
-          console.error(`Gagal memproses NDVI lahan ${lahan.id}:`, error);
-          setNdviOverrides((prev) => ({ ...prev, [lahan.id]: null }));
-        })
-        .finally(() => {
-          if (isCancelled) return;
-          setNdviFetchingMap((prev) => { const next = { ...prev }; delete next[lahan.id]; return next; });
-        });
-    });
-    return () => { isCancelled = true; };
-  }, [savedLahan, latestHealthByLahan, ndviOverrides, ndviFetchingMap, fetchNdviStatistic]);
-
   const handleOpenNoteModal = () => {
     if (!selectedNoteLahanId && savedLahan.length > 0) setSelectedNoteLahanId(savedLahan[0].id);
     setShowNoteModal(true); setIsLahanPickerVisible(false);
@@ -1427,7 +1219,6 @@ export default function ExploreScreen() {
             try {
               const { data: authData } = await supabase.auth.getUser();
               const userId = authData?.user?.id ?? fallbackUserId;
-              await supabase.from("lahan_health").delete().eq("lahan_id", lahanId).eq("user_id", userId);
               await supabase.from("lahan_notes").delete().eq("lahan_id", lahanId).eq("user_id", userId);
               const { error } = await supabase.from("lahan").delete().eq("id", lahanId).eq("user_id", userId);
               if (error) throw error;
@@ -1850,7 +1641,7 @@ export default function ExploreScreen() {
                               <Text style={[styles.lahanCardNdviLabel, { color: "#075985" }]}>
                                 Rekaman terbaru · {NDVI_DATA_STATE_META[getNdviDataState(card.latestHealth)].label}
                               </Text>
-                              {getNdviDataState(card.latestHealth) === "prototype" && card.latestHealth?.captured_at && (
+                              {getNdviDataState(card.latestHealth) === "measured" && card.latestHealth?.captured_at && (
                                 <Text style={[styles.lahanCardNdviDate, { color: "#075985" }]}>
                                   · {formatDisplayDate(card.latestHealth.captured_at)}
                                 </Text>

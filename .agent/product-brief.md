@@ -3,7 +3,7 @@
 **Document type:** Product brief
 **Audience:** The developer, thesis advisor, reviewers, and AI agents working in this repo
 **Status:** Active
-**Updated:** 2026-08-21
+**Updated:** 2026-08-30
 **Canonical for:** The product thesis, positioning, target user, and phased scope
 **Companion documents:** [`product-requirements.md`](product-requirements.md), [`project-architecture.md`](project-architecture.md), [`research-protocol.md`](research-protocol.md), [`evidence-register.md`](evidence-register.md), [`context-dump.md`](context-dump.md), [`implementation-plan.md`](implementation-plan.md)
 
@@ -25,7 +25,11 @@ Where this brief and a more canonical companion disagree, the companion wins (se
 
 Matani is a padi-only mobile decision support application for Indonesian smallholders that lets users map fields and inspect dated Sentinel-2 NDVI/NDMI values as a time series, together with weather context and field notes, without converting index values into crop-health diagnoses (DEC-24). The thesis evaluation asks whether provenance-safe observations can be delivered reliably for small tropical rice fields; GROW remains the paper-defined workflow framing (DEC-14).
 
-The qualifier is load-bearing. Today the satellite path is a **prototype**, not a working measurement pipeline; its exact behavior is described only by the canonical wording in [`project-architecture.md`](project-architecture.md) § Current measurement provenance. The synthetic fallback and synthetic detail analysis were removed by DEC-24, but the production request remains bbox-based, fixed-window, transient, and non-provenance-safe.
+The qualifier is load-bearing. M2 is implemented and verified locally, including one
+bounded live provider smoke, but it is not yet the working hosted app path. Hosted
+Supabase migration, backend admin/CDSE configuration, public deployment, and device smoke
+remain open. Exact wording lives only in [`project-architecture.md`](project-architecture.md)
+§ Current measurement provenance (DEC-31; OBS-22/23).
 
 ---
 
@@ -50,15 +54,18 @@ Matani is a field-first mobile app. The core loop, as built:
 2. **Register the field as padi**; there is no multi-crop selector (DEC-24).
 3. **View the field over time**: dated NDVI/NDMI records, local weather, notes, education content, and an optional non-diagnostic data summary.
 
-What the loop captures today is real: polygon geometry is persisted to Supabase (PostGIS), area is computed, weather and education surfaces work, and the detail screen reads stored dated legacy rows. What it does **not** yet have is a trustworthy satellite measurement writer; stored legacy rows remain fixture/prototype, while a transient provider response remains a prototype snapshot.
+The local implementation now connects saved polygons to an explicit authenticated job,
+typed provenance persistence, and M2 observation surfaces. Legacy rows remain legacy.
+What the currently configured hosted app still lacks is a verified deployed writer/read
+path, not the repository implementation itself.
 
-The target adds two things the prototype lacks: **persisted, provenance-complete measurements** — every NDVI/NDMI value carrying its acquisition date, valid-pixel accounting, and masking rule-set version — and **honest unavailable states** that admit absence rather than papering over it with synthesized data.
+The locally implemented M2 path adds two things the earlier prototype lacked: **persisted, provenance-complete measurements** — every NDVI/NDMI value carrying its acquisition date, valid-pixel accounting, and masking rule-set version — and **honest unavailable states** that admit absence rather than papering over it with synthesized data. These behaviors remain deployment-pending until the hosted migration, worker environment, and authenticated device flow are verified (OBS-22/23; DEC-31).
 
 Throughout, the app distinguishes four data states (per [`../AGENTS.md`](../AGENTS.md) § Vocabulary), and this distinction is a product feature, not an implementation detail:
 
 - **fixture** — labeled test data, deterministic.
-- **prototype** — partially wired and non-provenance-safe (today's satellite path).
-- **measured** — persisted and provenance-complete (the target).
+- **prototype** — partially wired/non-provenance-safe research or legacy output.
+- **measured** — persisted and provenance-complete through the M2 schema.
 - **unavailable** — an honest, stated absence of data.
 
 ---
@@ -67,8 +74,8 @@ Throughout, the app distinguishes four data states (per [`../AGENTS.md`](../AGEN
 
 | Phase | In scope | Provenance / references |
 |-------|----------|-------------------------|
-| **[As-built]** | Interactive padi-field polygon capture persisted to Supabase; owner-scoped auth/RLS; a transient bbox/fixed-window satellite prototype; latest-value cards; a detail timeline that reads stored legacy rows without classification or diagnosis; weather; notes; education; optional non-diagnostic AI data summary. Provider/no-data failure renders unavailable rather than synthetic replacement. | DEC-03/20/24; RLS client-safety conditional on EVID-020; canonical behavior in [`project-architecture.md`](project-architecture.md) |
-| **[Thesis]** | The padi-only observation-first DSS (DEC-14/24) — GROW workflow, dated NDVI/NDMI time-series display, weather context, and non-diagnostic summaries — plus M0–M3 outcomes: **M0** verification/security; **M1** representative Indonesia availability study; **M2** persisted provenance-complete measurement pipeline; **M3** research and system evaluation. | DEC-12/14/24; DEC-09; roadmap in [`implementation-plan.md`](implementation-plan.md); methodology in [`research-protocol.md`](research-protocol.md) |
+| **[As-built local]** | Interactive padi polygon capture; authenticated explicit M2 jobs; exact-polygon/native-grid CDSE adapter; typed provenance/quality persistence; owner-scoped observation cards and detail timeline; honest unavailable states; weather, notes, education, and optional non-diagnostic AI summary. Hosted deployment is pending. | DEC-03/20/24/31; OBS-22/23; canonical qualification in [`project-architecture.md`](project-architecture.md) |
+| **[Thesis]** | The padi-only observation-first DSS (DEC-14/24) plus M0–M3 outcomes: **M0** verification/security; **M1** Teluknaga feasibility; **M2** hosted persisted pipeline acceptance; **M3** research and system evaluation. | DEC-12/14/24/30/31; roadmap in [`implementation-plan.md`](implementation-plan.md); methodology in [`research-protocol.md`](research-protocol.md) |
 | **[Post-thesis]** | Product hardening (**M4**); Sentinel-1 (SAR) as a cloud-independent contingency **only via a separate scope decision** (SAR measures backscatter, not the NDVI/NDMI reflectance this thesis evaluates — EVID-017); programme / partner exploration. | [`context-dump.md`](context-dump.md) § 6; EVID-017 |
 | **[OUT]** | No synthetic substitution, cadence promise before M1, NDVI severity/health classification, agronomic diagnosis, Gemini ground truth/research labels, paid-provider dependence in the target default, or present thesis-readiness claim. | DEC-08/10/12/24; DEC-04/07; [`../AGENTS.md`](../AGENTS.md) honesty constraints |
 
@@ -102,7 +109,7 @@ Competitor comparison lives in the thesis paper (Table V — Open-Meteo, Sentine
 
 - The Indonesia feasibility study (DEC-12) yields a **defensible cadence answer**, stated per site and season — and this is the criterion even if the answer is negative. A finding that satellite monitoring is **not viable at a useful cadence for <0.5 ha fields** is a valid, successful thesis outcome; a false promise of viability would be a failure. The nominal 5-day revisit (EVID-006) is never the answer; the study is.
 - The measurement pipeline produces **provenance-complete measured observations** — every value carrying acquisition date, valid-pixel accounting, and masking rule-set version — with the labeled synthetic fixture fallback removed.
-- The work **validates against the research protocol's metrics** ([`research-protocol.md`](research-protocol.md) § 12): usable-observation cadence (RQ1), API-vs-independent agreement (RQ2), and field-size vs valid-pixel sufficiency (RQ3), with uncertainty that respects clustering.
+- The work **validates against the active research protocol metrics** ([`research-protocol.md`](research-protocol.md) § 12): usable-observation cadence (RQ1) and field-size vs valid-pixel sufficiency (RQ3), with uncertainty that respects clustering. API-vs-independent raster agreement (retired RQ2/HYP-02) is optional M3/future work, not active thesis acceptance (DEC-26).
 
 **For the product:**
 

@@ -63,11 +63,16 @@ const clientKeyClass = classifySupabaseKey(
   client.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY
 );
 const serverKeyClass = classifySupabaseKey(server.SUPABASE_PUBLISHABLE_KEY);
+const serverAdminKeyClass = classifySupabaseKey(
+  server.SUPABASE_SECRET_KEY || server.SUPABASE_SERVICE_ROLE_KEY
+);
 if (!["publishable", "anon", "missing"].includes(clientKeyClass)) unsafe = true;
 if (!["publishable", "anon", "missing"].includes(serverKeyClass)) unsafe = true;
+if (!["secret", "service_role", "missing"].includes(serverAdminKeyClass)) unsafe = true;
 
 findings.push(`client Supabase key class: ${clientKeyClass}`);
 findings.push(`backend Supabase key class: ${serverKeyClass}`);
+findings.push(`backend Supabase admin key class: ${serverAdminKeyClass}`);
 findings.push(
   `server-only Sentinel credential location: ${
     server.SENTINEL_CLIENT_SECRET ? "backend only" : "missing"

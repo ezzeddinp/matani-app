@@ -3,7 +3,7 @@
 **Document type:** Design guidelines
 **Audience:** The developer, thesis advisor, reviewers, and AI agents working in this repo
 **Status:** Active
-**Updated:** 2026-08-21
+**Updated:** 2026-08-30
 **Canonical for:** Design tokens, the screen map, component patterns, and data-state presentation rules
 **Companion documents:** [`product-requirements.md`](product-requirements.md), [`product-brief.md`](product-brief.md), [`project-architecture.md`](project-architecture.md), [`context-dump.md`](context-dump.md)
 
@@ -177,7 +177,9 @@ These rules are **normative guidance**, inherited from [`../AGENTS.md`](../AGENT
 
 The Profile and Notifications surfaces also follow the unavailable/preview rule after the
 same-day cross-check: no functional-looking alert switches, activity counters, NDVI
-average, productivity/health scores, or expertise claims are shown without a real writer.
+average, productivity/health scores, or expertise claims are shown without their own
+verified persisted event/aggregate source. DEC-31's dated measurement writer does not
+license those unsupported aggregates or interpretations (OBS-22).
 Actual account/field facts remain visible; unsupported capabilities are labeled
 unavailable and achievement cards are labeled preview-only (`app/(tabs)/profile.tsx`,
 `app/notifications.tsx`; DEC-20).
@@ -193,7 +195,7 @@ unavailable and achievement cards are labeled preview-only (`app/(tabs)/profile.
 | `components/drawing-mode-indicator.tsx` | Floating banner during polygon drawing ("Mode Menggambar Aktif • N titik"), orange `#FF5722` | `drawing-mode-indicator.tsx:9-27` |
 | `components/empty-state-lahan.tsx` | Empty-fields onboarding: leaf icon, CTA, 3-step how-to | `empty-state-lahan.tsx:8-69` |
 | `components/haptic-tab.tsx` | Tab-bar button wrapper adding iOS haptic feedback on press | `haptic-tab.tsx:5-18` |
-| NDVI/NDMI time-series chart | Rendered inline via `react-native-svg` (`Polyline`/`Circle`), with a stable view box and segmented index control | `app/detail-lahan-page.tsx` |
+| NDVI/NDMI time-series chart | Rendered inline via `react-native-svg` (`Polyline`/`Circle`), with a stable view box and segmented index control. The chronology exposes acquisition date, quality, rejection reason, and separate NDVI/NDMI valid-pixel counts; queued jobs poll without blanking field metadata, and failed/empty states never invent values. | `app/detail-lahan-page.tsx` |
 | Weather-icon mapping | `utils/weather-icons.ts` maps provider codes → 12 custom PNGs in `assets/weather-icons/` | `weather-icons.ts:18-32,43-68` |
 
 The weather-icon set is a real design asset: 12 PNGs (`Icon=Sunny.png`, `Icon=Cloudy.png`, `Icon=Rainy.png`, `…Thunderstorm`, `…Snowfall`, `…Night`, etc.), keyed by `WeatherIconKey` with a `default` → Cloudy fallback. `mapWmoWeatherCodeToIconKey` maps the Open-Meteo WMO code contract to these provider-agnostic assets (DEC-07; ADR-04).

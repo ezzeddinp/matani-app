@@ -3,7 +3,7 @@
 **Document type:** Implementation roadmap
 **Audience:** The developer, thesis advisor, reviewers, and AI agents working in this repo
 **Status:** Active
-**Updated:** 2026-08-28
+**Updated:** 2026-08-30
 **Canonical for:** Milestone sequencing, milestone acceptance criteria, and the definition of done for thesis engineering work
 **Companion documents:** [`project-architecture.md`](project-architecture.md), [`data-evaluation-plan.md`](data-evaluation-plan.md), [`research-protocol.md`](research-protocol.md), [`product-requirements.md`](product-requirements.md), [`evidence-register.md`](evidence-register.md), [`context-dump.md`](context-dump.md)
 
@@ -44,31 +44,41 @@ This is the canonical **order of engineering work** for the Matani thesis. Read 
   historically exposed server credentials were revoked or absent, and Google Maps keys
   are platform/API restricted as specified in § 5.3 of `project-architecture.md`; no
   secret values belong in this evidence. Current remote CI remains unverified.
-- **M1: provider-backed limited study complete; decision-status checkpoint recorded; representative-study gate not complete.**
+- **M1: PASS — closed under `M1-CLOSURE-2026-08-30` (DEC-30).**
   A valid CDSE OAuth client, CDSE endpoints, exact-polygon UTM metre grids, versioned SCL
   masking, separate NDVI/NDMI pixel accounting, bounded retry, and request/PU accounting
   are proven for `hi` and `sszs` (OBS-11). A checkpointed 12-month run completed 24/24
-  field-months and 72 successful calls (OBS-12). This is real-provider `prototype`
-  evidence, but the two same-area polygons are not a representative Indonesian
-  multi-region sample; crop identity/boundary/consent are unverified, wet/dry
-  stratification and HYP-03 approval are absent, and no cadence is licensed. M1 has not
-  passed, so M2 may not start.
-  A relayed advisor response is recorded as **DEC-25**: staged sampling by region × season,
-  site-specific seasonal labeling rather than a fixed island-wide calendar, and cadence
-  reporting per site × season are confirmed operational choices. Final RQ wording, final
-  regions, target N, numeric HYP-03 reliability floors, pre-registered tolerances, and the
-  M1-versus-M3 placement of independent raster comparison remain explicitly open; they are
-  not treated as approval or as M1 completion.
+  field-months and 72 successful calls (OBS-12). The approved Teluknaga run subsequently
+  completed 12/12 field-months and produced OBS-19.
+  DEC-27 records the advisor's dated WhatsApp approval for Teluknaga, Banten as the single
+  thesis study region and provisional valid-pixel floors of 9 NDVI / 3 NDMI. This amends
+  the former multi-region expectation for the available thesis timeline while explicitly
+  limiting every result and cadence statement to Teluknaga and its wet/dry labels. DEC-26
+  keeps independent raster comparison outside M1 and active thesis acceptance.
   The 2026-08-28 implementation removes the study runner's former two-field limit and
   adds a tested `m1-study-input-v1` remote-assisted manifest, dynamic request/retry
   budgeting, no-network preflight, verification declaration gates, site-specific monthly
   season labels, and field plus site × season reporting. This makes the approved-input
-  study executable once the thesis team supplies its private evidence-backed polygons;
-  it does not supply those polygons, consent records, advisor decisions, quality floors,
-  exact Statistical API mosaic-selection provenance, independent raster comparison, or
-  a cadence outcome. The
-  current CDSE quota was rechecked (EVID-010), but final suitability remains contingent on
-  the actual approved sample budget and completed-run PU totals. M1 therefore remains open.
+  study executable. The ignored private manifest now contains one evidence-backed padi
+  field, site-specific BMKG labels, approved scope, and approved provisional floors, and
+  its no-network preflight passes. This does not independently prove the private evidence,
+  supply exact Statistical API mosaic-selection provenance, or produce a cadence outcome. The
+  current CDSE quota was rechecked (EVID-010), and the approved run totals are within that
+  allowance. The advisor relayed approval of the final RQ1/RQ3 wording on 2026-08-30 (DEC-29).
+  The synchronized worktree passes the complete local verification chain (OBS-21), and
+  the canonical/Notion review record is complete. M1 acceptance is therefore closed by
+  DEC-30. This does not close M0's remote-CI and external credential/platform controls;
+  those remain prerequisite project gates before production M2 deployment.
+- **M2: implementation complete locally; formal PASS blocked by hosted deployment.**
+  The exact-polygon/native-grid Process adapter, strict source matching, SCL quality
+  pipeline, durable job/provenance schema, privileged RPCs, RLS read view, authenticated
+  worker route, and mobile request/read/detail flow are implemented (DEC-31). Empty-DB
+  migration plus 26/26 pgTAP, generated DB types, fixture suites, lint/type-check, and the
+  bounded live Teluknaga adapter smoke pass (OBS-22/23). M2 is not marked PASS because the
+  CLI is not linked to hosted Supabase, the migration is not confirmed hosted, no backend
+  Supabase admin key/CDSE secret deployment is available locally, the last configured
+  backend was Vercel-protected (OBS-16), and no authenticated physical-app job has yet
+  persisted/read a hosted measurement.
 
 ---
 
@@ -133,27 +143,29 @@ foundation (ADR-05/07/10/11; CODE).
 
 ## M1 — Indonesia feasibility + measurement contract
 
-**Goal.** Answer, with evidence, **what monitoring cadence is defensible for representative Indonesian smallholder sites** — before building the pipeline that would otherwise invent one — and finalize the engineering measurement contract so M2 builds against a settled specification.
+**Goal.** Answer, with evidence, **what monitoring cadence is defensible for the advisor-approved Teluknaga site in wet and dry months** — before building the pipeline that would otherwise invent one — and finalize the engineering measurement contract so M2 builds against a settled specification. DEC-27 forbids generalizing this constrained result to Indonesia as a whole.
 
 **Why it precedes the next.** A cadence claim made before this study is fabricated (INV-08 / OUT-02; DEC-12; [`research-protocol.md`](research-protocol.md) § 4). Building the persisted pipeline (M2) before the contract's open decisions are resolved would bake ad-hoc choices into a migration. The feasibility study also re-confirms CDSE is fit for purpose (quota) before M2 commits to it. Feasibility precedes pipeline so that cadence and capacity are *measured*, never assumed.
 
 **Work items.**
 
 - **CDSE account + OAuth credentials** (ADR-02 / DEC-04): register a CDSE Sentinel Hub free-tier OAuth client (new `client_id` + `client_secret`, CDSE token + statistics endpoints) — a real credential + endpoint migration off commercial `services.sentinel-hub.com`, not a URL swap ([`project-architecture.md`](project-architecture.md) § 1.2, ADR-02).
-- **Execute the 12-month representative-site availability study exactly as specified** in [`research-protocol.md`](research-protocol.md) § 4 (design, per-field/site measures, outcome) over the candidate regions of § 3. This roadmap does not restate the measure list — it is owned there. Quality is assessed at the **polygon level, not tile level** (§ 8), consistent with the OBS-01 caveat.
+- **Execute the 12-month Teluknaga availability study exactly as specified** in [`research-protocol.md`](research-protocol.md) § 4 (design, per-field/site measures, outcome) over the approved region of § 3. This roadmap does not restate the measure list — it is owned there. Quality is assessed at the **polygon level, not tile level** (§ 8), consistent with the OBS-01 caveat, and results remain site-specific under DEC-27.
 - **Build the study in the Python research workspace** (`research/` layout per [`project-architecture.md`](project-architecture.md) § 3): notebooks stay thin and call tested functions in `research/src/matani_rs/`; the study runs as scoped, out-of-band acquisition (ADR-09 — live calls never wired into default CI).
 - **Maintain the closed [`data-evaluation-plan.md`](data-evaluation-plan.md) § 9 engineering decisions** recorded in DEC-21 / ADR-12: typed measurement/per-index records, external Node worker, canonical geometry hash, and explicit processing versions. Reopen them only through an ADR amendment.
 - **Confirm CDSE quota suitability** — recheck EVID-010 at source (perishable) and validate it against the study's measured request/PU consumption (ADR-02 revisit trigger; [`data-evaluation-plan.md`](data-evaluation-plan.md) § 3 quota accounting).
+- **Operate the closure checklist** in [`../docs/m1-closure-runbook-2026-08-28.md`](../docs/m1-closure-runbook-2026-08-28.md); it is an operator aid, while this roadmap and the research protocol remain canonical.
 
 **Acceptance criteria.**
 
 - A **feasibility report** exists with **per-site availability metrics** as required by [`research-protocol.md`](research-protocol.md) § 4 (usable observations/month, median and longest gap, wet- vs dry-season split, polygon-level cloud/shadow fraction, per-index valid-pixel counts, PU accounting).
-- A **defensible cadence determination** is recorded — weekly / biweekly / monthly / event-based, stated per location and season, and **possibly differing across sites**. **A negative or non-uniform result is a valid outcome** (HYP-01 permits "no single fixed cadence is defensible nationwide"); it licenses (or withholds) any cadence claim elsewhere per INV-08.
+- A **defensible cadence determination** is recorded — weekly / biweekly / monthly / event-based, stated for Teluknaga separately by wet/dry season. **A negative or non-uniform result is a valid outcome**; it licenses (or withholds) a Teluknaga-specific cadence claim elsewhere per INV-08 and never a national claim (DEC-27).
 - The **provenance schema and processing contract are finalized and reviewed**: the § 9 open decisions are closed as ADR updates, and the logical required-fields list ([`data-evaluation-plan.md`](data-evaluation-plan.md) § 5) has a concrete physical realization ready to migrate in M2.
-- **Quality thresholds are recorded as HYP** (the reliability floors and rice-water rule HYP-05) pending M3 evaluation — registered, not asserted as validated. The former severity bands HYP-04 are retired under DEC-24.
+- **Quality parameters are recorded honestly:** the 9/3 values are provisional operational floors for the approved study, not universal thresholds; HYP-05 remains pending field validation. HYP-03's former cross-field size-effect claim is inactive after DEC-29, and HYP-04 remains retired.
 - CDSE quota is confirmed sufficient for the study against a freshly rechecked EVID-010, or the ADR-02 revisit trigger is invoked and recorded.
 
 **Explicitly out of scope for M1.** No production persistence of measurements into the app (M2); no claim that PRD-08/PRD-11 are measured surfaces; no ground-truth agreement analysis or hypothesis evaluation (M3); no cadence claim written into product UI/copy until the outcome above licenses it. Synthetic substitution is already removed under DEC-24.
+Independent raster comparison is not an M1 acceptance criterion (DEC-26).
 
 ---
 
@@ -174,7 +186,9 @@ foundation (ADR-05/07/10/11; CODE).
 - **Idempotent controlled acquisition via the worker boundary** (ADR-06; [`data-evaluation-plan.md`](data-evaluation-plan.md) § 6): cache identity = geometry hash + acquisition window + processing-config version; no concurrent duplicate jobs; new acquisitions extend history, reprocessing under a new config version creates new records without overwriting old provenance.
 - **Preserve the completed no-substitution invariant.** DEC-24 deleted `utils/ndvi-simulator.ts` and production imports; M2 retains the pass-or-reject-or-unavailable rule while replacing transient prototype output with persisted quality decisions ([`data-evaluation-plan.md`](data-evaluation-plan.md) § 2, § 4).
 - **Retain labeled fixtures only for tests / demo mode** — the 12-fixture set ([`data-evaluation-plan.md`](data-evaluation-plan.md) § 7), always labeled test data, never presented as measured (DEC-10).
-- **Wire the `lahan_health` successor** so the home field cards (PRD-05) render real persisted measurements: today nothing writes measurement rows, so the honest-by-construction home cards show the unavailable state ([`product-requirements.md`](product-requirements.md) PRD-05 current-fidelity note). DEC-21 / ADR-12 defines the successor as typed measurement and per-index rows; `lahan_health` stays read-only legacy.
+- **Wire the `lahan_health` successor** so cards/detail read typed M2 measurements and
+  per-index rows; `lahan_health` stays read-only legacy. This is implemented locally and
+  awaits the hosted deployment gate (OBS-22).
 - **Gemini stays optional and disabled by default** (ADR-05; the flag from M0), never entering the measurement or labeling path (OUT-04).
 
 **Acceptance criteria.**
@@ -184,6 +198,9 @@ foundation (ADR-05/07/10/11; CODE).
 - A field with **no quality-passing observation shows an honest `unavailable` state** (INV-06), never a fabricated number; rejections carry an enumerated reason ([`data-evaluation-plan.md`](data-evaluation-plan.md) § 4).
 - **The fixture-first test suite is green without network** (ADR-09); an equivalent measurement request is idempotent (proven by the cache-identity uniqueness test).
 - A **live smoke check** exists that is bounded to known test polygons + short date ranges, quota-counted, and kept out of default CI (ADR-09; [`data-evaluation-plan.md`](data-evaluation-plan.md) § 7).
+- The **hosted path is demonstrated end-to-end**: versioned migration applied, server-only
+  admin/CDSE credentials configured in a publicly callable backend, and one authenticated
+  app request persists then reads a provenance-complete passed/rejected/unavailable row.
 - No cadence claim appears in product UI/copy beyond what M1 licensed (INV-08).
 
 **Explicitly out of scope for M2.** No hypothesis evaluation, agreement metrics, or ground-truth analysis (M3); no diagnosis/classification layer (DEC-24); no large-screen refactor or dependency pruning (M4); no Sentinel-1 (OUT-05).
@@ -199,13 +216,13 @@ foundation (ADR-05/07/10/11; CODE).
 **Work items.**
 
 - **Execute [`research-protocol.md`](research-protocol.md) § 5–§ 13**: ground-truth collection (§ 5, honestly team-bounded — DEC-17), spatial/temporal alignment (§ 7), quality/masking application (§ 8), small-field and resolution analysis (§ 9), topography/mixed-cropping treatment (§ 10), missing-data policy (§ 11), agreement metrics + uncertainty/CIs respecting clustering (§ 12), and crop/phenology-stage stratification (§ 13).
-- **Evaluate HYP-01 / HYP-02 / HYP-03 / HYP-05** against their explicit falsification criteria ([`research-protocol.md`](research-protocol.md) § 12), including the API-vs-independent raster comparison (HYP-02 / RQ2) computed over identical geometry/acquisition/masking ([`data-evaluation-plan.md`](data-evaluation-plan.md) § 8). HYP-04 and HYP-06 are retired under DEC-24 and are not active evaluation targets.
+- **Evaluate active HYP-01 / HYP-05** against their explicit falsification criteria ([`research-protocol.md`](research-protocol.md) § 12) and answer descriptive RQ3 without a cross-field size-effect inference. HYP-02/RQ2 remains optional future work under DEC-26; HYP-03's former inferential claim is inactive under DEC-29; HYP-04 and HYP-06 remain retired.
 - **Produce reproducible tables and figures** from `research/`: notebooks call tested `src/matani_rs/` functions; outputs are generated artifacts, not hand-built.
 - **Document threats to validity** ([`research-protocol.md`](research-protocol.md) § 15), including OBS-01 non-generalizability, non-random cloud-driven missingness, and perishable-provider risk.
 
 **Acceptance criteria.**
 
-- **Each hypothesis is explicitly confirmed / refuted / inconclusive** with the evidence and the pre-registered criterion that decided it ([`research-protocol.md`](research-protocol.md) § 12) — a "cannot determine" outcome is reported as such, with the reason.
+- **Each active hypothesis is explicitly confirmed / refuted / inconclusive** with the evidence and the pre-registered criterion that decided it ([`research-protocol.md`](research-protocol.md) § 12) — a "cannot determine" outcome is reported as such, with the reason. Retired or set-aside IDs are not acceptance blockers.
 - **Thesis-ready analysis artifacts are reproducible from dataset snapshots + checksums** ([`data-evaluation-plan.md`](data-evaluation-plan.md) § 8): re-running the notebooks against the same identified snapshot reproduces the reported tables and figures.
 - All per-estimate uncertainty respects clustering ([`research-protocol.md`](research-protocol.md) § 2, § 12); reporting is per-stratum by default, and no pooled headline replaces its per-stratum breakdown.
 - No LLM output is used as ground truth or a research label anywhere in the analysis (OUT-04 / ADR-05).
@@ -254,11 +271,11 @@ The thesis paper's system-evaluation track ([`research-protocol.md`](research-pr
 ## Sequencing rationale
 
 - **Security and verification before any live provider spend.** M0 comes first because opening the CDSE migration (M1) or running acquisition (M2) against an unauthenticated, un-rate-limited, un-quota-accounted backend ([`project-architecture.md`](project-architecture.md) § 5.1) exposes the developer's credentials and quota to any caller. A reproducible clean-clone verification and a reproducible schema (§ 7, ADR-07) are the base every later milestone is measured against.
-- **Feasibility before pipeline, so cadence claims are never invented.** M1 measures the defensible cadence for representative Indonesian sites before M2 builds the pipeline — because a cadence promised from nominal revisit (EVID-006) rather than from measured usable-observation rates is fabricated (INV-08 / OUT-02; DEC-12; [`research-protocol.md`](research-protocol.md) § 4). M1 also settles the § 9 open decisions so M2 migrates against a finalized contract.
+- **Feasibility before pipeline, so cadence claims are never invented.** M1 measures the defensible cadence for the advisor-approved Teluknaga site before M2 builds the pipeline — because a cadence promised from nominal revisit (EVID-006) rather than from measured usable-observation rates is fabricated (INV-08 / OUT-02; DEC-12 as amended by DEC-27; [`research-protocol.md`](research-protocol.md) § 4). M1 also settles the § 9 open decisions so M2 migrates against a finalized contract.
 - **Validation before hardening, because the thesis is the point.** M3 evaluates the hypotheses on the honest, persisted measurements M2 produces; M4 is explicitly post-thesis. Effort reaches product polish only after the research contribution is delivered.
 
 ## Standing rules
 
 - **Every milestone updates the canonical documents it invalidates.** A change that makes a canonical claim stale ships with the document update — the AGENTS.md "documentation updates are part of done" ritual ([`../AGENTS.md`](../AGENTS.md) § Working rules). A claim lives in exactly one canonical home; this roadmap links, it does not duplicate.
-- **No milestone may violate INV-01…INV-09.** The invariants ([`product-requirements.md`](product-requirements.md) § 1) hold at every milestone boundary. The labeled production fixture fallback is the only recorded INV-06 deviation and only until M2 removes it; introducing any new violation is a defect, not debt.
+- **No milestone may violate INV-01…INV-09.** The invariants ([`product-requirements.md`](product-requirements.md) § 1) hold at every milestone boundary. DEC-24 removed the production fixture substitution before M2; introducing any new substitution or invariant violation is a defect, not debt.
 - **The platform-side rotation / restriction gate remains required for formal M0 closure.** The ledger in [`project-architecture.md`](project-architecture.md) § 5.3 covers current Sentinel/Gemini credentials, revocation of the no-longer-consumed historical AccuWeather key, Google Maps per-platform/per-API restrictions, and verification of the backend Supabase key class. Historically committed secrets remain sensitive (no git-history rewrite; DEC-13); rotation/revocation, not history surgery, is the control.

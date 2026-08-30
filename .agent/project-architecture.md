@@ -3,7 +3,7 @@
 **Document type:** Architecture document
 **Audience:** The developer, thesis advisor, reviewers, and AI agents working in this repo
 **Status:** Active
-**Updated:** 2026-08-28
+**Updated:** 2026-08-30
 **Canonical for:** As-built and target architecture, **current measurement provenance (canonical wording — § 2)**, trust boundaries, provider decisions, Architecture Decision Records (ADRs), free-tier constraints, security risks, verification baseline, migration triggers
 **Companion documents:** [`evidence-register.md`](evidence-register.md), [`context-dump.md`](context-dump.md), [`data-evaluation-plan.md`](data-evaluation-plan.md), [`research-protocol.md`](research-protocol.md), [`product-requirements.md`](product-requirements.md), [`implementation-plan.md`](implementation-plan.md)
 
@@ -25,9 +25,9 @@ built, and why**. Read it this way:
 - **External facts are cited by `EVID-*` / `OBS-*`** (see [`evidence-register.md`](evidence-register.md));
   **decisions by `DEC-*`** (see [`context-dump.md`](context-dump.md)). This document does
   not restate the underlying quota/coverage numbers — it references the ID.
-- **As-built ≠ target.** § 1 and § 2 describe what exists; § 3 and the ADRs describe what
-  is decided but not yet built. Where the two differ, the difference is called out, not
-  hidden. **Nothing here claims the current implementation is thesis-ready** — per
+- **Local as-built ≠ hosted/validated.** § 1 and § 2 describe repository behavior and
+  state its deployment qualification; § 3 and the ADRs describe boundaries and decisions.
+  **Nothing here claims the current implementation is thesis-ready** — per
   [`../AGENTS.md`](../AGENTS.md) honesty constraints, it is not.
 - **Perishable claims carry a checked date** and must be rechecked before any deployment
   or capacity decision (quotas especially — EVID-010, EVID-021).
@@ -61,9 +61,10 @@ research measurements.
   `app.config.ts` — iOS from `GOOGLE_MAPS_API_KEY_IOS` (`app.config.ts:16`), Android from
   `GOOGLE_MAPS_API_KEY_ANDROID` (`app.config.ts:34`). These land in the compiled native
   config and are **client-visible in the shipped binary** (see § 5.3).
-- The app reaches the backend over an `EXPO_PUBLIC_API_URL` / host+port candidate list;
-  the NDVI call builds `/ndvi?bbox=…` against those candidates
-  (`app/(tabs)/explore.tsx:862-891`).
+- The app reaches the backend over an `EXPO_PUBLIC_API_URL` / host+port candidate list.
+  Saving/retrying a field explicitly posts its field UUID to `/measurements/request`;
+  current measurement surfaces do not issue the legacy `/ndvi?bbox` request
+  (`utils/backend-api.ts`, `app/(tabs)/explore.tsx`, CODE).
 - Expo Go development also adds the current Metro manifest host as a LAN backend
   candidate, so a stale explicit LAN IP does not prevent trying the active workstation.
   Backend responses must be JSON; Vercel SSO/HTML responses are classified as
@@ -76,9 +77,9 @@ research measurements.
 
 ### 1.2 Backend (Express 5 / Node, colocated in `backend/`)
 
-Single Express app, `backend/index.js`, listening on **port 5001** locally
-(`backend/index.js:10,33`) and deployed on **Vercel**. It mounts three routers
-(`backend/index.js:23-25`):
+Single Express app, `backend/index.js`, listening on **port 5001** locally. It mounts four
+protected provider/measurement routers through `backend/app.js`; the last configured
+Vercel deployment was not publicly callable during OBS-16.
 
 The backend dependency set is independently managed in `backend/package.json`:
 Express 5.2, TypeScript 7, Node types 26, and `module` / `moduleResolution` set to
@@ -89,10 +90,11 @@ Express 5.2, TypeScript 7, Node types 26, and `module` / `moduleResolution` set 
 | `GET /ndvi` | `backend/api/ndvi/utils.js` | Sentinel Hub Statistical API | Parses `?bbox=w,s,e,n` (`utils.js:31-46`), defaults to a **Jakarta bbox** when absent (`utils.js:49`); fetches an OAuth token (`sentinelAuth.js`), POSTs a Statistics request with a **fixed Sept 2025 window** and the NDVI/NDMI evalscript, returns per-interval NDVI/NDMI stats or `{error:"No data available"}`. |
 | `GET /weather` | `backend/api/weather/route.js` | Open-Meteo | Requires `?lat&lon`; requests current and daily weather including WMO weather codes, maps the response into the stable mobile contract, and returns a sanitized `weather_provider_unavailable` error on failure. Coordinates and raw provider payloads are not logged. |
 | `POST /ai/summary` | `backend/api/ai/route.js` | Google Gemini (Generative Language API) | Accepts `{lahanCards, totals}`, normalizes each card's data state, builds a bounded Indonesian summary prompt that forbids converting fixture/prototype inputs into measurements or diagnoses, and calls Gemini with an **env-configured model** `MATANI_GEMINI_MODEL` plus an **in-code fallback candidate list**; requires `GOOGLE_GENERATIVE_AI_API_KEY` (`route.js:96-148`). |
+| `POST /measurements/request` | `backend/api/measurements/route.js` | CDSE Catalog + Process APIs; Supabase Data API | Authenticates the user, validates field UUID/≤31-day window, loads only that owner's polygon, executes or reuses a durable job, applies the M2 adapter/quality contract, and persists through server-only RPCs. |
 
-`backend/index.ts` now mirrors the runtime `backend/index.js` route mounts (`/ndvi`,
-`/weather`, `/ai`) so the TypeScript source no longer describes an NDVI-only backend
-(`backend/index.ts`, CODE; DEC-20).
+`backend/app.js` is the runtime route/security composition root. Measurement processing
+lives under `backend/measurement/`; `geotiff` decodes provider rasters and `proj4`
+constructs the local UTM grid (CODE; DEC-31).
 
 **As-built processing-location note:** the weather **risk score** — `min(100, max(0, Pavg×4 + H×0.4))`, HYP-07 / DEC-16 — is computed **client-side** in `app/(tabs)/weather.tsx:474-510`, not in the backend. The aligned thesis now states that moving it to a versioned server-side component is planned hardening rather than as-built behavior (`thesis-paper-corrections.md`; PRD-17).
 
@@ -125,45 +127,46 @@ authenticates with the Supabase anon/publishable key
 
 ## 2 · Current measurement provenance
 
-> A prototype Sentinel Hub request is connected to the field-list surface. When the
-> request is unavailable or unusable, the app now shows an explicit unavailable state;
-> it does not synthesize a replacement. Stored legacy `lahan_health` rows with a valid
-> `captured_at` are rendered as fixture/prototype observations in a dated NDVI/NDMI time
-> series, never as measured data, health classifications, or diagnoses. Results are not
-> yet a provenance-safe, polygon-based, current, persisted monitoring pipeline.
+> The repository now contains a locally verified M2 measurement path: saving a padi
+> polygon explicitly requests an authenticated backend job; the worker discovers one
+> acquisition, runs exact-polygon NDVI 10 m and NDMI 20 m Process API requests, requires
+> matching source provenance, applies versioned SCL quality rules, and persists a typed
+> result plus per-index pixel statistics. Mobile surfaces read only the persisted
+> `measurement_observations` view and show acquisition date, quality, valid-pixel counts,
+> or honest unavailability. This implementation is not yet the hosted app path: the
+> hosted migration, server-only Supabase admin key, public backend deployment, and
+> physical-device smoke remain unverified.
 
 This is **the canonical measurement-provenance wording**. All other documents link here;
-none may soften or restate it. The verified facts behind it (commit
-the 2026-08-21 observation-first revision, re-checked 2026-08-21):
+none may soften or restate it. The verified facts behind it (OBS-22/23, 2026-08-30):
 
-- **There is no synthetic value substitution.** A missing bbox, unusable provider result,
-  or request failure stores a transient `null` override and the field-list surface shows
-  an unavailable state (`app/(tabs)/explore.tsx:1276-1289`). The former simulator module
-  was deleted.
-- **The detail screen reads only dated stored rows.** It queries all owner-visible legacy
-  `lahan_health` rows for the selected field, excludes rows without a valid `captured_at`,
-  and renders raw NDVI/NDMI chronology (`app/detail-lahan-page.tsx:54,212-239`). It does
-  not generate dates or values and does not infer crop health, stress, disease, yield,
-  harvest timing, or treatment.
-- **Stored rows are not promoted to measurements.** The legacy relation lacks complete
-  acquisition, geometry, processing, mask, quality, and provider provenance. Its rows
-  remain labeled `fixture` or `prototype`; only the future M2 schema can represent a
-  provenance-complete `measured` observation (ADR-12, DEC-21).
-- **The backend request is not polygon-based or current.** `backend/api/ndvi/utils.js`
-  uses a **fixed 2025-09-01 → 2025-09-05 time range** in both the data filter and
-  aggregation (`utils.js:65-77`), queries a **bounding box rather than the field polygon**
-  (defaulting to a hard-coded **Jakarta bbox** when none is supplied, `utils.js:49`), and
-  its evalscript **passes `dataMask` through** (`utils.js:12,15,22`) but performs **no
-  adequate cloud / cirrus / cloud-shadow exclusion** — it reads only B04/B08/B11 and does
-  not consult the Scene Classification Layer (contrast EVID-008, EVID-012).
-- **Nothing is persisted as a measurement.** Fetched results become **transient UI
-  overrides** (`ndviOverrides` state, `explore.tsx:1143-1150,1421,1426`), not rows written
-  back to `lahan_health` with provenance.
+- **No rendering-triggered satellite request or synthetic substitution remains.** Field
+  save/retry explicitly calls `POST /measurements/request`; screens query persisted rows
+  and retain honest queued, failed, rejected, and unavailable states
+  (`app/(tabs)/explore.tsx`, `utils/backend-api.ts`, `app/detail-lahan-page.tsx`, CODE).
+- **The measurement boundary is implemented locally.** The Node adapter validates and
+  hashes the stored polygon, projects it to local UTM, discovers a bounded acquisition,
+  executes separate native-grid Process requests with raster + `userdata`, rejects
+  mismatched source identities, and returns versioned provenance and per-index stats
+  (`backend/measurement/`, CODE; ADR-15 amendment).
+- **Persistence is typed and owner-isolated.** The versioned migration creates durable
+  jobs, measurements, per-index stats, privileged RPCs, RLS, and a security-invoker read
+  view; clean reset and 26/26 pgTAP tests pass locally
+  (`supabase/migrations/20260830000100_m2_measurement_pipeline.sql`,
+  `supabase/tests/0002_m2_measurements.sql`, CODE; OBS-22).
+- **The legacy route/table are not measurement sources.** `backend/api/ndvi/utils.js` and
+  `lahan_health` remain historical compatibility code only; current M2 mobile surfaces do
+  not read their values as measurements.
+- **Hosted availability is still unproven.** The local environment has no backend admin
+  key/config, the Supabase CLI is not linked to the hosted project, and the last public
+  backend check was blocked by Vercel SSO (OBS-16/22). Until those deployment gates pass,
+  a newly saved field in the currently configured hosted app can still remain empty.
 
-**Data-state vocabulary** (per [`../AGENTS.md`](../AGENTS.md) § Vocabulary): today's
-satellite route is **prototype** (partially wired and non-provenance-safe); known fixture
-rows remain **fixture**; failed or absent retrieval is **unavailable**. **Nothing is
-`measured`** yet because no persisted, provenance-complete value exists.
+**Data-state vocabulary** (per [`../AGENTS.md`](../AGENTS.md) § Vocabulary): only rows
+created by the M2 completion RPC with complete provenance can be **measured**; test rows
+remain **fixture**, M1/live-adapter artifacts remain **prototype**, and failed/absent
+retrieval is **unavailable**. Local implementation does not retroactively promote legacy
+or M1 rows and does not prove hosted rows exist.
 
 ---
 
@@ -237,8 +240,17 @@ request/retry ceiling, field and site × season reporting, and one CDSE Catalog 
 field-month for intersecting Sentinel-2 L2A candidate IDs (EVID-026). The Catalog lookup
 uses the same OAuth trust boundary and remains explicitly enabled/out-of-band under
 ADR-09. Candidate IDs improve provenance but do not prove the Statistical API's exact
-mosaic selection; production persistence and independent raster comparison remain M2/M3
-work. This does not alter the canonical current-product provenance wording in § 2.
+mosaic selection; production persistence remains M2 work. Independent raster comparison
+is optional M3/future work and not an M1 or active-thesis gate (DEC-26). This does not
+alter the canonical current-product provenance wording in § 2.
+
+The advisor-approved Teluknaga manifest subsequently completed all 12 field-months and
+48 planned provider operations (OBS-19). The Catalog adapter now requests the provider's
+current GeoJSON media type (EVID-027; `research/lib/cdse-pilot.mjs`, CODE). A separate
+exact-polygon Process API probe on the one interval with two Catalog candidates returned
+one selected provider scene ID and exact `.SAFE` data path (OBS-20). Under DEC-28 /
+ADR-15, that tested capability becomes the M2 source-provenance path; it does not turn
+the separate M1 Statistical API results into production measurements.
 
 ---
 
@@ -320,16 +332,19 @@ Each ADR aligns to a `DEC-*` in [`context-dump.md`](context-dump.md) and carries
   remains outside the measurement/labeling boundary.
 
 ### ADR-06 · Controlled acquisition worker/job boundary
-- **Status:** Accepted; external Node worker selected in M1, implementation remains M2
-  (DEC-05/DEC-21).
+- **Status:** Accepted; Node worker, durable job schema, and explicit request path are
+  implemented and locally verified on 2026-08-30; hosted deployment remains pending
+  (DEC-05/DEC-21/DEC-31).
 - **Context:** As-built, rendering the field list triggers the live NDVI call and results
   are transient (§ 2). This couples cost and quota to UI rendering and yields no persisted,
   provenance-safe measurement.
 - **Decision:** Introduce an **idempotent, controlled acquisition worker/job**. Measurement
   requests are explicit; the worker deduplicates concurrent jobs, validates and persists
   results with provenance, and mobile screens **read the stored result**. DEC-21 selects
-  an external Node worker rather than a render-triggered or Vercel request-lifetime job;
-  the concrete contract is `research/contracts/measurement-contract-v1.json`.
+  a Node worker outside the Expo client rather than a render-triggered job; the concrete
+  contract is `research/contracts/measurement-contract-v1.json`. The current backend
+  invokes that worker inside the authenticated request process while the durable database
+  job preserves idempotency/retry state; a separately scheduled worker is not claimed.
 - **Consequences:** Decouples satellite cost from screen rendering; enables quota
   accounting, idempotency, and honest `unavailable` states.
 - **Revisit trigger:** Acquisition volume or latency requirements outgrow the chosen job
@@ -408,9 +423,8 @@ Each ADR aligns to a `DEC-*` in [`context-dump.md`](context-dump.md) and carries
   M2 measurement-worker deployment.
 
 ### ADR-12 · Freeze the M1 measurement-record contract before M2
-- **Status:** Accepted as a reviewed implementation contract on 2026-07-28 and amended
-  after live grid/pixel-accounting evidence on 2026-07-29 (DEC-21);
-  physical migration and worker remain M2.
+- **Status:** Accepted as a reviewed contract in M1 and implemented locally by the M2
+  migration/worker on 2026-08-30 (DEC-21/DEC-31); hosted application remains pending.
 - **Context:** M2 could not be implemented reproducibly while physical schema, worker
   runtime, geometry hashing, and processing-version semantics were open.
 - **Decision:** Use the contract and migration-ready draft in `research/contracts/`.
@@ -459,12 +473,35 @@ Each ADR aligns to a `DEC-*` in [`context-dump.md`](context-dump.md) and carries
 - **Revisit trigger:** Advisor-approved research evidence and a new explicit decision
   justify a separately validated interpretive layer after the time-series thesis scope.
 
+### ADR-15 · Same-response raster + metadata per native grid for M2 provenance
+- **Status:** Accepted on 2026-08-29 and amended/implemented locally on 2026-08-30 after
+  the provider request-level grid constraint was verified (DEC-28/DEC-31; EVID-028).
+- **Context:** Catalog candidates cannot prove which product pixels a separate Statistical
+  API request selected (EVID-026). The live probe demonstrated that CDSE Process API scene
+  metadata identifies the selected provider scene/data path even when Catalog returned
+  two candidates (OBS-20), and the provider supports raster plus `userdata` in one response
+  (EVID-028).
+- **Decision:** A field × acquisition uses two Process API requests so NDVI remains on a
+  10 m output grid and NDMI on a 20 m output grid. Each request returns its raster and
+  `userdata` together. Persistence is allowed only when scene IDs, data paths, `.SAFE`
+  product IDs, acquisition interval, and provider service version match across both
+  responses; missing or mismatched identity is unavailable. Catalog is discovery only.
+- **Consequences:** Each raster remains tied to same-response source metadata while native
+  output grids are preserved. Strict cross-response identity matching prevents combining
+  different acquisitions. This is one production measurement operation, not the optional
+  independent raster comparison retired by DEC-26. The bounded live smoke passed with one
+  matching product and quality-passing 23/23 NDVI and 6/6 NDMI pixels (OBS-23).
+- **Revisit trigger:** CDSE removes/changes required scene metadata, the same-response path
+  cannot preserve per-index native grids and masking semantics, or measured workload
+  triggers ADR-03.
+
 ---
 
 ## 5 · Trust boundaries and security risks
 
 ### 5.1 Backend: protected provider boundary
-The public root endpoint is a health check. `/ndvi`, `/weather`, and `/ai/**` pass through
+The public root endpoint is a health check. `/ndvi`, `/weather`, `/ai/**`, and
+`/measurements/**` pass through
 Supabase access-token verification, per-user/per-endpoint rate limiting, route-specific
 request bounds, an equivalent-request in-flight guard, and quota-admission accounting
 before a provider router can run (`backend/app.js`, `backend/security.js`, CODE). Browser
@@ -480,11 +517,11 @@ Open-Meteo failure. The client now fails honestly on that response and may use t
 current Metro LAN candidate during local Expo Go development; production still requires
 a publicly callable backend alias or an explicitly configured access mechanism.
 
-The M0 guard validates the current bbox prototype's coordinate/area limits. Exact-polygon
-vertex and acquisition-window validation belongs to the explicit M2 measurement request,
-because that request does not exist yet; M0 does not pretend the bbox route is that
-pipeline. The in-memory limiter/accounting/deduplication foundation is single-instance;
-the external worker and durable cache identity selected by DEC-21 replace it for M2.
+The legacy `/ndvi` guard still validates bbox limits for compatibility. The M2 request
+validates field UUID and a maximum 31-day window before quota admission; the worker then
+loads only the authenticated owner's field and validates the exact polygon. Durable jobs
+and database uniqueness provide M2 retry/idempotency state, while the HTTP rate limiter
+remains single-instance (`backend/security.js`, `backend/measurement/`, CODE; OBS-22).
 
 ### 5.2 Supabase view `lahan_with_info`
 The M0 versioned baseline migration creates `lahan_with_info` with
@@ -531,7 +568,8 @@ makes § 5.2 load-bearing.
 | Gemini key (`GOOGLE_GENERATIVE_AI_API_KEY`) | Server-side secret | **Rotate** | No active local backend key detected; historical revocation/rotation still requires platform-side confirmation |
 | Historical AccuWeather key (`ACCUWEATHER_API_KEY`) | No longer consumed after ADR-04 implementation | **Revoke** if it ever existed or was exposed | Variable removed from the runtime and env example; platform-side revocation remains unverified |
 | Google Maps keys (iOS/Android) | Client-visible by design | **Restrict per-platform** (Android package + SHA-1 / iOS bundle ID) **and per-API**, then **monitor** usage (EVID-019) | Developer action — pending |
-| Supabase key | Publishable vs `service_role` | **Verify class**; if anon/publishable, safe only with RLS correct (EVID-020, § 5.2) | Verification — pending |
+| Supabase client key | Publishable/anon | Safe in Expo only with RLS correct (EVID-020, § 5.2) | Local class verified publishable; hosted RLS re-audit required after M2 migration |
+| Supabase backend admin key | Current `sb_secret_*` preferred; legacy `service_role` fallback | Configure only in backend hosting; never in Expo/client env (EVID-029) | Missing locally and not verified in hosted backend; blocks live persistence |
 
 ---
 
@@ -579,19 +617,12 @@ vulnerabilities. The root production audit retains 11 moderate advisories solely
 Expo's transitive `xcode` → `uuid` tooling chain; npm's proposed forced resolution would
 downgrade the SDK-pinned `expo-splash-screen`, so it was not applied.
 
-**Current local verification (2026-08-28).** `npm run lint`, `npm run typecheck`,
-`npm run typecheck:backend`, `npm test`, and `npm run test:backend` exit 0. The runs
-contain zero lint errors/warnings, 7 fixture-only root artifact tests, and 26 backend
-tests covering the protected provider boundary, weather/NDVI route contracts, sanitized
-provider failure behavior, plus exact-polygon/UTM-grid/masking/pixel-accounting/retry and
-multi-site 12-month-study contracts (OBS-17). The lint script now calls
-ESLint directly with `--no-cache`, and backend test files are excluded from the backend
-build type-check because they import the sibling research workspace. `npm run
-test:research` did not run on this workstation because Python 3 is absent; its earlier
-fixture result is historical and is not counted as current re-verification. The last
-database reset/pgTAP and hosted reconciliation evidence remains OBS-10. Current remote
-CI is not independently verified. Live-provider execution remains excluded from
-ordinary tests and CI (ADR-09); OBS-11/12 are the separately enabled live evidence.
+**Current local verification (2026-08-30).** Empty-DB migration application, generated
+types, and 26/26 pgTAP pass; lint, root/backend type-checks, 9/9 root tests, and 36/36
+backend tests pass (OBS-22). The bounded M2 provider smoke also passes separately with
+quota accounting (OBS-23); ordinary tests/CI remain network-free (ADR-09). Hosted
+migration, remote CI for this delta, public backend reachability, secrets configuration,
+and physical-device persistence remain unverified.
 
 **SDK 54 compatibility verification (2026-07-28).** `npx expo install --check` reports
 dependencies up to date, `npx expo-doctor@latest` passes 18/18, public config resolves as
@@ -623,7 +654,8 @@ matani-app/
 │  ├─ config.js             # environment configuration and safe defaults
 │  ├─ security.js           # JWT, validation, rate/quota/idempotency guards
 │  ├─ sentinelAuth.js       # Sentinel Hub OAuth token (cached)
-│  └─ api/{ndvi,weather,ai} # provider proxy handlers
+│  ├─ api/{ndvi,weather,ai,measurements} # protected route handlers
+│  └─ measurement/          # exact-polygon adapter, raster stats, admin persistence, worker
 ├─ components/              # shared UI components
 ├─ hooks/                   # React hooks
 ├─ constants/               # NDVI formatting, padi education, theme

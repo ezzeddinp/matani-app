@@ -123,6 +123,9 @@ If scope is still provisional, the live runner stops unless
 `--allow-provisional-scope` is explicitly added. That override permits data collection;
 it does not turn the sample into an approved or representative study.
 
+For the exact human-input, preflight, live-run, review, and closure sequence, use
+[`../docs/m1-closure-runbook-2026-08-28.md`](../docs/m1-closure-runbook-2026-08-28.md).
+
 The runner saves a checkpoint after each field-month, validates the full manifest in
 the resume identity, throttles requests, and applies bounded retry to HTTP 429/transient
 5xx failures. The privacy-minimized report groups observations by field and by
@@ -136,6 +139,7 @@ and cadence remain null or withheld instead of being fabricated.
 The historical 2026-07-29 run completed for `hi` and `sszs` (OBS-11/12) under the old
 two-field contract. It remains limited provider-backed `prototype` evidence and does not
 satisfy representative multi-region sampling, crop/boundary/consent verification,
-wet/dry stratification, HYP-03 approval, source-product identity, independent raster
-comparison, M2 persistence, or provenance. See
+wet/dry stratification, HYP-03 approval, exact source-product/mosaic identity, M2
+persistence, or provenance. Independent raster comparison is optional M3/future work and
+not an M1 blocker under DEC-26. See
 `docs/m1-live-cdse-study-2026-07-29.md`.

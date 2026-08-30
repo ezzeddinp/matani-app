@@ -4,8 +4,10 @@ import test from "node:test";
 import {
   buildPreflightReport,
   buildCatalogRequest,
+  buildProcessProvenanceRequest,
   buildStatisticalRequest,
   executeCatalogRequest,
+  executeProcessProvenanceRequest,
   executeStatisticalRequestWithRetry,
   geometryHash,
   projectGeometryToLocalUtm,
@@ -86,6 +88,80 @@ test("CDSE catalog rejects an incomplete paginated provenance page", async () =>
       }),
     /catalog-result-exceeds-bounded-100-item-page/,
   );
+});
+
+test("CDSE catalog requests its current GeoJSON response media type", async () => {
+  let receivedHeaders;
+
+  await executeCatalogRequest({
+    token: "test-token",
+    request: {},
+    fetchImpl: async (_url, options) => {
+      receivedHeaders = options.headers;
+      return new Response(JSON.stringify({ features: [], links: [] }), {
+        status: 200,
+        headers: { "content-type": "application/geo+json" },
+      });
+    },
+  });
+
+  assert.equal(receivedHeaders.Accept, "application/geo+json");
+  assert.equal(receivedHeaders["Content-Type"], "application/json");
+});
+
+test("CDSE Process provenance request keeps the exact projected polygon and returns JSON metadata", async () => {
+  const request = buildProcessProvenanceRequest({
+    geometry: smallField,
+    from: "2025-07-22T00:00:00.000Z",
+    to: "2025-07-23T00:00:00.000Z",
+  });
+  let receivedOptions;
+
+  const result = await executeProcessProvenanceRequest({
+    token: "test-token",
+    request,
+    fetchImpl: async (_url, options) => {
+      receivedOptions = options;
+      return new Response(
+        JSON.stringify({
+          serviceVersion: "test-version",
+          orbits: [
+            {
+              tiles: [
+                {
+                  date: "2025-07-22T03:20:04Z",
+                  shId: 123,
+                  dataPath: "test-provider-path",
+                },
+              ],
+            },
+          ],
+        }),
+        {
+          status: 200,
+          headers: {
+            "content-type": "application/json",
+            "x-processingunits-spent": "0.01",
+          },
+        },
+      );
+    },
+  });
+
+  assert.equal(
+    request.input.bounds.properties.crs,
+    "http://www.opengis.net/def/crs/EPSG/0/32748",
+  );
+  assert.deepEqual(
+    request.input.bounds.geometry,
+    projectGeometryToLocalUtm(smallField).geometry,
+  );
+  assert.equal(request.input.data[0].dataFilter.mosaickingOrder, "mostRecent");
+  assert.match(request.evalscript, /mosaicking: Mosaicking\.ORBIT/);
+  assert.equal(request.output.responses[0].identifier, "userdata");
+  assert.equal(receivedOptions.headers.Accept, "application/json");
+  assert.equal(result.body.orbits[0].tiles[0].shId, 123);
+  assert.equal(result.processingUnits, 0.01);
 });
 
 test("CDSE statistics retry is bounded and counts rate-limit attempts", async () => {

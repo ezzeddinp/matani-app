@@ -220,6 +220,256 @@ export type Database = {
           },
         ]
       }
+      measurement_index_stats: {
+        Row: {
+          derived_coverage_pixel_count: number | null
+          index_name: string
+          maximum: number | null
+          mean: number | null
+          measurement_id: string
+          minimum: number | null
+          output_resolution_m: number
+          provider_geometry_pixel_count: number | null
+          resampling_method: string
+          sample_count: number
+          source_pixel_count: number
+          standard_deviation: number | null
+          valid_pixel_count: number
+          valid_pixel_fraction: number
+        }
+        Insert: {
+          derived_coverage_pixel_count?: number | null
+          index_name: string
+          maximum?: number | null
+          mean?: number | null
+          measurement_id: string
+          minimum?: number | null
+          output_resolution_m: number
+          provider_geometry_pixel_count?: number | null
+          resampling_method: string
+          sample_count: number
+          source_pixel_count: number
+          standard_deviation?: number | null
+          valid_pixel_count: number
+          valid_pixel_fraction: number
+        }
+        Update: {
+          derived_coverage_pixel_count?: number | null
+          index_name?: string
+          maximum?: number | null
+          mean?: number | null
+          measurement_id?: string
+          minimum?: number | null
+          output_resolution_m?: number
+          provider_geometry_pixel_count?: number | null
+          resampling_method?: string
+          sample_count?: number
+          source_pixel_count?: number
+          standard_deviation?: number | null
+          valid_pixel_count?: number
+          valid_pixel_fraction?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "measurement_index_stats_measurement_id_fkey"
+            columns: ["measurement_id"]
+            isOneToOne: false
+            referencedRelation: "measurement_observations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "measurement_index_stats_measurement_id_fkey"
+            columns: ["measurement_id"]
+            isOneToOne: false
+            referencedRelation: "measurements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      measurement_jobs: {
+        Row: {
+          attempts: number
+          completed_at: string | null
+          created_at: string
+          error_code: string | null
+          error_message: string | null
+          id: string
+          idempotency_key: string
+          lahan_id: string
+          max_attempts: number
+          request_window_end: string
+          request_window_start: string
+          started_at: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          attempts?: number
+          completed_at?: string | null
+          created_at?: string
+          error_code?: string | null
+          error_message?: string | null
+          id?: string
+          idempotency_key: string
+          lahan_id: string
+          max_attempts?: number
+          request_window_end: string
+          request_window_start: string
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          attempts?: number
+          completed_at?: string | null
+          created_at?: string
+          error_code?: string | null
+          error_message?: string | null
+          id?: string
+          idempotency_key?: string
+          lahan_id?: string
+          max_attempts?: number
+          request_window_end?: string
+          request_window_start?: string
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "measurement_jobs_lahan_id_fkey"
+            columns: ["lahan_id"]
+            isOneToOne: false
+            referencedRelation: "lahan"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "measurement_jobs_lahan_id_fkey"
+            columns: ["lahan_id"]
+            isOneToOne: false
+            referencedRelation: "lahan_with_info"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      measurements: {
+        Row: {
+          acquisition_end: string | null
+          acquisition_start: string | null
+          algorithm_version: string
+          collection: string
+          created_at: string
+          crs: string
+          evalscript_version: string
+          geometry_hash: string
+          id: string
+          job_id: string
+          lahan_id: string
+          masking_config_version: string
+          mission: string
+          platform: string | null
+          polygon_cloud_shadow_fraction: number | null
+          processing_at: string
+          processing_level: string
+          provider: string
+          provider_provenance: Json
+          quality_output_resolution_m: number
+          quality_resampling_method: string
+          quality_status: string
+          rejection_reason: string | null
+          request_window_end: string
+          request_window_start: string
+          source_product_ids: string[]
+          tile_cloud_metadata: Json | null
+          user_id: string
+        }
+        Insert: {
+          acquisition_end?: string | null
+          acquisition_start?: string | null
+          algorithm_version: string
+          collection: string
+          created_at?: string
+          crs: string
+          evalscript_version: string
+          geometry_hash: string
+          id?: string
+          job_id: string
+          lahan_id: string
+          masking_config_version: string
+          mission: string
+          platform?: string | null
+          polygon_cloud_shadow_fraction?: number | null
+          processing_at?: string
+          processing_level: string
+          provider: string
+          provider_provenance?: Json
+          quality_output_resolution_m: number
+          quality_resampling_method: string
+          quality_status: string
+          rejection_reason?: string | null
+          request_window_end: string
+          request_window_start: string
+          source_product_ids?: string[]
+          tile_cloud_metadata?: Json | null
+          user_id: string
+        }
+        Update: {
+          acquisition_end?: string | null
+          acquisition_start?: string | null
+          algorithm_version?: string
+          collection?: string
+          created_at?: string
+          crs?: string
+          evalscript_version?: string
+          geometry_hash?: string
+          id?: string
+          job_id?: string
+          lahan_id?: string
+          masking_config_version?: string
+          mission?: string
+          platform?: string | null
+          polygon_cloud_shadow_fraction?: number | null
+          processing_at?: string
+          processing_level?: string
+          provider?: string
+          provider_provenance?: Json
+          quality_output_resolution_m?: number
+          quality_resampling_method?: string
+          quality_status?: string
+          rejection_reason?: string | null
+          request_window_end?: string
+          request_window_start?: string
+          source_product_ids?: string[]
+          tile_cloud_metadata?: Json | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "measurements_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: true
+            referencedRelation: "measurement_jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "measurements_lahan_id_fkey"
+            columns: ["lahan_id"]
+            isOneToOne: false
+            referencedRelation: "lahan"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "measurements_lahan_id_fkey"
+            columns: ["lahan_id"]
+            isOneToOne: false
+            referencedRelation: "lahan_with_info"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       users: {
         Row: {
           created_at: string
@@ -291,9 +541,92 @@ export type Database = {
         }
         Relationships: []
       }
+      measurement_observations: {
+        Row: {
+          algorithm_version: string | null
+          captured_at: string | null
+          created_at: string | null
+          data_state: string | null
+          evalscript_version: string | null
+          id: string | null
+          lahan_id: string | null
+          masking_config_version: string | null
+          ndmi_score: number | null
+          ndmi_valid_pixel_count: number | null
+          ndvi_score: number | null
+          ndvi_valid_pixel_count: number | null
+          rejection_reason: string | null
+          source_product_ids: string[] | null
+          status: string | null
+          user_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "measurements_lahan_id_fkey"
+            columns: ["lahan_id"]
+            isOneToOne: false
+            referencedRelation: "lahan"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "measurements_lahan_id_fkey"
+            columns: ["lahan_id"]
+            isOneToOne: false
+            referencedRelation: "lahan_with_info"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
-      [_ in never]: never
+      claim_measurement_job: {
+        Args: { p_job_id: string; p_user_id: string }
+        Returns: Json
+      }
+      complete_measurement_job: {
+        Args: { p_job_id: string; p_result: Json }
+        Returns: string
+      }
+      enqueue_measurement_job: {
+        Args: {
+          p_idempotency_key: string
+          p_lahan_id: string
+          p_request_window_end: string
+          p_request_window_start: string
+          p_user_id: string
+        }
+        Returns: {
+          attempts: number
+          completed_at: string | null
+          created_at: string
+          error_code: string | null
+          error_message: string | null
+          id: string
+          idempotency_key: string
+          lahan_id: string
+          max_attempts: number
+          request_window_end: string
+          request_window_start: string
+          started_at: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "measurement_jobs"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      fail_measurement_job: {
+        Args: {
+          p_error_code: string
+          p_error_message: string
+          p_job_id: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never

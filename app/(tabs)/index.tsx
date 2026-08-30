@@ -54,7 +54,7 @@ interface SavedLahanCardProps {
   areaHa: number | null;
   ndviScore?: number | null;
   capturedAt?: string | null;
-  dataState?: "fixture" | "prototype";
+  dataState?: "measured" | "unavailable";
   thumbnailUrl?: string | null;
   category?: string | null;
   warningCount?: number;
@@ -105,18 +105,14 @@ type LahanHealthRecord = {
 type LahanHealthSummary = {
   ndviScore: number | null;
   capturedAt: string | null;
-  dataState: "fixture" | "prototype";
+  dataState: "measured" | "unavailable";
 };
 
 const getObservationState = (
   status?: string | null
-): "fixture" | "prototype" => {
+): "measured" | "unavailable" => {
   const normalized = status?.trim().toLowerCase();
-  return ["fixture", "synthetic", "simulated", "simulation"].includes(
-    normalized ?? ""
-  )
-    ? "fixture"
-    : "prototype";
+  return normalized === "passed" ? "measured" : "unavailable";
 };
 
 const parseDateToTime = (value?: string | null) => {
@@ -294,7 +290,7 @@ const LahanCard = ({
   const ndviValue = parseOptionalNumber(ndviScore);
   const hasObservation = ndviValue !== null;
   const statusLabel = hasObservation
-    ? `Rekaman terbaru · ${dataState === "fixture" ? "Fixture" : "Prototipe"}${
+    ? `Rekaman terukur${
         capturedAt ? ` · ${formatDisplayDate(capturedAt)}` : ""
       }`
     : "Observasi belum tersedia";
@@ -705,7 +701,7 @@ export default function HomeScreen() {
 
     try {
       const { data, error } = await supabase
-        .from("lahan_health")
+        .from("measurement_observations")
         .select("id,lahan_id,ndvi_score,ndmi_score,status,captured_at,created_at")
         .in("lahan_id", targetIds)
         .order("captured_at", { ascending: false, nullsFirst: true })
@@ -1279,9 +1275,9 @@ export default function HomeScreen() {
                     ? "Pilih ladang"
                     : selectedNdviIsAvailable
                     ? `${
-                        selectedLahanHealth?.dataState === "fixture"
-                          ? "Fixture"
-                          : "Prototipe"
+                        selectedLahanHealth?.dataState === "measured"
+                          ? "Terukur"
+                          : "Tidak tersedia"
                       } · ${formatDisplayDate(selectedLahanHealth?.capturedAt)}`
                     : "Riwayat belum tersedia"}
                 </Text>

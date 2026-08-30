@@ -383,7 +383,8 @@ export const buildM1StudyArtifact = ({
         : [
             "No advisor-approved HYP-03 reliability floor exists, so observations are not marked passed and usable/gap metrics remain null.",
           ]),
-      "Catalog product candidates are recorded, but exact Statistical API mosaic selection and independent raster comparison are not proven.",
+      "Catalog product candidates are recorded, but exact Statistical API mosaic selection is not proven.",
+      "Independent raster comparison is optional M3/future work and is not an M1 acceptance criterion (DEC-26).",
       "This provider-backed artifact is prototype evidence and cannot by itself license a product cadence or a measured product claim.",
     ],
   };
@@ -437,6 +438,7 @@ export const buildM1StudyPreflightArtifact = ({
   request_budget: {
     planned_request_operations: plannedRequestOperations,
     max_attempts_per_request: maxAttemptsPerRequest,
+    request_attempt_ceiling: plannedRequestOperations * maxAttemptsPerRequest,
     confirmed_request_attempt_ceiling: confirmedRequestAttemptCeiling,
   },
   limitations: [

@@ -178,7 +178,8 @@ export const buildStudyArtifact = ({
       "The available polygons do not establish representative Indonesian multi-region coverage.",
       "Crop identity, boundary fidelity, consent, and site representativeness require thesis-team verification.",
       "No validated HYP-03 reliability floor or advisor-approved quality threshold exists, so observations are not marked passed.",
-      "Source product/acquisition identifiers and independent raster comparison are not included.",
+      "Exact source product/acquisition identity for the Statistical API result is not included.",
+      "Independent raster comparison is optional M3/future work and is not an M1 acceptance criterion (DEC-26).",
       "This provider-backed artifact is prototype evidence and cannot license a product cadence or a measured claim.",
     ],
   };
