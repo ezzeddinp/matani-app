@@ -220,6 +220,109 @@ test("worker reuses an already completed idempotent job without provider spend",
   assert.equal(providerCalls, 0);
 });
 
+test("worker cache identity changes with the hosted executor revision", async () => {
+  let receivedKey = null;
+  const admin = {
+    async loadField() {
+      return { geojson: polygon };
+    },
+    async enqueue(args) {
+      receivedKey = args.idempotencyKey;
+      return { id: "job-executor-version", status: "succeeded" };
+    },
+    async claim() {
+      return {
+        claimed: false,
+        job: { id: "job-executor-version", status: "succeeded" },
+      };
+    },
+  };
+  const worker = createMeasurementWorker({ admin, provider: {} });
+  await worker.request({
+    lahanId: "field-1",
+    userId: "user-1",
+    from: "2026-08-01T00:00:00Z",
+    to: "2026-08-30T00:00:00Z",
+    idempotencyKey: "latest:field-1",
+  });
+  assert.match(receivedKey, /cdse-node-fetch-v1$/);
+});
+
+test("worker exposes only a bounded provider diagnostic code to runtime logs", async () => {
+  let failedJob = null;
+  const admin = {
+    async loadField() {
+      return { geojson: polygon };
+    },
+    async enqueue() {
+      return { id: "job-diagnostic" };
+    },
+    async claim() {
+      return { claimed: true, job: { id: "job-diagnostic" } };
+    },
+    async fail(args) {
+      failedJob = args;
+    },
+  };
+  const worker = createMeasurementWorker({
+    admin,
+    provider: {
+      async measure() {
+        throw new Error("cdse-catalog-network");
+      },
+    },
+  });
+  await assert.rejects(
+    worker.request({
+      lahanId: "field-1",
+      userId: "user-1",
+      from: "2026-08-01T00:00:00Z",
+      to: "2026-08-30T00:00:00Z",
+    }),
+    (error) => {
+      assert.equal(error.message, "provider-unavailable");
+      assert.equal(error.diagnosticCode, "cdse-catalog-network");
+      return true;
+    },
+  );
+  assert.equal(failedJob.errorCode, "provider-unavailable");
+});
+
+test("worker does not expose an unexpected provider message to runtime logs", async () => {
+  const admin = {
+    async loadField() {
+      return { geojson: polygon };
+    },
+    async enqueue() {
+      return { id: "job-private-error" };
+    },
+    async claim() {
+      return { claimed: true, job: { id: "job-private-error" } };
+    },
+    async fail() {},
+  };
+  const worker = createMeasurementWorker({
+    admin,
+    provider: {
+      async measure() {
+        throw new Error("unexpected upstream response with private detail");
+      },
+    },
+  });
+  await assert.rejects(
+    worker.request({
+      lahanId: "field-1",
+      userId: "user-1",
+      from: "2026-08-01T00:00:00Z",
+      to: "2026-08-30T00:00:00Z",
+    }),
+    (error) => {
+      assert.equal(error.diagnosticCode, "measurement-unclassified-failure");
+      return true;
+    },
+  );
+});
+
 test("measurement route returns queued before deferred provider processing finishes", async () => {
   let finishProcessing;
   const processingGate = new Promise((resolve) => {

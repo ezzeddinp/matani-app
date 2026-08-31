@@ -139,7 +139,10 @@ authenticates with the Supabase anon/publishable key
 > or honest unavailability. The stable public backend alias is reachable and protected
 > routes fail closed. One explicitly approved real-provider job has been processed and
 > persisted as a provenance-complete hosted `measured` row. That manual worker execution
-> does not yet verify Vercel-deferred completion or authenticated physical-device readback.
+> does not establish repeatability: later authenticated device requests were durably
+> accepted and invoked by Vercel, but their provider work failed before persistence.
+> A transport/cache-recovery remediation is locally verified but still requires one
+> explicit post-deployment device retry before Vercel-deferred completion is verified.
 
 This is **the canonical measurement-provenance wording**. All other documents link here;
 none may soften or restate it. The verified facts behind it (OBS-22/23, 2026-08-30):
@@ -164,8 +167,12 @@ none may soften or restate it. The verified facts behind it (OBS-22/23, 2026-08-
 - **Hosted measurement availability is proven for one scoped job only.** Production
   Supabase/CDSE configuration and deployment are present, and one explicitly approved job
   completed against CDSE and appears in the hosted observation view with a passing dated
-  NDVI/NDMI row (OBS-28). Vercel-deferred completion, authenticated physical-device
-  readback, repeatability, and formal M2 PASS remain open.
+  NDVI/NDMI row (OBS-28). Later authenticated HTTP 202 requests invoked deferred work but
+  ended in a sanitized processing failure with no observation (OBS-30). The adapter now
+  uses one Node HTTP transport for token, Catalog, and Process requests, emits bounded
+  stage diagnostics, and includes the executor revision in job cache identity; hosted
+  success of that remediation, authenticated physical-device readback, repeatability,
+  and formal M2 PASS remain open.
 
 **Data-state vocabulary** (per [`../AGENTS.md`](../AGENTS.md) § Vocabulary): only rows
 created by the M2 completion RPC with complete provenance can be **measured**; test rows
@@ -338,8 +345,9 @@ Each ADR aligns to a `DEC-*` in [`context-dump.md`](context-dump.md) and carries
 
 ### ADR-06 · Controlled acquisition worker/job boundary
 - **Status:** Accepted; Node worker, durable job schema, and explicit request path are
-  implemented and locally verified on 2026-08-30; hosted deployment remains pending
-  (DEC-05/DEC-21/DEC-31).
+  implemented and locally verified. One manual hosted completion is observed; Vercel
+  deferred invocation is observed but successful deferred completion remains pending
+  (DEC-05/DEC-21/DEC-31/DEC-33; OBS-28/30).
 - **Context:** As-built, rendering the field list triggers the live NDVI call and results
   are transient (§ 2). This couples cost and quota to UI rendering and yields no persisted,
   provenance-safe measurement.
@@ -351,6 +359,11 @@ Each ADR aligns to a `DEC-*` in [`context-dump.md`](context-dump.md) and carries
   lifecycle: the route durably enqueues, returns HTTP 202, and registers the processing
   promise with Vercel `waitUntil`. The task still shares the bounded function invocation;
   a separately scheduled worker is not claimed (EVID-031/032; OBS-27).
+- **Amendment (2026-08-31):** The executor/transport revision is part of the cache identity.
+  Catalog and Process requests use the same `node-fetch` transport already used by CDSE
+  OAuth, and runtime logs expose only bounded stage codes. This permits a repaired
+  execution path to create a new durable job instead of reusing a failed max-attempt job,
+  without changing measurement semantics (OBS-30; CODE).
 - **Consequences:** Decouples satellite cost from screen rendering; enables quota
   accounting, idempotency, and honest `unavailable` states.
 - **Revisit trigger:** Acquisition volume or latency requirements outgrow the chosen job

@@ -1,4 +1,5 @@
 import { fromArrayBuffer } from "geotiff";
+import nodeFetch from "node-fetch";
 
 import { getSentinelToken } from "../sentinelAuth.js";
 import {
@@ -13,6 +14,7 @@ export const MEASUREMENT_VERSIONS = Object.freeze({
   algorithm: "ndvi-ndmi-v1",
   evalscript: "s2l2a-process-native-grids-v2",
   masking: "s2l2a-scl-rice-v1",
+  executor: "cdse-node-fetch-v1",
 });
 
 const MASKED_SCL = Object.freeze([0, 1, 3, 8, 9, 10]);
@@ -26,6 +28,17 @@ const providerError = async (response, label) => {
   error.statusCode = response.status;
   error.retryAfterSeconds = Number(response.headers.get("retry-after")) || null;
   return error;
+};
+
+const transportError = (error, label) => {
+  if (error?.message?.startsWith("cdse-")) return error;
+  const kind =
+    error?.name === "AbortError" || error?.name === "TimeoutError"
+      ? "timeout"
+      : "network";
+  const routed = new Error(`${label}-${kind}`);
+  routed.statusCode = error?.statusCode;
+  return routed;
 };
 
 const withRetry = async (operation, { maxAttempts = 3, sleepImpl = sleep } = {}) => {
@@ -271,22 +284,27 @@ export const createCdseProcessAdapter = ({
   ndviValidPixelFloor = 9,
   ndmiValidPixelFloor = 3,
   getToken = getSentinelToken,
-  fetchImpl = fetch,
+  fetchImpl = nodeFetch,
   now = () => new Date(),
   sleepImpl = sleep,
   decodeRaster = rasterBands,
 } = {}) => {
   const executeCatalog = async ({ token, request }) => {
-    const response = await fetchImpl(catalogUrl, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-        Accept: "application/geo+json",
-      },
-      body: JSON.stringify(request),
-      signal: AbortSignal.timeout(providerTimeoutMs),
-    });
+    let response;
+    try {
+      response = await fetchImpl(catalogUrl, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+          Accept: "application/geo+json",
+        },
+        body: JSON.stringify(request),
+        signal: AbortSignal.timeout(providerTimeoutMs),
+      });
+    } catch (error) {
+      throw transportError(error, "cdse-catalog");
+    }
     if (!response.ok) throw await providerError(response, "cdse-catalog");
     return {
       body: await response.json(),
@@ -295,16 +313,21 @@ export const createCdseProcessAdapter = ({
   };
 
   const executeProcess = async ({ token, request }) => {
-    const response = await fetchImpl(processUrl, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-        Accept: "multipart/mixed",
-      },
-      body: JSON.stringify(request),
-      signal: AbortSignal.timeout(providerTimeoutMs),
-    });
+    let response;
+    try {
+      response = await fetchImpl(processUrl, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+          Accept: "multipart/mixed",
+        },
+        body: JSON.stringify(request),
+        signal: AbortSignal.timeout(providerTimeoutMs),
+      });
+    } catch (error) {
+      throw transportError(error, "cdse-process");
+    }
     const parts = await extractProcessParts(response);
     return {
       ...parts,
@@ -317,7 +340,12 @@ export const createCdseProcessAdapter = ({
       validateFieldGeometry(geometry);
       const projection = projectGeometryToLocalUtm(geometry);
       const processingAt = now().toISOString();
-      const token = await getToken();
+      let token;
+      try {
+        token = await getToken();
+      } catch (error) {
+        throw transportError(error, "cdse-token");
+      }
       const catalog = await withRetry(
         () => executeCatalog({ token, request: buildCatalogRequest({ geometry, from, to }) }),
         { maxAttempts: maxProviderAttempts, sleepImpl },
@@ -369,10 +397,16 @@ export const createCdseProcessAdapter = ({
         });
       }
 
-      const [ndviBands, ndmiBands] = await Promise.all([
-        decodeRaster(ndviResponse.raster),
-        decodeRaster(ndmiResponse.raster),
-      ]);
+      let ndviBands;
+      let ndmiBands;
+      try {
+        [ndviBands, ndmiBands] = await Promise.all([
+          decodeRaster(ndviResponse.raster),
+          decodeRaster(ndmiResponse.raster),
+        ]);
+      } catch {
+        throw new Error("process-raster-decode-failed");
+      }
       const ndvi = summarizeIndexBands(ndviBands);
       const ndmi = summarizeIndexBands(ndmiBands, { includeCloudBand: true });
       const quality = decideQuality({

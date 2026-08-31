@@ -19,6 +19,15 @@ const safeErrorMessage = (error) => {
   return "Measurement processing failed.";
 };
 
+const safeDiagnosticCode = (error) => {
+  const message = error instanceof Error ? error.message : String(error);
+  return /^(?:cdse-(?:token|catalog|process)-(?:network|timeout|failed-[1-5][0-9]{2})|process-[a-z0-9-]+|catalog-acquisition-date-invalid|unsupported-measurement-index)$/.test(
+    message,
+  )
+    ? message
+    : "measurement-unclassified-failure";
+};
+
 export const createMeasurementWorker = ({ admin, provider } = {}) => {
   const enqueue = async ({ lahanId, userId, from, to, idempotencyKey }) => {
     const field = await admin.loadField({ lahanId, userId });
@@ -31,6 +40,7 @@ export const createMeasurementWorker = ({ admin, provider } = {}) => {
       MEASUREMENT_VERSIONS.algorithm,
       MEASUREMENT_VERSIONS.evalscript,
       MEASUREMENT_VERSIONS.masking,
+      MEASUREMENT_VERSIONS.executor,
     ].join(":");
     const effectiveIdempotencyKey = idempotencyKey === `initial:${lahanId}`
       ? idempotencyKey
@@ -92,6 +102,7 @@ export const createMeasurementWorker = ({ admin, provider } = {}) => {
       });
       const routed = new Error(safeErrorCode(error));
       routed.statusCode = error?.statusCode === 429 ? 429 : 502;
+      routed.diagnosticCode = safeDiagnosticCode(error);
       throw routed;
     }
   };

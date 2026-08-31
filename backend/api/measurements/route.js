@@ -67,6 +67,7 @@ export const createMeasurementRouter = ({
               requestId: req.requestId ?? null,
               jobId: queued.job?.id ?? null,
               code: error instanceof Error ? error.message : "unknown",
+              diagnosticCode: error?.diagnosticCode ?? null,
             }),
           );
         });

@@ -271,9 +271,11 @@ detail and deployment qualification live in [`data-evaluation-plan.md`](data-eva
 - No cadence claim appears anywhere until the feasibility study licenses it (INV-08; [`research-protocol.md`](research-protocol.md) § 4).
 
 **Current-fidelity note.** Local implementation and bounded live adapter smoke pass
-(OBS-22/23), and public backend reachability/fail-closed authentication pass (OBS-24).
-Formal M2 acceptance remains open until hosted migration, server-only admin/CDSE
-configuration, and one authenticated app persistence/read smoke pass.
+(OBS-22/23), public backend reachability/fail-closed authentication pass (OBS-24), and one
+explicitly approved manual hosted measurement persisted successfully (OBS-28). Later
+authenticated device requests invoked Vercel-deferred work but failed before persistence;
+the transport/cache-recovery change is locally verified and awaits a post-deployment
+device retry (OBS-30). Formal M2 acceptance and repeatability remain open.
 
 ### PRD-17 · Weather risk score card · [As-built] · HYP-07
 

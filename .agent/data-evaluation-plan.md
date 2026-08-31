@@ -2,9 +2,8 @@
 
 **Document type:** Engineering data pipeline specification
 **Audience:** The developer, thesis advisor, reviewers, and AI agents working in this repo
-**Status:** Active — M2 implemented and verified locally; public backend reachability is
-verified, while hosted migration/worker configuration/persistence remain unverified
-unless explicitly marked
+**Status:** Active — M2 implemented and verified locally; one scoped manual hosted
+measurement is verified, while repeatable Vercel-deferred completion remains open
 **Updated:** 2026-08-31
 **Canonical for:** the engineering measurement contract, provider adapter, quality pipeline, persistence/provenance, cache identity, idempotency, fixtures, and Indonesia-specific masking/resolution behavior
 **Companion documents:** [`research-protocol.md`](research-protocol.md), [`project-architecture.md`](project-architecture.md), [`product-requirements.md`](product-requirements.md), [`implementation-plan.md`](implementation-plan.md), [`evidence-register.md`](evidence-register.md)
@@ -34,7 +33,8 @@ The repository contains the M2 adapter, worker, migration, privileged persistenc
 mobile request/read path, fixture tests, DB tests, and bounded live smoke (OBS-22/23).
 The **canonical current-product wording** remains
 [`project-architecture.md`](project-architecture.md) § 2. Hosted Supabase/backend/device
-deployment has not passed, so local implementation is not called production-ready.
+One manual hosted measurement passed (OBS-28), but later authenticated deferred jobs
+failed before persistence (OBS-30), so the implementation is not called production-ready.
 
 ### Current implementation and deployment gates
 
@@ -210,7 +210,7 @@ The measurement record is introduced through **versioned, ordered Supabase migra
 
 ## 6 · Cache identity and idempotency `[As-built local]`
 
-An **equivalent measurement request must be idempotent**. Two requests are equivalent when they share the same **geometry hash + acquisition window + processing-config version** (evalscript/masking/algorithm versions). This realizes the ADR-06 worker boundary: rendering a screen never triggers repeated processing — screens read persisted measurements ([`project-architecture.md`](project-architecture.md) § 3 governing principle).
+An **equivalent measurement request must be idempotent**. Two requests are equivalent when they share the same **geometry hash + acquisition window + processing-config version** (algorithm/evalscript/masking versions) **and executor revision**. The executor revision changes only when the hosted execution mechanism is repaired in a way that must not reuse an exhausted failed job; it does not alter or relabel a stored measurement. This realizes the ADR-06 worker boundary: rendering a screen never triggers repeated processing — screens read persisted measurements ([`project-architecture.md`](project-architecture.md) § 3 governing principle; OBS-30).
 
 - **Unique constraint.** The persisted record carries a uniqueness constraint over the cache-identity tuple, so an equivalent request resolves to the existing record rather than producing a duplicate.
 - **No concurrent duplicate jobs.** The worker deduplicates in-flight jobs (ADR-06): a second request for an equivalent measurement while one is running does not spawn a second provider call (protecting the quota, EVID-010).
