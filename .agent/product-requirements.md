@@ -3,7 +3,7 @@
 **Document type:** Product requirements document
 **Audience:** The developer, thesis advisor, reviewers, and AI agents working in this repo
 **Status:** Active
-**Updated:** 2026-08-30
+**Updated:** 2026-08-31
 **Canonical for:** Feature behavior, scope tags, and product invariants
 **Companion documents:** [`product-brief.md`](product-brief.md), [`project-architecture.md`](project-architecture.md), [`design-guidelines.md`](design-guidelines.md), [`research-protocol.md`](research-protocol.md), [`data-evaluation-plan.md`](data-evaluation-plan.md), [`implementation-plan.md`](implementation-plan.md)
 
@@ -115,8 +115,10 @@ severity or health classification is computed.
 - A field without one shows the honest no-data state — **not** a synthesized value.
 - No health, stress, improvement, or decline label is derived from the value (INV-09).
 
-**Current-fidelity note.** The read path and local writer exist; hosted data remains empty
-until the M2 migration/backend configuration/deployment gates pass (OBS-22).
+**Current-fidelity note.** The read path and local writer exist. The stable public backend
+is reachable and protected routes fail closed, but hosted data may remain empty until the
+M2 migration, server-only worker configuration, and authenticated device gates pass
+(OBS-22/24).
 
 ### PRD-06 · Field management — map, polygon drawing, search, geocode · [As-built]
 
@@ -206,7 +208,8 @@ reason, and separate NDVI/NDMI valid-pixel counts. A retry action explicitly req
 job. Metadata remains visible if observation/job reads fail.
 
 **Current-fidelity note.** The local provenance writer/read path exists and no legacy row
-is promoted. Hosted availability remains subject to the deployment gates in OBS-22.
+is promoted. Public backend reachability now passes; hosted availability remains subject
+to the migration, worker configuration, and authenticated device gates in OBS-22/24.
 
 **Acceptance criteria.** Plot only stored passing values with true acquisition dates; do
 not interpolate gaps; surface quality and per-index counts; show honest empty/query/job
@@ -259,8 +262,9 @@ detail and deployment qualification live in [`data-evaluation-plan.md`](data-eva
 - No cadence claim appears anywhere until the feasibility study licenses it (INV-08; [`research-protocol.md`](research-protocol.md) § 4).
 
 **Current-fidelity note.** Local implementation and bounded live adapter smoke pass
-(OBS-22/23). Formal M2 acceptance remains open until hosted migration, backend secrets,
-public deployment, and one authenticated app persistence/read smoke pass.
+(OBS-22/23), and public backend reachability/fail-closed authentication pass (OBS-24).
+Formal M2 acceptance remains open until hosted migration, server-only admin/CDSE
+configuration, and one authenticated app persistence/read smoke pass.
 
 ### PRD-17 · Weather risk score card · [As-built] · HYP-07
 

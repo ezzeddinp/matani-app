@@ -1,0 +1,108 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000">
+  <rect width="1600" height="1000" fill="#ffffff"/>
+  <style>
+    .title { font: 700 34px Arial, sans-serif; fill: #111827; }
+    .subtitle { font: 18px Arial, sans-serif; fill: #374151; }
+    .lane-title { font: 700 22px Arial, sans-serif; fill: #111827; }
+    .box-title { font: 700 17px Arial, sans-serif; fill: #111827; }
+    .body { font: 15px Arial, sans-serif; fill: #1f2937; }
+    .small { font: 13px Arial, sans-serif; fill: #374151; }
+    .legend { font: 700 13px Arial, sans-serif; fill: #1f2937; }
+    .arrow { stroke: #4b5563; stroke-width: 3; fill: none; marker-end: url(#arrow); }
+    .implemented { fill: #eef8f1; stroke: #2e8b57; stroke-width: 2; }
+    .research { fill: #ecfeff; stroke: #0f766e; stroke-width: 2; }
+    .hosted { fill: #eff6ff; stroke: #2563eb; stroke-width: 2; }
+    .open { fill: #fff1f2; stroke: #dc2626; stroke-width: 2; }
+    .lane { fill: #fafafa; stroke: #d1d5db; stroke-width: 1.5; }
+  </style>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#4b5563"/>
+    </marker>
+  </defs>
+
+  <text x="55" y="55" class="title">MATANI AUDITED SYSTEM BOUNDARY</text>
+  <text x="55" y="87" class="subtitle">Approved research evidence, locally verified measurement path, and hosted gates - 31 August 2026</text>
+
+  <rect x="995" y="25" width="555" height="72" rx="6" fill="#ffffff" stroke="#9ca3af"/>
+  <rect x="1015" y="43" width="24" height="16" class="implemented"/><text x="1048" y="56" class="legend">LOCALLY VERIFIED</text>
+  <rect x="1215" y="43" width="24" height="16" class="research"/><text x="1248" y="56" class="legend">RESEARCH PROTOTYPE</text>
+  <rect x="1015" y="68" width="24" height="16" class="hosted"/><text x="1048" y="81" class="legend">PUBLICLY REACHABLE</text>
+  <rect x="1215" y="68" width="24" height="16" class="open"/><text x="1248" y="81" class="legend">UNVERIFIED GATE</text>
+
+  <rect x="35" y="120" width="1530" height="245" rx="6" class="lane"/>
+  <text x="60" y="153" class="lane-title">1. APPROVED TELUKNAGA FEASIBILITY STUDY - SITE-SCOPED RESEARCH PROTOTYPE</text>
+
+  <rect x="60" y="180" width="245" height="135" rx="6" class="research"/>
+  <text x="80" y="210" class="box-title">Approved private input</text>
+  <text x="80" y="238" class="body"><tspan x="80" dy="0">one verified padi field</tspan><tspan x="80" dy="23">Teluknaga, Banten</tspan><tspan x="80" dy="23">0.157 ha; one-year window</tspan><tspan x="80" dy="23">site-specific season labels</tspan></text>
+
+  <path d="M305 247 H355" class="arrow"/>
+  <rect x="355" y="180" width="275" height="135" rx="6" class="research"/>
+  <text x="375" y="210" class="box-title">Exact-polygon acquisition</text>
+  <text x="375" y="238" class="body"><tspan x="375" dy="0">local UTM metre grids</tspan><tspan x="375" dy="23">10 m NDVI; 20 m NDMI</tspan><tspan x="375" dy="23">versioned SCL quality mask</tspan><tspan x="375" dy="23">separate valid-pixel counts</tspan></text>
+
+  <path d="M630 247 H680" class="arrow"/>
+  <rect x="680" y="170" width="330" height="155" rx="6" class="research"/>
+  <text x="700" y="202" class="box-title">Approved availability result</text>
+  <text x="700" y="230" class="body"><tspan x="700" dy="0">86 acquisitions: 32 pass, 54 reject</tspan><tspan x="700" dy="23">dry: 30/60 pass; every month usable</tspan><tspan x="700" dy="23">wet: 2/26 pass; Dec-Feb none</tspan><tspan x="700" dy="23">cadence: dry monthly; wet none</tspan><tspan x="700" dy="23">48 operations; about 4.203 PU</tspan></text>
+
+  <path d="M1010 247 H1060" class="arrow"/>
+  <rect x="1060" y="180" width="475" height="135" rx="6" class="open"/>
+  <text x="1080" y="210" class="box-title">Claim boundary</text>
+  <text x="1080" y="238" class="body"><tspan x="1080" dy="0">Teluknaga only; no national cadence claim</tspan><tspan x="1080" dy="23">9/3 floors are provisional, not universal</tspan><tspan x="1080" dy="23">no diagnosis, agronomic accuracy, or ground truth</tspan><tspan x="1080" dy="23">research outputs are not production measurements</tspan></text>
+
+  <rect x="35" y="390" width="1530" height="245" rx="6" class="lane"/>
+  <text x="60" y="423" class="lane-title">2. MEASUREMENT PATH - IMPLEMENTED AND VERIFIED LOCALLY</text>
+
+  <rect x="60" y="455" width="220" height="130" rx="6" class="implemented"/>
+  <text x="80" y="485" class="box-title">Expo mobile app</text>
+  <text x="80" y="513" class="small"><tspan x="80" dy="0">save/retry requests a job</tspan><tspan x="80" dy="23">polls durable job state</tspan><tspan x="80" dy="23">reads persisted observations</tspan><tspan x="80" dy="23">never invents values or dates</tspan></text>
+
+  <path d="M280 520 H330" class="arrow"/>
+  <rect x="330" y="455" width="245" height="130" rx="6" class="implemented"/>
+  <text x="350" y="485" class="box-title">Authenticated worker</text>
+  <text x="350" y="513" class="small"><tspan x="350" dy="0">ownership + geometry checks</tspan><tspan x="350" dy="23">bounded request window</tspan><tspan x="350" dy="23">quota + idempotency guards</tspan><tspan x="350" dy="23">outside UI rendering</tspan></text>
+
+  <path d="M575 520 H625" class="arrow"/>
+  <rect x="625" y="445" width="300" height="150" rx="6" class="implemented"/>
+  <text x="645" y="477" class="box-title">Native-grid Process responses</text>
+  <text x="645" y="505" class="small"><tspan x="645" dy="0">exact polygon; one acquisition</tspan><tspan x="645" dy="21">NDVI raster + source metadata at 10 m</tspan><tspan x="645" dy="21">NDMI raster + source metadata at 20 m</tspan><tspan x="645" dy="21">strict cross-response source match</tspan><tspan x="645" dy="21">passed / rejected / unavailable</tspan></text>
+
+  <path d="M925 520 H975" class="arrow"/>
+  <rect x="975" y="455" width="270" height="130" rx="6" class="implemented"/>
+  <text x="995" y="485" class="box-title">Typed persistence</text>
+  <text x="995" y="513" class="small"><tspan x="995" dy="0">jobs + measurement rows</tspan><tspan x="995" dy="23">per-index statistics</tspan><tspan x="995" dy="23">complete source/config identity</tspan><tspan x="995" dy="23">RLS + security-invoker view</tspan></text>
+
+  <path d="M1245 520 H1295" class="arrow"/>
+  <rect x="1295" y="455" width="240" height="130" rx="6" class="implemented"/>
+  <text x="1315" y="485" class="box-title">Local verification</text>
+  <text x="1315" y="513" class="small"><tspan x="1315" dy="0">DB assertions: 26/26</tspan><tspan x="1315" dy="23">root tests: 9/9</tspan><tspan x="1315" dy="23">backend tests: 36/36</tspan><tspan x="1315" dy="23">live adapter: 23/23 + 6/6</tspan></text>
+
+  <rect x="35" y="660" width="1530" height="210" rx="6" class="lane"/>
+  <text x="60" y="693" class="lane-title">3. HOSTED DELIVERY - PUBLIC BACKEND REACHABLE, MEASUREMENT FLOW NOT YET VERIFIED</text>
+
+  <rect x="60" y="725" width="260" height="100" rx="6" class="hosted"/>
+  <text x="80" y="755" class="box-title">Vercel production alias</text>
+  <text x="80" y="783" class="body"><tspan x="80" dy="0">health endpoint returns JSON 200</tspan><tspan x="80" dy="23">protected route fails closed with 401</tspan></text>
+  <path d="M320 775 H370" class="arrow"/>
+  <rect x="370" y="725" width="255" height="100" rx="6" class="open"/>
+  <text x="390" y="755" class="box-title">Hosted database gate</text>
+  <text x="390" y="783" class="body"><tspan x="390" dy="0">measurement migration application</tspan><tspan x="390" dy="23">and typed rows unverified</tspan></text>
+  <path d="M625 775 H675" class="arrow"/>
+  <rect x="675" y="725" width="255" height="100" rx="6" class="open"/>
+  <text x="695" y="755" class="box-title">Worker environment gate</text>
+  <text x="695" y="783" class="body"><tspan x="695" dy="0">server-only Supabase admin</tspan><tspan x="695" dy="23">and CDSE configuration unverified</tspan></text>
+  <path d="M930 775 H980" class="arrow"/>
+  <rect x="980" y="725" width="260" height="100" rx="6" class="open"/>
+  <text x="1000" y="755" class="box-title">Authenticated app gate</text>
+  <text x="1000" y="783" class="body"><tspan x="1000" dy="0">save -&gt; job -&gt; persist -&gt; read</tspan><tspan x="1000" dy="23">on a physical device unverified</tspan></text>
+  <path d="M1240 775 H1290" class="arrow"/>
+  <rect x="1290" y="725" width="245" height="100" rx="6" class="open"/>
+  <text x="1310" y="755" class="box-title">Current honest state</text>
+  <text x="1310" y="783" class="body"><tspan x="1310" dy="0">new fields may remain empty</tspan><tspan x="1310" dy="23">until hosted gates pass</tspan></text>
+
+  <rect x="35" y="895" width="1530" height="75" rx="6" class="implemented"/>
+  <text x="60" y="925" class="box-title">AUDIT BOUNDARY</text>
+  <text x="60" y="951" class="body">Local implementation and public reachability do not establish hosted measurement persistence, physical-device success, agronomic validity, user acceptance, or thesis readiness.</text>
+</svg>

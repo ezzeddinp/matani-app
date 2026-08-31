@@ -1,13 +1,13 @@
 # Matani · Thesis-Paper Corrections
 
-**Document type:** Working corrections list for the thesis paper ("thesis fix.pdf", July 2026 revision)
+**Document type:** Working corrections and synchronization record for the thesis paper
 **Audience:** The thesis team and advisor
-**Status:** Applied in audited candidate `.agent/thesis-aligned-2026-08-21.docx` and PDF; all source drafts preserved; advisor approval pending
-**Updated:** 2026-08-21
+**Status:** Applied in synchronized candidate `.agent/thesis-aligned-2026-08-31.docx` and PDF; the 21 August candidate and all earlier source drafts are preserved; advisor approval pending
+**Updated:** 2026-08-31
 **Context:** Produced during the DEC-14 alignment of the `.agent/` suite with the paper. Same format as the paper's own "Main Corrections Applied" appendix. Priority: 1–2 are defense risks; 3–5 are accuracy fixes; 6–7 are wording hardening.
 
 **Applied artifact:** The current reproducible generator is
-[`../scripts/finalize-thesis-2026-08-21.ps1`](../scripts/finalize-thesis-2026-08-21.ps1),
+[`../scripts/finalize-thesis-2026-08-31.ps1`](../scripts/finalize-thesis-2026-08-31.ps1),
 with Word PDF export through
 [`../scripts/export-thesis-pdf.ps1`](../scripts/export-thesis-pdf.ps1).
 Paragraph-level traceability for all seven risks and ten additional corrections is in
@@ -17,8 +17,9 @@ coordination source is
 sections 21–22. Canonical factual and methodological claims still defer to the higher-
 precedence `.agent/` documents.
 
-The 2026-08-21 audit confirms all seven historical risks below are resolved in the
-candidate and also corrects claims outside the original list. DEC-24 supersedes the
+The 2026-08-21 audit confirmed all seven historical risks below were resolved in that
+candidate. The 2026-08-31 synchronization retains those corrections and additionally
+aligns the paper with DEC-26 through DEC-32 and OBS-19 through OBS-24. DEC-24 supersedes the
 earlier five-crop/classification direction: both thesis and product are padi-only,
 observation-first time-series surfaces; synthetic substitution, NDVI severity classes,
 and diagnosis/prediction output are absent. Completed engineering checks are separated
@@ -27,8 +28,27 @@ overclaimed; and the backend/provider boundary matches code. The candidate addit
 fixes the NDMI formula label, Section III.I
 cross-reference, first-appearance IEEE reference order, current CDSE/authentication/RLS
 architecture, explicit production-versus-research acquisition boundaries, and missing
-preliminary Results/Discussion/Conclusion. The current audit matrix is
-[`../docs/thesis-app-notion-alignment-audit-2026-08-21.md`](../docs/thesis-app-notion-alignment-audit-2026-08-21.md).
+Results/Discussion/Conclusion. The current audit matrix is
+[`../docs/thesis-app-notion-alignment-audit-2026-08-31.md`](../docs/thesis-app-notion-alignment-audit-2026-08-31.md).
+
+## 31 August 2026 synchronization delta
+
+- Active research questions now use the advisor-approved one-field Teluknaga wording for
+  RQ1 and RQ3. Independent raster comparison is optional future work, not active thesis
+  acceptance (DEC-26/29).
+- Results now report the approved 0.157-ha Teluknaga study: 86 acquisitions, 32 passing
+  the provisional 9-NDVI/3-NDMI floors, 54 rejected, monthly dry cadence, and no
+  defensible wet cadence. The wording remains site-specific (OBS-19; DEC-29/30).
+- Architecture and methods now describe the locally verified exact-polygon/native-grid
+  worker, source matching, typed persistence, and mobile request/read flow (OBS-22/23;
+  DEC-31) without calling it hosted production evidence.
+- Deployment wording now records that the stable public backend health endpoint is
+  reachable and protected routes fail closed, while hosted migration, server-only
+  worker configuration, and authenticated device persistence/read remain unverified
+  (OBS-24).
+- The replacement Figure 2, tables, abstract, methodology, results, discussion,
+  limitations, architecture, and conclusion carry the same state boundary. No internal
+  DEC/OBS/HYP/milestone identifiers are emitted in the public thesis artifact.
 
 | # | Historical issue in uploaded draft | Applied/superseding correction |
 |---|------------------------|----------------------|

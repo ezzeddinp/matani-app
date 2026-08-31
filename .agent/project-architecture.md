@@ -3,7 +3,7 @@
 **Document type:** Architecture document
 **Audience:** The developer, thesis advisor, reviewers, and AI agents working in this repo
 **Status:** Active
-**Updated:** 2026-08-30
+**Updated:** 2026-08-31
 **Canonical for:** As-built and target architecture, **current measurement provenance (canonical wording — § 2)**, trust boundaries, provider decisions, Architecture Decision Records (ADRs), free-tier constraints, security risks, verification baseline, migration triggers
 **Companion documents:** [`evidence-register.md`](evidence-register.md), [`context-dump.md`](context-dump.md), [`data-evaluation-plan.md`](data-evaluation-plan.md), [`research-protocol.md`](research-protocol.md), [`product-requirements.md`](product-requirements.md), [`implementation-plan.md`](implementation-plan.md)
 
@@ -78,8 +78,9 @@ research measurements.
 ### 1.2 Backend (Express 5 / Node, colocated in `backend/`)
 
 Single Express app, `backend/index.js`, listening on **port 5001** locally. It mounts four
-protected provider/measurement routers through `backend/app.js`; the last configured
-Vercel deployment was not publicly callable during OBS-16.
+protected provider/measurement routers through `backend/app.js`. The stable Vercel
+production alias is now publicly reachable and its protected route fails closed without
+a token (OBS-24); this reachability check does not prove hosted measurement persistence.
 
 The backend dependency set is independently managed in `backend/package.json`:
 Express 5.2, TypeScript 7, Node types 26, and `module` / `moduleResolution` set to
@@ -133,9 +134,10 @@ authenticates with the Supabase anon/publishable key
 > matching source provenance, applies versioned SCL quality rules, and persists a typed
 > result plus per-index pixel statistics. Mobile surfaces read only the persisted
 > `measurement_observations` view and show acquisition date, quality, valid-pixel counts,
-> or honest unavailability. This implementation is not yet the hosted app path: the
-> hosted migration, server-only Supabase admin key, public backend deployment, and
-> physical-device smoke remain unverified.
+> or honest unavailability. The stable public backend alias is reachable and protected
+> routes fail closed, but this implementation is not yet a verified hosted measurement
+> path: the hosted migration, server-only Supabase admin/CDSE configuration, and an
+> authenticated physical-device persist/read smoke remain unverified.
 
 This is **the canonical measurement-provenance wording**. All other documents link here;
 none may soften or restate it. The verified facts behind it (OBS-22/23, 2026-08-30):
@@ -157,10 +159,12 @@ none may soften or restate it. The verified facts behind it (OBS-22/23, 2026-08-
 - **The legacy route/table are not measurement sources.** `backend/api/ndvi/utils.js` and
   `lahan_health` remain historical compatibility code only; current M2 mobile surfaces do
   not read their values as measurements.
-- **Hosted availability is still unproven.** The local environment has no backend admin
-  key/config, the Supabase CLI is not linked to the hosted project, and the last public
-  backend check was blocked by Vercel SSO (OBS-16/22). Until those deployment gates pass,
-  a newly saved field in the currently configured hosted app can still remain empty.
+- **Hosted measurement availability is still unproven.** The stable backend health
+  endpoint now returns JSON with HTTP 200 and a protected route without a token returns
+  HTTP 401 (OBS-24), superseding OBS-16 only for current public reachability. The local
+  environment still cannot confirm hosted migration application, server-only Supabase
+  admin/CDSE configuration, or an authenticated physical-device persist/read flow. Until
+  those remaining gates pass, a newly saved field in the hosted app can still remain empty.
 
 **Data-state vocabulary** (per [`../AGENTS.md`](../AGENTS.md) § Vocabulary): only rows
 created by the M2 completion RPC with complete provenance can be **measured**; test rows
@@ -511,11 +515,13 @@ logs contain request ID, route, status, duration, and authenticated user ID but 
 token or provider payload. Mobile provider calls attach the active Supabase access token
 through `utils/backend-api.ts` (CODE).
 
-The configured Vercel URL was not publicly callable during the 2026-08-26 check because
-it redirected to Vercel SSO (OBS-16). This is an external deployment gate, not an
-Open-Meteo failure. The client now fails honestly on that response and may use the
-current Metro LAN candidate during local Expo Go development; production still requires
-a publicly callable backend alias or an explicitly configured access mechanism.
+The URL checked on 2026-08-26 redirected to Vercel SSO (OBS-16). After the Vercel root
+directory was set to `backend` and the Express app export was corrected, the stable
+production alias returned JSON with HTTP 200 at `/`, while `/weather` without a bearer
+token returned HTTP 401 on 2026-08-31 (OBS-24). This verifies current reachability and
+fail-closed authentication only. The client may use the current Metro LAN candidate
+during Expo Go development; production measurement availability still requires the
+hosted database, worker configuration, and authenticated device gates above.
 
 The legacy `/ndvi` guard still validates bbox limits for compatibility. The M2 request
 validates field UUID and a maximum 31-day window before quota admission; the worker then
@@ -617,12 +623,13 @@ vulnerabilities. The root production audit retains 11 moderate advisories solely
 Expo's transitive `xcode` → `uuid` tooling chain; npm's proposed forced resolution would
 downgrade the SDK-pinned `expo-splash-screen`, so it was not applied.
 
-**Current local verification (2026-08-30).** Empty-DB migration application, generated
-types, and 26/26 pgTAP pass; lint, root/backend type-checks, 9/9 root tests, and 36/36
-backend tests pass (OBS-22). The bounded M2 provider smoke also passes separately with
-quota accounting (OBS-23); ordinary tests/CI remain network-free (ADR-09). Hosted
-migration, remote CI for this delta, public backend reachability, secrets configuration,
-and physical-device persistence remain unverified.
+**Current verification (2026-08-31).** The 2026-08-30 empty-DB migration application,
+generated types, 26/26 pgTAP, and bounded provider smoke remain the latest local database
+and live-adapter evidence (OBS-22/23). On 2026-08-31, lint, root/backend type-checks, 9/9
+root tests, and 36/36 backend tests passed again; the public backend health endpoint
+returned JSON HTTP 200 and a protected route without a token returned HTTP 401 (OBS-24).
+Ordinary tests/CI remain network-free (ADR-09). Hosted migration, remote CI for this
+delta, server-only worker configuration, and physical-device persistence remain unverified.
 
 **SDK 54 compatibility verification (2026-07-28).** `npx expo install --check` reports
 dependencies up to date, `npx expo-doctor@latest` passes 18/18, public config resolves as

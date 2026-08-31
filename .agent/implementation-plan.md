@@ -3,7 +3,7 @@
 **Document type:** Implementation roadmap
 **Audience:** The developer, thesis advisor, reviewers, and AI agents working in this repo
 **Status:** Active
-**Updated:** 2026-08-30
+**Updated:** 2026-08-31
 **Canonical for:** Milestone sequencing, milestone acceptance criteria, and the definition of done for thesis engineering work
 **Companion documents:** [`project-architecture.md`](project-architecture.md), [`data-evaluation-plan.md`](data-evaluation-plan.md), [`research-protocol.md`](research-protocol.md), [`product-requirements.md`](product-requirements.md), [`evidence-register.md`](evidence-register.md), [`context-dump.md`](context-dump.md)
 
@@ -69,16 +69,17 @@ This is the canonical **order of engineering work** for the Matani thesis. Read 
   the canonical/Notion review record is complete. M1 acceptance is therefore closed by
   DEC-30. This does not close M0's remote-CI and external credential/platform controls;
   those remain prerequisite project gates before production M2 deployment.
-- **M2: implementation complete locally; formal PASS blocked by hosted deployment.**
+- **M2: implementation complete locally; public backend reachable; formal PASS blocked by remaining hosted gates.**
   The exact-polygon/native-grid Process adapter, strict source matching, SCL quality
   pipeline, durable job/provenance schema, privileged RPCs, RLS read view, authenticated
   worker route, and mobile request/read/detail flow are implemented (DEC-31). Empty-DB
   migration plus 26/26 pgTAP, generated DB types, fixture suites, lint/type-check, and the
   bounded live Teluknaga adapter smoke pass (OBS-22/23). M2 is not marked PASS because the
-  CLI is not linked to hosted Supabase, the migration is not confirmed hosted, no backend
-  Supabase admin key/CDSE secret deployment is available locally, the last configured
-  backend was Vercel-protected (OBS-16), and no authenticated physical-app job has yet
-  persisted/read a hosted measurement.
+  CLI is not linked to hosted Supabase, the migration is not confirmed hosted, backend
+  Supabase admin/CDSE configuration is not verified, and no authenticated physical-app
+  job has yet persisted/read a hosted measurement. The stable Vercel alias now passes a
+  public health check and fails closed without a token (OBS-24), but that closes only the
+  reachability sub-gate.
 
 ---
 
@@ -199,7 +200,7 @@ Independent raster comparison is not an M1 acceptance criterion (DEC-26).
 - **The fixture-first test suite is green without network** (ADR-09); an equivalent measurement request is idempotent (proven by the cache-identity uniqueness test).
 - A **live smoke check** exists that is bounded to known test polygons + short date ranges, quota-counted, and kept out of default CI (ADR-09; [`data-evaluation-plan.md`](data-evaluation-plan.md) § 7).
 - The **hosted path is demonstrated end-to-end**: versioned migration applied, server-only
-  admin/CDSE credentials configured in a publicly callable backend, and one authenticated
+  admin/CDSE credentials configured in the publicly reachable backend, and one authenticated
   app request persists then reads a provenance-complete passed/rejected/unavailable row.
 - No cadence claim appears in product UI/copy beyond what M1 licensed (INV-08).
 

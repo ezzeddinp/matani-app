@@ -3,7 +3,7 @@
 **Document type:** Product brief
 **Audience:** The developer, thesis advisor, reviewers, and AI agents working in this repo
 **Status:** Active
-**Updated:** 2026-08-30
+**Updated:** 2026-08-31
 **Canonical for:** The product thesis, positioning, target user, and phased scope
 **Companion documents:** [`product-requirements.md`](product-requirements.md), [`project-architecture.md`](project-architecture.md), [`research-protocol.md`](research-protocol.md), [`evidence-register.md`](evidence-register.md), [`context-dump.md`](context-dump.md), [`implementation-plan.md`](implementation-plan.md)
 
@@ -56,10 +56,11 @@ Matani is a field-first mobile app. The core loop, as built:
 
 The local implementation now connects saved polygons to an explicit authenticated job,
 typed provenance persistence, and M2 observation surfaces. Legacy rows remain legacy.
-What the currently configured hosted app still lacks is a verified deployed writer/read
-path, not the repository implementation itself.
+The stable public backend alias is reachable and its authentication boundary fails closed
+(OBS-24). What the hosted app still lacks is a verified migration/configured worker and
+an authenticated writer/read path, not the repository implementation itself.
 
-The locally implemented M2 path adds two things the earlier prototype lacked: **persisted, provenance-complete measurements** — every NDVI/NDMI value carrying its acquisition date, valid-pixel accounting, and masking rule-set version — and **honest unavailable states** that admit absence rather than papering over it with synthesized data. These behaviors remain deployment-pending until the hosted migration, worker environment, and authenticated device flow are verified (OBS-22/23; DEC-31).
+The locally implemented M2 path adds two things the earlier prototype lacked: **persisted, provenance-complete measurements** — every NDVI/NDMI value carrying its acquisition date, valid-pixel accounting, and masking rule-set version — and **honest unavailable states** that admit absence rather than papering over it with synthesized data. Public reachability alone does not activate those behaviors; they remain deployment-pending until the hosted migration, server-only worker environment, and authenticated device flow are verified (OBS-22/23/24; DEC-31).
 
 Throughout, the app distinguishes four data states (per [`../AGENTS.md`](../AGENTS.md) § Vocabulary), and this distinction is a product feature, not an implementation detail:
 

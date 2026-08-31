@@ -2,9 +2,10 @@
 
 **Document type:** Engineering data pipeline specification
 **Audience:** The developer, thesis advisor, reviewers, and AI agents working in this repo
-**Status:** Active — M2 implemented and verified locally; hosted deployment/persistence
-remains unverified unless explicitly marked
-**Updated:** 2026-08-30
+**Status:** Active — M2 implemented and verified locally; public backend reachability is
+verified, while hosted migration/worker configuration/persistence remain unverified
+unless explicitly marked
+**Updated:** 2026-08-31
 **Canonical for:** the engineering measurement contract, provider adapter, quality pipeline, persistence/provenance, cache identity, idempotency, fixtures, and Indonesia-specific masking/resolution behavior
 **Companion documents:** [`research-protocol.md`](research-protocol.md), [`project-architecture.md`](project-architecture.md), [`product-requirements.md`](product-requirements.md), [`implementation-plan.md`](implementation-plan.md), [`evidence-register.md`](evidence-register.md)
 
@@ -16,7 +17,7 @@ This is the **engineering realization** of the research standard. Read it this w
 
 - **Research validity is not decided here.** [`research-protocol.md`](research-protocol.md) owns *why and whether* — the research questions, hypotheses, unit of analysis, quality/masking *requirements*, and threats to validity. This document owns *how the code satisfies those requirements*: the measurement contract, adapter boundary, quality pipeline, persistence schema, cache identity, idempotency, and fixtures. Where the protocol states a rule, this document links to it and specifies the mechanism — it never re-derives the rule or re-argues the research.
 - **Implementation qualifiers are load-bearing.** `[As-built local]` means code and local
-  verification exist; it does not imply hosted migration, backend deployment, physical
+  verification exist; it does not imply hosted migration, worker configuration, physical
   device behavior, or scientific validation. `[Thesis]` remains an unimplemented or
   research-evaluation requirement.
 - **External facts are cited, never restated.** Every externally sourced figure carries an `EVID-*` / `OBS-*` ID from [`evidence-register.md`](evidence-register.md); decisions carry `DEC-*` (from [`context-dump.md`](context-dump.md)) and architecture decisions carry `ADR-*` (from [`project-architecture.md`](project-architecture.md)); hypotheses carry `HYP-*` (from [`research-protocol.md`](research-protocol.md)). This document does not re-copy quota numbers, SCL class ids, or band resolutions — it cites the ID.
@@ -39,9 +40,9 @@ deployment has not passed, so local implementation is not called production-read
 
 | Item | Local state | Hosted state |
 |------|-------------|--------------|
-| Exact polygon, dynamic ≤31-day window, SCL mask, native grids | Implemented in `backend/measurement/`; fixture and live-smoke verified (OBS-22/23) | Backend deployment unverified |
+| Exact polygon, dynamic ≤31-day window, SCL mask, native grids | Implemented in `backend/measurement/`; fixture and live-smoke verified (OBS-22/23) | Backend health/auth boundary reachable; worker configuration unverified (OBS-24) |
 | Durable jobs, provenance, stats, RLS, idempotency | Migration and 26/26 pgTAP pass from empty local DB (OBS-22) | Migration not applied; CLI is not linked |
-| App save/request/read/detail polling | Implemented in `explore.tsx`, `index.tsx`, `detail-lahan-page.tsx`, `utils/backend-api.ts` (CODE) | Public backend/admin key/device smoke unverified |
+| App save/request/read/detail polling | Implemented in `explore.tsx`, `index.tsx`, `detail-lahan-page.tsx`, `utils/backend-api.ts` (CODE) | Public backend reachable; admin/CDSE configuration and authenticated device smoke unverified (OBS-24) |
 | Legacy bbox route and `lahan_health` | Retained for compatibility but removed from M2 measurement surfaces | Must not be used as measurement data |
 
 ---
@@ -349,9 +350,10 @@ beside it is a non-executable pointer; the versioned migration is the sole physi
   10 m and NDMI 20 m output grids; each raster carries same-response `userdata`, and
   strict source-identity matching is mandatory before persistence (ADR-15).
 
-OBS-22 proves local schema/worker/client behavior and OBS-23 proves the bounded live
-provider adapter. Formal M2 PASS still requires applying the migration to hosted Supabase,
-configuring a server-only admin key and CDSE credentials in the public backend deployment,
-and demonstrating an authenticated hosted job persisted/read on the app. Until then,
+OBS-22 proves local schema/worker/client behavior, OBS-23 proves the bounded live provider
+adapter, and OBS-24 proves only public backend reachability plus fail-closed authentication.
+Formal M2 PASS still requires applying the migration to hosted Supabase, configuring a
+server-only admin key and CDSE credentials in the public backend deployment, and
+demonstrating an authenticated hosted job persisted/read on the app. Until then,
 `measured` is a valid row state in the implemented schema, not a claim that the currently
 configured hosted project already contains such a row.
