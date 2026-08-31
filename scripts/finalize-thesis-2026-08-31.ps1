@@ -60,6 +60,66 @@ function Set-TableCellText {
   }
 }
 
+function Set-ComparisonTable {
+  param(
+    [System.Xml.XmlNode]$Table,
+    [System.Xml.XmlNamespaceManager]$Namespaces
+  )
+
+  # Keep the comparison readable in the two-column IEEE layout.  The old
+  # six-column table mixed product focus, providers, weather, advisory, and
+  # interpretation into one very wide object.  These three columns preserve
+  # the defensible comparison without implying that Matani owns capabilities
+  # (such as validated risk classification) that are out of scope.
+  $rows = @(
+    @("System / Application", "Focus", "Difference from Matani"),
+    @("Matani", "Padi-only mobile DSS for dated Sentinel-2 NDVI/NDMI field observations, weather context, and notes", "Observation-first and provenance-labeled; no diagnosis or prescription; measurement path verified locally, hosted history unverified"),
+    @("OneSoil", "Multi-crop satellite monitoring, scouting, weather, and precision-agriculture workflows", "Broader operational platform; Matani is narrower, padi-only, and exposes explicit observation/data-state semantics"),
+    @("EOSDA Crop Monitoring", "Multi-crop remote sensing, vegetation/moisture indices, weather, alerts, and analytics", "Broader commercial analytics platform; Matani focuses on a small, mobile, padi-field observation workflow"),
+    @("SIPINDO / SMARTseeds", "Indonesian agricultural information, advisory, marketplace, and geodata services", "Broader advisory and service ecosystem; Matani focuses on dated per-field NDVI/NDMI inspection"),
+    @("KATAM Terpadu-SC", "Indonesian planting-calendar, climate, standing-crop, variety, and fertilizer guidance", "Regional planning and recommendations; Matani focuses on user-defined field time series rather than seasonal planning"),
+    @("Plantix", "Photo-based pest and disease diagnosis with treatment guidance", "Different problem and interaction; Matani deliberately does not diagnose or prescribe"),
+    @("CropX", "Sensor-connected farm management, soil, irrigation, and agronomic recommendations", "Operational/sensor management scope; Matani is an observation interface without irrigation or input prescriptions"),
+    @("Climate FieldView", "Farm data management, imagery, and seed/fertility prescription workflows", "Precision-operation and prescription scope; Matani does not generate prescription maps"),
+    @("Sentinel Hub EO Browser", "Satellite imagery and index visualization for analysis", "Adjacent technical tool/provider, not a farmer DSS; Matani packages selected observations into a padi-only mobile workflow"),
+    @("Open-Meteo", "Weather data API", "Infrastructure provider, not a direct competitor; Matani consumes weather as context alongside field observations")
+  )
+
+  $tableRows = @($Table.SelectNodes("./w:tr", $Namespaces))
+  if ($tableRows.Count -ne $rows.Count) {
+    throw "Comparison table row count changed: expected $($rows.Count), found $($tableRows.Count)."
+  }
+
+  for ($rowIndex = 0; $rowIndex -lt $rows.Count; $rowIndex++) {
+    $row = $tableRows[$rowIndex]
+    $cells = @($row.SelectNodes("./w:tc", $Namespaces))
+    if ($cells.Count -lt 3) {
+      throw "Comparison table row $rowIndex has fewer than three cells."
+    }
+
+    for ($cellIndex = $cells.Count - 1; $cellIndex -ge 3; $cellIndex--) {
+      [void]$row.RemoveChild($cells[$cellIndex])
+    }
+
+    $cells = @($row.SelectNodes("./w:tc", $Namespaces))
+    for ($cellIndex = 0; $cellIndex -lt 3; $cellIndex++) {
+      Set-TableCellText $cells[$cellIndex] $rows[$rowIndex][$cellIndex] $Namespaces
+    }
+  }
+
+  $grid = $Table.SelectSingleNode("./w:tblGrid", $Namespaces)
+  if ($null -ne $grid) {
+    $gridColumns = @($grid.SelectNodes("./w:gridCol", $Namespaces))
+    for ($columnIndex = $gridColumns.Count - 1; $columnIndex -ge 3; $columnIndex--) {
+      [void]$grid.RemoveChild($gridColumns[$columnIndex])
+    }
+    $remaining = @($grid.SelectNodes("./w:gridCol", $Namespaces))
+    foreach ($column in $remaining) {
+      $column.SetAttribute("w", "http://schemas.openxmlformats.org/wordprocessingml/2006/main", "3389")
+    }
+  }
+}
+
 $package = [System.IO.Packaging.Package]::Open(
   $resolvedOutput,
   [System.IO.FileMode]::Open,
@@ -122,7 +182,9 @@ try {
     95 = "Evaluation separates software behavior from measurement validity so that a successful interface, test, or API response is never treated as proof of agronomic accuracy. On 30 August 2026, an empty local database migration and 26 database assertions passed together with the Python research fixture suite. On 31 August 2026, scoped lint, root and backend type checks, nine root tests, and 36 backend tests passed again. The public backend health endpoint returned JSON with HTTP 200, and a protected weather request without a token failed closed with HTTP 401. The Python research suite could not be rerun on the 31 August workstation because Python 3 was unavailable. User acceptance testing and field validation have not been completed."
     98 = "3) Conceptual Plausibility: NDVI/NDMI behavior may be compared cautiously with rice phenology literature [4], [9]. Such comparison is contextual only and cannot replace field-level ground truth. Independent raster comparison remains a useful optional extension, but it is outside the active thesis acceptance scope."
     100 = "5) Measurement Limitations: The approved study contains one 0.157-ha Teluknaga field and therefore cannot establish a universal minimum field area, nationally representative cadence, or agronomic validity. The nine-NDVI/three-NDMI floors are provisional operational rules rather than universally validated reliability thresholds. The public summary supports acquisition-level pass/reject counts but does not justify inventing an unreported full distribution of pixel counts. The exact-polygon measurement path is locally verified, yet hosted migration, worker credentials, authenticated device persistence/read, ground truth, and completed user acceptance testing remain open."
-    105 = "Existing systems provide weather, satellite visualization, scouting, irrigation, farm management, planting calendars, and image-based diagnosis. Matani is positioned as a padi-only mobile DSS that combines user-defined field boundaries, explicitly state-labeled and dated Sentinel-2 NDVI/NDMI observations, weather context, field notes, and optional descriptive summaries. The exact-polygon measurement path is implemented locally, but this positioning does not claim hosted measured history, validated agronomic monitoring, production alerts, crop-health classification, or diagnosis."
+    101 = "Table V compares Matani with representative direct competitors and adjacent tools; the cited product descriptions were checked on 31 August 2026 [29]-[38]."
+    103 = "TABLE V Concise comparison of Matani with direct competitors and adjacent tools"
+    105 = "Table V compares Matani with representative direct competitors and adjacent tools. OneSoil and EOSDA are broad multi-crop monitoring platforms; SIPINDO and KATAM are Indonesian advisory or planning services; Plantix, CropX, and Climate FieldView address diagnosis or operational precision management. Open-Meteo and Sentinel Hub EO Browser are infrastructure or visualization providers, not direct competitors. Matani's defensible distinction is a padi-only, observation-first mobile workflow that combines user-defined field polygons, dated Sentinel-2 NDVI/NDMI observations, weather context, field notes, and explicit data-state semantics. This is a scope and transparency distinction, not a claim of superior accuracy or market-wide uniqueness. The measurement path is implemented locally, while hosted measured history remains unverified."
     108 = "Both product and thesis scope are restricted to padi. The approved retrospective evidence covers one 0.157-ha Teluknaga field, uses provisional nine-NDVI/three-NDMI valid-pixel floors, and supports only the advisor-reviewed site-specific cadence statement: monthly in the locally labelled dry period and no defensible cadence in the wet period. The local application path includes exact-polygon processing, versioned masking, matched source provenance, typed persistence, owner-scoped access, and explicit unavailable outcomes. The stable public backend alias is reachable and protected routes fail closed, but hosted measurement migration, server-only worker credentials, authenticated physical-device persistence/read, field-level ground truth, completed user acceptance testing, and production notifications remain unverified."
     118 = "Fig. 2. Approved research evidence, locally verified measurement path, and remaining hosted delivery gates as audited on 31 August 2026."
     121 = "The padi-only mobile application provides account access, polygon drawing, an explicit save/retry measurement request, dated NDVI/NDMI time-series display, backend-mediated Open-Meteo weather information, an uncalibrated client-side weather-context indicator, optional descriptive AI summaries, field notes, and explicit queued, rejected, unavailable, and query-failure states. It does not classify crop health, diagnose field conditions, synthesize missing observations, or deliver production alerts. The measured-history interface is implemented locally, while populated hosted history is not yet verified."
@@ -143,6 +205,16 @@ try {
     138 = "D. Product and Deployment Implication"
     139 = "The application and worker are implemented and verified locally, and the stable public backend alias is reachable. However, the hosted measurement migration, server-only worker configuration, and authenticated physical-device save-to-persist-to-read flow have not been verified. A newly created field may therefore remain empty in the hosted application. Only a provenance-complete row written through the controlled completion path may be presented as measured; research outputs and legacy rows are not promoted."
     141 = "Matani now has a padi-only mobile DSS implementation for requesting and inspecting dated, quality-gated NDVI/NDMI observations while keeping fixture, prototype, measured, rejected, and unavailable semantics explicit. The approved one-field Teluknaga study found that 32 of 86 acquisitions passed the provisional nine-NDVI/three-NDMI pixel floors. Its complete dry-month pattern supports monthly cadence for the locally labelled dry period, while only two passing wet acquisitions support no defensible wet-season cadence. These results are site-specific and do not establish national cadence, universal thresholds, crop-health diagnosis, or agronomic accuracy. The exact-polygon measurement worker, typed persistence, source matching, and mobile flow are locally verified, and the public backend is reachable, but hosted migration, worker configuration, authenticated device persistence, field validation, user acceptance testing, and final thesis-team/advisor approval remain necessary."
+    171 = '[29] Open-Meteo, "Free weather API," Open-Meteo. [Online]. Available: https://open-meteo.com/. [Accessed: Aug. 31, 2026].'
+    172 = '[30] Sentinel Hub, "EO Browser," Sentinel Hub. [Online]. Available: https://www.sentinel-hub.com/explore/eobrowser/. [Accessed: Aug. 31, 2026].'
+    173 = '[31] Sentinel Hub, "How do I view NDVI?," Sentinel Hub. [Online]. Available: https://www.sentinel-hub.com/faq/how-do-i-view-ndvi/. [Accessed: Aug. 31, 2026].'
+    174 = '[32] OneSoil, "What is OneSoil?," OneSoil Help Center. [Online]. Available: https://help.onesoil.ai/en/articles/5237693-what-is-onesoil. [Accessed: Aug. 31, 2026].'
+    175 = '[33] EOS Data Analytics, "Crop monitoring software for remote farm analytics," EOSDA Crop Monitoring. [Online]. Available: https://eos.com/products/crop-monitoring/. [Accessed: Aug. 31, 2026].'
+    176 = '[34] CropX, "CropX agronomic farm management system," CropX. [Online]. Available: https://cropx.com/. [Accessed: Aug. 31, 2026].'
+    177 = '[35] Climate FieldView, "Field-level data to analyze every acre, seed and practice," Climate FieldView. [Online]. Available: https://climate.com/en-us/solutions/analyze-data.html. [Accessed: Aug. 31, 2026].'
+    178 = '[36] SIPINDO, "Download aplikasi pertanian terlengkap," SIPINDO. [Online]. Available: https://sipindo.id/. [Accessed: Aug. 31, 2026].'
+    179 = '[37] Balai Besar Perakitan dan Modernisasi Pertanian Bali, "KATAM Terpadu-SC," BRMP Bali. [Online]. Available: https://bali.brmp.pertanian.go.id/layanan/layanan-lainnya/katam-terpadu-sc. [Accessed: Aug. 31, 2026].'
+    180 = '[38] Plantix, "Plantix: Free app for crop diagnosis and treatments," Plantix. [Online]. Available: https://plantix.net/en/. [Accessed: Aug. 31, 2026].'
   }
 
   foreach ($entry in $replacementByIndex.GetEnumerator()) {
@@ -177,6 +249,8 @@ try {
     $cells = $rows[[int]$update.Row].SelectNodes("./w:tc", $namespaces)
     Set-TableCellText $cells[[int]$update.Cell] ([string]$update.Text) $namespaces
   }
+
+  Set-ComparisonTable $tables[5] $namespaces
 
   $imageUri = [System.IO.Packaging.PackUriHelper]::CreatePartUri(
     [System.Uri]::new("/word/media/image2.png", [System.UriKind]::Relative)
