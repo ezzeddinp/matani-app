@@ -153,7 +153,8 @@ the M2 measurement request, which is implemented locally
 ### PRD-08 · Ladang field cards — latest observation · [As-built]
 
 **Behavior.** Each saved field reads the newest persisted M2 observation. Saving a field
-explicitly requests one authenticated initial measurement job; rendering does not invoke
+explicitly requests one authenticated initial measurement job; the backend returns after
+durable enqueue and processing continues within the bounded worker invocation. Rendering does not invoke
 the legacy bbox route. Passed rows show raw indices/acquisition date, while rejected,
 failed, or absent rows remain unavailable. There is no synthetic fallback or diagnosis.
 
@@ -205,7 +206,8 @@ the mobile surface remains non-blocking when the summary is unavailable
 `measurement_observations`, and the latest durable job. It polls while queued/processing,
 plots only quality-passing values, and lists acquisition date, quality status, rejection
 reason, and separate NDVI/NDMI valid-pixel counts. A retry action explicitly requests a
-job. Metadata remains visible if observation/job reads fail.
+job. A configured production origin is authoritative and structured backend errors are not
+replaced by LAN fallback timeouts. Metadata remains visible if observation/job reads fail.
 
 **Current-fidelity note.** The local provenance writer/read path exists and no legacy row
 is promoted. Public backend reachability now passes; hosted availability remains subject

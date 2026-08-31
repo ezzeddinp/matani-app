@@ -13,6 +13,7 @@
     "smoke:m2:live": "node scripts/run-m2-live-smoke.mjs"
   },
   "dependencies": {
+    "@vercel/functions": "^3.9.5",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",

@@ -339,8 +339,9 @@ beside it is a non-executable pointer; the versioned migration is the sole physi
   privileged completion/failure RPCs, owner-select RLS, and a security-invoker read view;
   `lahan_health` remains read-only legacy.
 - **Worker runtime:** authenticated Node backend worker behind the ADR-06 job boundary;
-  the database stores durable state while the current worker executes in the request
-  process. A separately scheduled deployment is not claimed.
+  the route durably enqueues and returns HTTP 202, then Vercel `waitUntil` retains the
+  processing promise inside the same bounded function invocation (DEC-33; EVID-031/032).
+  This is not a separately scheduled durable worker.
 - **Geometry identity:** SHA-256 over the canonical EPSG:4326 exterior ring rounded to
   seven decimal places, with canonical orientation/start; an analysis buffer is outside
   the identity.
@@ -352,8 +353,9 @@ beside it is a non-executable pointer; the versioned migration is the sole physi
 
 OBS-22 proves local schema/worker/client behavior, OBS-23 proves the bounded live provider
 adapter, and OBS-24 proves only public backend reachability plus fail-closed authentication.
-Formal M2 PASS still requires applying the migration to hosted Supabase, configuring a
-server-only admin key and CDSE credentials in the public backend deployment, and
-demonstrating an authenticated hosted job persisted/read on the app. Until then,
+The hosted job relation is now observed and contains one queued zero-attempt job (OBS-27),
+but this does not establish the complete migration/RPC/view contract. Formal M2 PASS still
+requires deploying DEC-33, configuring the server-only admin key and CDSE credentials,
+and demonstrating an authenticated hosted job persisted/read on the app. Until then,
 `measured` is a valid row state in the implemented schema, not a claim that the currently
 configured hosted project already contains such a row.

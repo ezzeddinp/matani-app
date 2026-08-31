@@ -15,7 +15,10 @@ import Svg, { Circle, G, Line, Polyline, Text as SvgText } from "react-native-sv
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { lahanService, supabase, type LahanDetail } from "@/hooks/supabase";
-import { requestLahanMeasurement } from "@/utils/backend-api";
+import {
+  describeBackendError,
+  requestLahanMeasurement,
+} from "@/utils/backend-api";
 
 type ObservationState = "measured" | "unavailable";
 type IndexKey = "ndvi" | "ndmi";
@@ -318,7 +321,7 @@ export default function DetailLahanPage() {
     } catch (error) {
       console.error("Gagal meminta pengukuran lahan:", error);
       setObservationErrorMessage(
-        "Job pengukuran belum dapat dijalankan. Periksa backend dan konfigurasi server."
+        `Job pengukuran belum dapat dijalankan. ${describeBackendError(error)}`
       );
     } finally {
       setIsRequestingMeasurement(false);

@@ -30,6 +30,7 @@ const parseWindow = (body, maxDays, now) => {
 
 export const createMeasurementRouter = ({
   worker,
+  defer = null,
   maxWindowDays = 31,
   now = () => new Date(),
 } = {}) => {
@@ -49,13 +50,38 @@ export const createMeasurementRouter = ({
         : `latest:${lahanId}:${window.from}:${window.to}`
       : suppliedKey || null;
     try {
-      const result = await worker.request({
+      const request = {
         lahanId,
         userId: req.auth.id,
         from: window.from,
         to: window.to,
         idempotencyKey,
-      });
+      };
+
+      if (defer && worker.enqueue && worker.process) {
+        const queued = await worker.enqueue(request);
+        const task = worker.process(queued).catch((error) => {
+          console.error(
+            JSON.stringify({
+              event: "measurement_background_failed",
+              requestId: req.requestId ?? null,
+              jobId: queued.job?.id ?? null,
+              code: error instanceof Error ? error.message : "unknown",
+            }),
+          );
+        });
+        defer(task);
+        return res.status(202).json({
+          jobId: queued.job.id,
+          status: queued.job.status ?? "queued",
+          observationId: null,
+          qualityStatus: null,
+          rejectionReason: queued.job.error_code ?? null,
+          reused: queued.job.status !== "queued",
+        });
+      }
+
+      const result = await worker.request(request);
       const status = result.status === "processing" ? 202 : 200;
       return res.status(status).json(result);
     } catch (error) {

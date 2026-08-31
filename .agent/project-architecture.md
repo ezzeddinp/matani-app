@@ -61,12 +61,14 @@ research measurements.
   `app.config.ts` — iOS from `GOOGLE_MAPS_API_KEY_IOS` (`app.config.ts:16`), Android from
   `GOOGLE_MAPS_API_KEY_ANDROID` (`app.config.ts:34`). These land in the compiled native
   config and are **client-visible in the shipped binary** (see § 5.3).
-- The app reaches the backend over an `EXPO_PUBLIC_API_URL` / host+port candidate list.
+- When configured, `EXPO_PUBLIC_API_URL` is the authoritative backend origin. Manifest/LAN
+  candidates are constructed only when no public URL is configured, so a production
+  response cannot be hidden by a later local-network timeout (DEC-33; OBS-27).
   Saving/retrying a field explicitly posts its field UUID to `/measurements/request`;
   current measurement surfaces do not issue the legacy `/ndvi?bbox` request
   (`utils/backend-api.ts`, `app/(tabs)/explore.tsx`, CODE).
-- Expo Go development also adds the current Metro manifest host as a LAN backend
-  candidate, so a stale explicit LAN IP does not prevent trying the active workstation.
+- Expo Go development without a public URL adds the current Metro manifest host as a LAN
+  backend candidate.
   Backend responses must be JSON; Vercel SSO/HTML responses are classified as
   unavailable rather than passed to `JSON.parse` (`hooks/config.ts`,
   `utils/backend-api.ts`, CODE; OBS-16).
@@ -91,7 +93,7 @@ Express 5.2, TypeScript 7, Node types 26, and `module` / `moduleResolution` set 
 | `GET /ndvi` | `backend/api/ndvi/utils.js` | Sentinel Hub Statistical API | Parses `?bbox=w,s,e,n` (`utils.js:31-46`), defaults to a **Jakarta bbox** when absent (`utils.js:49`); fetches an OAuth token (`sentinelAuth.js`), POSTs a Statistics request with a **fixed Sept 2025 window** and the NDVI/NDMI evalscript, returns per-interval NDVI/NDMI stats or `{error:"No data available"}`. |
 | `GET /weather` | `backend/api/weather/route.js` | Open-Meteo | Requires `?lat&lon`; requests current and daily weather including WMO weather codes, maps the response into the stable mobile contract, and returns a sanitized `weather_provider_unavailable` error on failure. Coordinates and raw provider payloads are not logged. |
 | `POST /ai/summary` | `backend/api/ai/route.js` | Google Gemini (Generative Language API) | Accepts `{lahanCards, totals}`, normalizes each card's data state, builds a bounded Indonesian summary prompt that forbids converting fixture/prototype inputs into measurements or diagnoses, and calls Gemini with an **env-configured model** `MATANI_GEMINI_MODEL` plus an **in-code fallback candidate list**; requires `GOOGLE_GENERATIVE_AI_API_KEY` (`route.js:96-148`). |
-| `POST /measurements/request` | `backend/api/measurements/route.js` | CDSE Catalog + Process APIs; Supabase Data API | Authenticates the user, validates field UUID/≤31-day window, loads only that owner's polygon, executes or reuses a durable job, applies the M2 adapter/quality contract, and persists through server-only RPCs. |
+| `POST /measurements/request` | `backend/api/measurements/route.js` | CDSE Catalog + Process APIs; Supabase Data API | Authenticates the user, validates field UUID/≤31-day window, loads only that owner's polygon, durably enqueues/reuses a job, returns HTTP 202, and defers the adapter/quality/persistence task with Vercel `waitUntil` inside the same bounded invocation (DEC-33; EVID-031/032). |
 
 `backend/app.js` is the runtime route/security composition root. Measurement processing
 lives under `backend/measurement/`; `geotiff` decodes provider rasters and `proj4`
@@ -136,7 +138,8 @@ authenticates with the Supabase anon/publishable key
 > `measurement_observations` view and show acquisition date, quality, valid-pixel counts,
 > or honest unavailability. The stable public backend alias is reachable and protected
 > routes fail closed, but this implementation is not yet a verified hosted measurement
-> path: the hosted migration, server-only Supabase admin/CDSE configuration, and an
+> path: a hosted job relation is present, while server-only Supabase admin/CDSE
+> configuration, deferred provider completion, and an
 > authenticated physical-device persist/read smoke remain unverified.
 
 This is **the canonical measurement-provenance wording**. All other documents link here;
@@ -160,11 +163,11 @@ none may soften or restate it. The verified facts behind it (OBS-22/23, 2026-08-
   `lahan_health` remain historical compatibility code only; current M2 mobile surfaces do
   not read their values as measurements.
 - **Hosted measurement availability is still unproven.** The stable backend health
-  endpoint now returns JSON with HTTP 200 and a protected route without a token returns
-  HTTP 401 (OBS-24), superseding OBS-16 only for current public reachability. The local
-  environment still cannot confirm hosted migration application, server-only Supabase
-  admin/CDSE configuration, or an authenticated physical-device persist/read flow. Until
-  those remaining gates pass, a newly saved field in the hosted app can still remain empty.
+  endpoint returns JSON with HTTP 200 and a protected route without a token returns HTTP
+  401 (OBS-24). A later server-authorized read-only check found one hosted queued job with
+  zero attempts (OBS-27), confirming the job relation but also that processing had not run.
+  Server-only Supabase/CDSE configuration, deployment of DEC-33, deferred completion, and
+  an authenticated physical-device persist/read flow remain open.
 
 **Data-state vocabulary** (per [`../AGENTS.md`](../AGENTS.md) § Vocabulary): only rows
 created by the M2 completion RPC with complete provenance can be **measured**; test rows
@@ -346,9 +349,10 @@ Each ADR aligns to a `DEC-*` in [`context-dump.md`](context-dump.md) and carries
   requests are explicit; the worker deduplicates concurrent jobs, validates and persists
   results with provenance, and mobile screens **read the stored result**. DEC-21 selects
   a Node worker outside the Expo client rather than a render-triggered job; the concrete
-  contract is `research/contracts/measurement-contract-v1.json`. The current backend
-  invokes that worker inside the authenticated request process while the durable database
-  job preserves idempotency/retry state; a separately scheduled worker is not claimed.
+  contract is `research/contracts/measurement-contract-v1.json`. DEC-33 amends the HTTP
+  lifecycle: the route durably enqueues, returns HTTP 202, and registers the processing
+  promise with Vercel `waitUntil`. The task still shares the bounded function invocation;
+  a separately scheduled worker is not claimed (EVID-031/032; OBS-27).
 - **Consequences:** Decouples satellite cost from screen rendering; enables quota
   accounting, idempotency, and honest `unavailable` states.
 - **Revisit trigger:** Acquisition volume or latency requirements outgrow the chosen job

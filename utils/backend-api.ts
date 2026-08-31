@@ -80,7 +80,10 @@ export const retainMostUsefulBackendError = (
   error: unknown
 ) => {
   const nextMessage = describeBackendError(error);
-  if (currentMessage.includes("dilindungi Vercel")) {
+  if (
+    currentMessage.includes("dilindungi Vercel") ||
+    (currentMessage.startsWith("Backend ") && !(error instanceof BackendResponseError))
+  ) {
     return currentMessage;
   }
   return nextMessage;
@@ -158,7 +161,12 @@ export const requestLahanMeasurement = async (
         });
         return await readBackendJson<MeasurementRequestResult>(response);
       } catch (error) {
-        lastError = error;
+        if (error instanceof BackendResponseError && error.status !== 404) {
+          throw error;
+        }
+        const currentMessage = describeBackendError(lastError);
+        const retainedMessage = retainMostUsefulBackendError(currentMessage, error);
+        lastError = retainedMessage === currentMessage ? lastError : error;
       }
     }
   }

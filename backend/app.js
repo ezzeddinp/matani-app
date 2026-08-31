@@ -1,6 +1,7 @@
 import cors from "cors";
 import express from "express";
 import crypto from "node:crypto";
+import { waitUntil } from "@vercel/functions";
 
 import aiRoute from "./api/ai/route.js";
 import { createMeasurementRouter } from "./api/measurements/route.js";
@@ -47,6 +48,9 @@ export const createApp = ({
         ai: aiRoute,
         measurements: createMeasurementRouter({
           worker: createMeasurementWorker({ admin, provider }),
+          defer: process.env.VERCEL
+            ? (task) => waitUntil(task)
+            : (task) => void task,
           maxWindowDays: config.measurementMaxWindowDays,
         }),
       };

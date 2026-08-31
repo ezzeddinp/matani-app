@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import express from "express";
 
+import { createMeasurementRouter } from "../api/measurements/route.js";
 import {
   buildProcessRequest,
   createCdseProcessAdapter,
@@ -216,6 +218,73 @@ test("worker reuses an already completed idempotent job without provider spend",
   assert.equal(result.reused, true);
   assert.equal(result.status, "succeeded");
   assert.equal(providerCalls, 0);
+});
+
+test("measurement route returns queued before deferred provider processing finishes", async () => {
+  let finishProcessing;
+  const processingGate = new Promise((resolve) => {
+    finishProcessing = resolve;
+  });
+  let deferredTask = null;
+  const worker = {
+    async enqueue(request) {
+      assert.equal(request.lahanId, "00000000-0000-4000-8000-000000000002");
+      assert.equal(request.userId, "00000000-0000-4000-8000-000000000001");
+      return {
+        job: { id: "job-deferred", status: "queued", error_code: null },
+      };
+    },
+    async process() {
+      await processingGate;
+      return { status: "succeeded" };
+    },
+  };
+  const app = express();
+  app.use(express.json());
+  app.use((req, _res, next) => {
+    req.auth = { id: "00000000-0000-4000-8000-000000000001" };
+    next();
+  });
+  app.use(
+    "/measurements",
+    createMeasurementRouter({
+      worker,
+      defer(task) {
+        deferredTask = task;
+      },
+    }),
+  );
+  const server = app.listen(0, "127.0.0.1");
+  await new Promise((resolve) => server.once("listening", resolve));
+  const address = server.address();
+  try {
+    const response = await fetch(
+      `http://127.0.0.1:${address.port}/measurements/request`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          lahanId: "00000000-0000-4000-8000-000000000002",
+        }),
+      },
+    );
+    assert.equal(response.status, 202);
+    assert.deepEqual(await response.json(), {
+      jobId: "job-deferred",
+      status: "queued",
+      observationId: null,
+      qualityStatus: null,
+      rejectionReason: null,
+      reused: false,
+    });
+    assert.ok(deferredTask);
+    finishProcessing();
+    await deferredTask;
+  } finally {
+    await new Promise((resolve, reject) =>
+      server.close((error) => (error ? reject(error) : resolve())),
+    );
+  }
 });
 
 test("Supabase admin supports current secret keys without sending them as bearer JWTs", async () => {

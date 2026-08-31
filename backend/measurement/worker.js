@@ -19,8 +19,8 @@ const safeErrorMessage = (error) => {
   return "Measurement processing failed.";
 };
 
-export const createMeasurementWorker = ({ admin, provider } = {}) => ({
-  async request({ lahanId, userId, from, to, idempotencyKey }) {
+export const createMeasurementWorker = ({ admin, provider } = {}) => {
+  const enqueue = async ({ lahanId, userId, from, to, idempotencyKey }) => {
     const field = await admin.loadField({ lahanId, userId });
     const geometry = validateFieldGeometry(field.geojson);
     const cacheIdentity = [
@@ -48,8 +48,17 @@ export const createMeasurementWorker = ({ admin, provider } = {}) => ({
       error.statusCode = 503;
       throw error;
     }
-    const jobFrom = queuedJob.request_window_start ?? from;
-    const jobTo = queuedJob.request_window_end ?? to;
+
+    return {
+      job: queuedJob,
+      geometry,
+      userId,
+      from: queuedJob.request_window_start ?? from,
+      to: queuedJob.request_window_end ?? to,
+    };
+  };
+
+  const process = async ({ job: queuedJob, geometry, userId, from, to }) => {
     const claim = await admin.claim({ jobId: queuedJob.id, userId });
     const job = claim?.job ?? null;
     if (!claim?.claimed || !job?.id) {
@@ -64,7 +73,7 @@ export const createMeasurementWorker = ({ admin, provider } = {}) => ({
     }
 
     try {
-      const result = await provider.measure({ geometry, from: jobFrom, to: jobTo });
+      const result = await provider.measure({ geometry, from, to });
       const observationId = await admin.complete({ jobId: job.id, result });
       return {
         jobId: job.id,
@@ -85,5 +94,13 @@ export const createMeasurementWorker = ({ admin, provider } = {}) => ({
       routed.statusCode = error?.statusCode === 429 ? 429 : 502;
       throw routed;
     }
-  },
-});
+  };
+
+  return {
+    enqueue,
+    process,
+    async request(args) {
+      return process(await enqueue(args));
+    },
+  };
+};

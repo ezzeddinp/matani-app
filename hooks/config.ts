@@ -63,12 +63,16 @@ const localBaseUrl = `${protocol}://${host}${port ? `:${port}` : ""}`;
 export const BASE_URL = publicApiUrl ?? localBaseUrl;
 
 const candidates = new Set<string>([BASE_URL]);
-const manifestHost = resolveManifestHost();
-if (manifestHost) {
-  candidates.add(`${protocol}://${manifestHost}${port ? `:${port}` : ""}`);
-}
-if (publicApiUrl && publicApiUrl !== localBaseUrl) {
-  candidates.add(localBaseUrl);
+
+// A configured public URL is authoritative. Falling through from a real
+// production response to manifest/LAN addresses hides the actionable backend
+// error behind a final React Native network timeout. Local candidates are only
+// useful when no public backend has been configured.
+if (!publicApiUrl) {
+  const manifestHost = resolveManifestHost();
+  if (manifestHost) {
+    candidates.add(`${protocol}://${manifestHost}${port ? `:${port}` : ""}`);
+  }
 }
 
 export const API_BASE_CANDIDATES = Array.from(candidates);
