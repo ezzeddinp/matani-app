@@ -274,8 +274,8 @@ detail and deployment qualification live in [`data-evaluation-plan.md`](data-eva
 (OBS-22/23), public backend reachability/fail-closed authentication pass (OBS-24), and one
 explicitly approved manual hosted measurement persisted successfully (OBS-28). Later
 authenticated device requests invoked Vercel-deferred work but failed before persistence;
-the transport/cache-recovery change is locally verified and awaits a post-deployment
-device retry (OBS-30). Formal M2 acceptance and repeatability remain open.
+the transport/cache-recovery change is locally verified and deployed, and awaits a
+post-deployment device retry (OBS-30). Formal M2 acceptance and repeatability remain open.
 
 ### PRD-17 · Weather risk score card · [As-built] · HYP-07
 

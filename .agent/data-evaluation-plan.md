@@ -34,7 +34,9 @@ mobile request/read path, fixture tests, DB tests, and bounded live smoke (OBS-2
 The **canonical current-product wording** remains
 [`project-architecture.md`](project-architecture.md) § 2. Hosted Supabase/backend/device
 One manual hosted measurement passed (OBS-28), but later authenticated deferred jobs
-failed before persistence (OBS-30), so the implementation is not called production-ready.
+failed before persistence. The locally verified executor remediation is deployed but has
+not received a post-deployment device retry (OBS-30), so the implementation is not called
+production-ready.
 
 ### Current implementation and deployment gates
 

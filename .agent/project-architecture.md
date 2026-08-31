@@ -141,8 +141,9 @@ authenticates with the Supabase anon/publishable key
 > persisted as a provenance-complete hosted `measured` row. That manual worker execution
 > does not establish repeatability: later authenticated device requests were durably
 > accepted and invoked by Vercel, but their provider work failed before persistence.
-> A transport/cache-recovery remediation is locally verified but still requires one
-> explicit post-deployment device retry before Vercel-deferred completion is verified.
+> A transport/cache-recovery remediation is locally verified and deployed, but still
+> requires one explicit post-deployment device retry before Vercel-deferred completion
+> is verified.
 
 This is **the canonical measurement-provenance wording**. All other documents link here;
 none may soften or restate it. The verified facts behind it (OBS-22/23, 2026-08-30):
@@ -170,9 +171,11 @@ none may soften or restate it. The verified facts behind it (OBS-22/23, 2026-08-
   NDVI/NDMI row (OBS-28). Later authenticated HTTP 202 requests invoked deferred work but
   ended in a sanitized processing failure with no observation (OBS-30). The adapter now
   uses one Node HTTP transport for token, Catalog, and Process requests, emits bounded
-  stage diagnostics, and includes the executor revision in job cache identity; hosted
-  success of that remediation, authenticated physical-device readback, repeatability,
-  and formal M2 PASS remain open.
+  stage diagnostics, and includes the executor revision in job cache identity. Deployment
+  `dpl_9TCjqtkoVoFyTYRXPRgimjN7axif` is live at the stable alias, but no post-deployment
+  measurement request was observed during the bounded monitoring interval; hosted success
+  of that remediation, authenticated physical-device readback, repeatability, and formal
+  M2 PASS remain open.
 
 **Data-state vocabulary** (per [`../AGENTS.md`](../AGENTS.md) § Vocabulary): only rows
 created by the M2 completion RPC with complete provenance can be **measured**; test rows
