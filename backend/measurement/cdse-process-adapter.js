@@ -336,7 +336,7 @@ export const createCdseProcessAdapter = ({
   };
 
   return {
-    async measure({ geometry, from, to }) {
+    async measure({ geometry, from, to, onStage = () => {} }) {
       validateFieldGeometry(geometry);
       const projection = projectGeometryToLocalUtm(geometry);
       const processingAt = now().toISOString();
@@ -346,12 +346,20 @@ export const createCdseProcessAdapter = ({
       } catch (error) {
         throw transportError(error, "cdse-token");
       }
+      onStage("token_acquired");
       const catalog = await withRetry(
         () => executeCatalog({ token, request: buildCatalogRequest({ geometry, from, to }) }),
         { maxAttempts: maxProviderAttempts, sleepImpl },
       );
-      const feature = latestCatalogFeature(catalog.body);
+      onStage("catalog_received");
+      let feature;
+      try {
+        feature = latestCatalogFeature(catalog.body);
+      } catch {
+        throw new Error("process-catalog-response-invalid");
+      }
       if (!feature) {
+        onStage("catalog_no_acquisition");
         return unavailableResult({
           geometry,
           projection,
@@ -378,15 +386,23 @@ export const createCdseProcessAdapter = ({
           ),
         ),
       );
+      onStage("process_responses_received");
 
-      const ndviIdentity = extractSourceIdentity(ndviResponse.userdata);
-      const ndmiIdentity = extractSourceIdentity(ndmiResponse.userdata);
+      let ndviIdentity;
+      let ndmiIdentity;
+      try {
+        ndviIdentity = extractSourceIdentity(ndviResponse.userdata);
+        ndmiIdentity = extractSourceIdentity(ndmiResponse.userdata);
+      } catch {
+        throw new Error("process-source-identity-invalid");
+      }
       const completeIdentity =
         ndviIdentity.serviceVersion &&
         ndviIdentity.sceneIds.length > 0 &&
         ndviIdentity.dataPaths.length > 0 &&
         ndviIdentity.productIds.length > 0;
       if (!completeIdentity || !sameSourceIdentity(ndviIdentity, ndmiIdentity)) {
+        onStage("source_identity_unavailable");
         return unavailableResult({
           geometry,
           projection,
@@ -407,8 +423,16 @@ export const createCdseProcessAdapter = ({
       } catch {
         throw new Error("process-raster-decode-failed");
       }
-      const ndvi = summarizeIndexBands(ndviBands);
-      const ndmi = summarizeIndexBands(ndmiBands, { includeCloudBand: true });
+      onStage("rasters_decoded");
+      let ndvi;
+      let ndmi;
+      try {
+        ndvi = summarizeIndexBands(ndviBands);
+        ndmi = summarizeIndexBands(ndmiBands, { includeCloudBand: true });
+      } catch {
+        throw new Error("process-raster-statistics-invalid");
+      }
+      onStage("statistics_summarized");
       const quality = decideQuality({
         ndvi,
         ndmi,

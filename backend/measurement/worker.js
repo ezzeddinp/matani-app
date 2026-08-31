@@ -28,6 +28,10 @@ const safeDiagnosticCode = (error) => {
     : "measurement-unclassified-failure";
 };
 
+const runtimeStage = ({ jobId, stage }) => {
+  console.info(JSON.stringify({ event: "measurement_stage", jobId, stage }));
+};
+
 export const createMeasurementWorker = ({ admin, provider } = {}) => {
   const enqueue = async ({ lahanId, userId, from, to, idempotencyKey }) => {
     const field = await admin.loadField({ lahanId, userId });
@@ -82,9 +86,31 @@ export const createMeasurementWorker = ({ admin, provider } = {}) => {
       };
     }
 
+    let result;
     try {
-      const result = await provider.measure({ geometry, from, to });
+      runtimeStage({ jobId: job.id, stage: "provider_started" });
+      result = await provider.measure({
+        geometry,
+        from,
+        to,
+        onStage: (stage) => runtimeStage({ jobId: job.id, stage }),
+      });
+      runtimeStage({ jobId: job.id, stage: "provider_completed" });
+    } catch (error) {
+      await admin.fail({
+        jobId: job.id,
+        errorCode: safeErrorCode(error),
+        errorMessage: safeErrorMessage(error),
+      });
+      const routed = new Error(safeErrorCode(error));
+      routed.statusCode = error?.statusCode === 429 ? 429 : 502;
+      routed.diagnosticCode = safeDiagnosticCode(error);
+      throw routed;
+    }
+
+    try {
       const observationId = await admin.complete({ jobId: job.id, result });
+      runtimeStage({ jobId: job.id, stage: "persistence_completed" });
       return {
         jobId: job.id,
         status: "succeeded",
@@ -97,12 +123,16 @@ export const createMeasurementWorker = ({ admin, provider } = {}) => {
     } catch (error) {
       await admin.fail({
         jobId: job.id,
-        errorCode: safeErrorCode(error),
-        errorMessage: safeErrorMessage(error),
+        errorCode: "measurement-persistence-failed",
+        errorMessage: "Measurement persistence failed.",
       });
-      const routed = new Error(safeErrorCode(error));
-      routed.statusCode = error?.statusCode === 429 ? 429 : 502;
-      routed.diagnosticCode = safeDiagnosticCode(error);
+      const routed = new Error("measurement-persistence-failed");
+      routed.statusCode = 502;
+      routed.diagnosticCode = /^measurement-database-failed-[1-5][0-9]{2}$/.test(
+        error instanceof Error ? error.message : "",
+      )
+        ? error.message
+        : "measurement-database-unclassified-failure";
       throw routed;
     }
   };
