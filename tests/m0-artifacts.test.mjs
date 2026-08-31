@@ -40,6 +40,9 @@ test("field detail reads M2 measurements and contains no synthetic diagnosis", a
   assert.match(detail, /setDetail\(field\)/);
   assert.match(detail, /if \(observationResult\.error\)/);
   assert.match(detail, /Jalankan pengukuran/);
+  assert.match(detail, /select\("status,attempts,error_code,created_at,updated_at"\)/);
+  assert.match(detail, /queuedWithoutAttempt/);
+  assert.match(detail, /Jalankan job antrean/);
   assert.doesNotMatch(
     detail,
     /buildNdviSeries|computeSynthetic|pestPressure|diseaseRisk|stressIndex/
@@ -69,6 +72,8 @@ test("field save requests persisted measurement and has no render-triggered bbox
     explore,
     /requestLahanMeasurement\(savedEntry\.id, \{ initial: true \}\)/,
   );
+  assert.match(explore, /await requestLahanMeasurement/);
+  assert.match(explore, /measurementAccepted/);
   assert.match(explore, /from\("measurement_observations"\)/);
   assert.doesNotMatch(explore, /fetchNdviStatistic|createNdviRecordFromStatistic/);
   assert.match(backendClient, /\/measurements\/request/);

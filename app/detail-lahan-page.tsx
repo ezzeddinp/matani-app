@@ -206,6 +206,7 @@ export default function DetailLahanPage() {
     null
   );
   const [jobStatus, setJobStatus] = useState<string | null>(null);
+  const [jobAttempts, setJobAttempts] = useState<number | null>(null);
   const [jobErrorCode, setJobErrorCode] = useState<string | null>(null);
   const [refreshTick, setRefreshTick] = useState(0);
   const [isRequestingMeasurement, setIsRequestingMeasurement] = useState(false);
@@ -239,7 +240,7 @@ export default function DetailLahanPage() {
             .order("created_at", { ascending: true }),
           supabase
             .from("measurement_jobs")
-            .select("status,error_code,created_at,updated_at")
+            .select("status,attempts,error_code,created_at,updated_at")
             .eq("lahan_id", fieldId)
             .order("created_at", { ascending: false })
             .limit(1)
@@ -254,9 +255,14 @@ export default function DetailLahanPage() {
 
         setDetail(field);
         const latestJob = jobResult.data as
-          | { status?: string | null; error_code?: string | null }
+          | {
+              status?: string | null;
+              attempts?: number | null;
+              error_code?: string | null;
+            }
           | null;
         setJobStatus(latestJob?.status ?? null);
+        setJobAttempts(latestJob?.attempts ?? null);
         setJobErrorCode(latestJob?.error_code ?? null);
         if (jobResult.error) {
           console.error("Gagal memuat status job pengukuran:", jobResult.error);
@@ -341,6 +347,9 @@ export default function DetailLahanPage() {
   const unavailableCount = observations.filter(
     (point) => point.state === "unavailable"
   ).length;
+  const queuedWithoutAttempt =
+    jobStatus === "queued" && (jobAttempts ?? 0) === 0;
+  const measurementIsProcessing = jobStatus === "processing";
 
   if (isLoading) {
     return (
@@ -470,17 +479,21 @@ export default function DetailLahanPage() {
               <Text style={styles.emptyTimelineTitle}>
                 {observationErrorMessage
                   ? "Riwayat observasi gagal dimuat"
-                  : ["queued", "processing"].includes(jobStatus ?? "")
+                  : measurementIsProcessing
                   ? "Pengukuran sedang diproses"
+                  : queuedWithoutAttempt
+                  ? "Pengukuran belum dijalankan"
                   : "Belum ada riwayat observasi"}
               </Text>
               <Text style={styles.emptyTimelineText}>
                 {observationErrorMessage ??
-                  (["queued", "processing"].includes(jobStatus ?? "")
+                  (measurementIsProcessing
                     ? "Matani sedang mengambil raster Sentinel-2 dan menghitung pixel valid. Halaman ini memeriksa hasil secara otomatis."
+                    : queuedWithoutAttempt
+                    ? "Job sudah tersimpan, tetapi worker belum pernah mencobanya. Jalankan job antrean tanpa membuat lahan baru."
                     : `Batas lahan tersimpan, tetapi belum ada acquisition yang lolos kualitas${jobErrorCode ? ` (${jobErrorCode})` : ""}. Matani tidak membuat data pengganti.`)}
               </Text>
-              {!(["queued", "processing"].includes(jobStatus ?? "")) && (
+              {!measurementIsProcessing && (
                 <TouchableOpacity
                   style={styles.backAction}
                   onPress={() => void retryMeasurement()}
@@ -489,7 +502,11 @@ export default function DetailLahanPage() {
                   {isRequestingMeasurement ? (
                     <ActivityIndicator size="small" color="#FFFFFF" />
                   ) : (
-                    <Text style={styles.backActionText}>Jalankan pengukuran</Text>
+                    <Text style={styles.backActionText}>
+                      {queuedWithoutAttempt
+                        ? "Jalankan job antrean"
+                        : "Jalankan pengukuran"}
+                    </Text>
                   )}
                 </TouchableOpacity>
               )}

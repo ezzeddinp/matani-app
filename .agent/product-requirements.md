@@ -153,18 +153,22 @@ the M2 measurement request, which is implemented locally
 ### PRD-08 · Ladang field cards — latest observation · [As-built]
 
 **Behavior.** Each saved field reads the newest persisted M2 observation. Saving a field
-explicitly requests one authenticated initial measurement job; the backend returns after
-durable enqueue and processing continues within the bounded worker invocation. Rendering does not invoke
-the legacy bbox route. Passed rows show raw indices/acquisition date, while rejected,
-failed, or absent rows remain unavailable. There is no synthetic fallback or diagnosis.
+explicitly requests one authenticated initial measurement job and waits for the backend's
+acceptance response before describing it as processing; a failed handoff does not undo the
+saved boundary and instead directs the user to the detail recovery action. The backend
+returns after durable enqueue and processing continues within the bounded worker
+invocation. Rendering does not invoke the legacy bbox route. Passed rows show raw
+indices/acquisition date, while rejected, failed, or absent rows remain unavailable. There
+is no synthetic fallback or diagnosis.
 
 **Acceptance criteria.**
 - A field shows a `measured` value only when a provenance-complete observation exists; otherwise it shows an honest `unavailable` state (INV-01/02/06).
 - The displayed date is the acquisition date (INV-05).
 - Valid-pixel/quality state is visible (INV-04).
 
-**Current-fidelity note.** Local code satisfies the request/read contract and tests; the
-hosted/backend/device path remains unverified. Canonical wording:
+**Current-fidelity note.** Local code satisfies the request/read/recovery contract and
+tests; one hosted observation is verified, while direct deployed deferred completion and
+physical-device readback remain open. Canonical wording:
 [`project-architecture.md`](project-architecture.md) § Current measurement provenance.
 
 ### PRD-09 · Field edit / delete / notes · [As-built]
@@ -206,12 +210,15 @@ the mobile surface remains non-blocking when the summary is unavailable
 `measurement_observations`, and the latest durable job. It polls while queued/processing,
 plots only quality-passing values, and lists acquisition date, quality status, rejection
 reason, and separate NDVI/NDMI valid-pixel counts. A retry action explicitly requests a
-job. A configured production origin is authoritative and structured backend errors are not
+job. A zero-attempt queued job is identified as not yet started and exposes the same
+explicit action rather than being hidden behind an indefinite processing state. A
+configured production origin is authoritative and structured backend errors are not
 replaced by LAN fallback timeouts. Metadata remains visible if observation/job reads fail.
 
 **Current-fidelity note.** The local provenance writer/read path exists and no legacy row
-is promoted. Public backend reachability now passes; hosted availability remains subject
-to the migration, worker configuration, and authenticated device gates in OBS-22/24.
+is promoted. Public backend reachability and one scoped hosted provider/persistence run
+pass; direct deployed deferred completion and authenticated device readback remain open
+(OBS-28/29).
 
 **Acceptance criteria.** Plot only stored passing values with true acquisition dates; do
 not interpolate gaps; surface quality and per-index counts; show honest empty/query/job

@@ -853,16 +853,23 @@ export default function ExploreScreen() {
       });
       loadSavedLahan();
       setShowSaveModal(false); setLahanName(""); clearActivePath();
+      let measurementAccepted = false;
       if (savedEntry?.id) {
-        void requestLahanMeasurement(savedEntry.id, { initial: true })
-          .then(() => loadLahanHealth([savedEntry.id]))
-          .catch((measurementError) => {
-            console.warn("Pengukuran lahan belum dapat diproses:", measurementError);
-          });
+        try {
+          await requestLahanMeasurement(savedEntry.id, { initial: true });
+          measurementAccepted = true;
+          void loadLahanHealth([savedEntry.id]);
+        } catch (measurementError) {
+          console.warn("Pengukuran lahan belum dapat diproses:", measurementError);
+        }
       }
       Alert.alert(
         "Lahan tersimpan",
-        `Lahan "${trimmedName}" berhasil disimpan.\nLuas: ${areaText} ha\n\nPengukuran NDVI/NDMI nyata sedang diproses; hasil hanya tampil jika acquisition dan kualitasnya tersedia.`
+        `Lahan "${trimmedName}" berhasil disimpan.\nLuas: ${areaText} ha\n\n${
+          measurementAccepted
+            ? "Job NDVI/NDMI diterima dan sedang diproses; hasil hanya tampil jika acquisition dan kualitasnya tersedia."
+            : "Job NDVI/NDMI belum berhasil dimulai. Buka detail lahan lalu pilih Jalankan job antrean; batas lahan tetap tersimpan."
+        }`
       );
     } catch (error: any) {
       console.error("❌ Gagal menyimpan lahan:", error);
