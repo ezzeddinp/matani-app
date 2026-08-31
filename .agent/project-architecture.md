@@ -173,9 +173,13 @@ none may soften or restate it. The verified facts behind it (OBS-22/23, 2026-08-
   uses one Node HTTP transport for token, Catalog, and Process requests, emits bounded
   stage diagnostics, and includes the executor revision in job cache identity. Deployment
   `dpl_9TCjqtkoVoFyTYRXPRgimjN7axif` is live at the stable alias, but no post-deployment
-  measurement request was observed during the bounded monitoring interval; hosted success
-  of that remediation, authenticated physical-device readback, repeatability, and formal
-  M2 PASS remain open.
+  measurement request was observed during its first bounded monitoring interval. Later
+  device retries created three fresh field jobs, all of which failed before persistence
+  with an unclassified bounded code (OBS-31). Deployment
+  `dpl_7URDNjYLkXyCFhng6Km5KfByLJyA` now separates and checkpoints provider stages from
+  database completion, but no request arrived during its bounded post-deployment watch;
+  hosted success, authenticated physical-device readback, repeatability, and formal M2
+  PASS remain open.
 
 **Data-state vocabulary** (per [`../AGENTS.md`](../AGENTS.md) § Vocabulary): only rows
 created by the M2 completion RPC with complete provenance can be **measured**; test rows
