@@ -137,10 +137,9 @@ authenticates with the Supabase anon/publishable key
 > result plus per-index pixel statistics. Mobile surfaces read only the persisted
 > `measurement_observations` view and show acquisition date, quality, valid-pixel counts,
 > or honest unavailability. The stable public backend alias is reachable and protected
-> routes fail closed, but this implementation is not yet a verified hosted measurement
-> path: a hosted job relation is present, while server-only Supabase admin/CDSE
-> configuration, deferred provider completion, and an
-> authenticated physical-device persist/read smoke remain unverified.
+> routes fail closed. One explicitly approved real-provider job has been processed and
+> persisted as a provenance-complete hosted `measured` row. That manual worker execution
+> does not yet verify Vercel-deferred completion or authenticated physical-device readback.
 
 This is **the canonical measurement-provenance wording**. All other documents link here;
 none may soften or restate it. The verified facts behind it (OBS-22/23, 2026-08-30):
@@ -162,12 +161,11 @@ none may soften or restate it. The verified facts behind it (OBS-22/23, 2026-08-
 - **The legacy route/table are not measurement sources.** `backend/api/ndvi/utils.js` and
   `lahan_health` remain historical compatibility code only; current M2 mobile surfaces do
   not read their values as measurements.
-- **Hosted measurement availability is still unproven.** The stable backend health
-  endpoint returns JSON with HTTP 200 and a protected route without a token returns HTTP
-  401 (OBS-24). A later server-authorized read-only check found one hosted queued job with
-  zero attempts (OBS-27), confirming the job relation but also that processing had not run.
-  Server-only Supabase/CDSE configuration, deployment of DEC-33, deferred completion, and
-  an authenticated physical-device persist/read flow remain open.
+- **Hosted measurement availability is proven for one scoped job only.** Production
+  Supabase/CDSE configuration and deployment are present, and one explicitly approved job
+  completed against CDSE and appears in the hosted observation view with a passing dated
+  NDVI/NDMI row (OBS-28). Vercel-deferred completion, authenticated physical-device
+  readback, repeatability, and formal M2 PASS remain open.
 
 **Data-state vocabulary** (per [`../AGENTS.md`](../AGENTS.md) § Vocabulary): only rows
 created by the M2 completion RPC with complete provenance can be **measured**; test rows

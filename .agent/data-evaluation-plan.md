@@ -353,9 +353,9 @@ beside it is a non-executable pointer; the versioned migration is the sole physi
 
 OBS-22 proves local schema/worker/client behavior, OBS-23 proves the bounded live provider
 adapter, and OBS-24 proves only public backend reachability plus fail-closed authentication.
-The hosted job relation is now observed and contains one queued zero-attempt job (OBS-27),
-but this does not establish the complete migration/RPC/view contract. Formal M2 PASS still
-requires deploying DEC-33, configuring the server-only admin key and CDSE credentials,
-and demonstrating an authenticated hosted job persisted/read on the app. Until then,
-`measured` is a valid row state in the implemented schema, not a claim that the currently
-configured hosted project already contains such a row.
+The production code and server-only credentials are deployed, and one explicitly approved
+job was manually executed against real CDSE and persisted/read through the hosted
+observation view as a quality-passing `measured` row (OBS-28). Formal M2 PASS still requires
+a direct authenticated smoke through the deployed deferred route, physical-device readback,
+and the remaining milestone evidence. The single row must not be generalized beyond that
+field, acquisition, and execution.
