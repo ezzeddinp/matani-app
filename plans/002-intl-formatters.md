@@ -1,6 +1,6 @@
 # 002 — Hoist stable Indonesian date formatters
 
-- **Status**: TODO
+- **Status**: IMPLEMENTED — DEVICE CHECK PENDING
 - **Commit**: `e9a2173`
 - **Severity**: MEDIUM
 - **Category**: Performance
@@ -65,4 +65,3 @@ Use separate module-scope constants where options differ (`numeric` versus `2-di
 - **Mechanical**: three `js-hoist-intl` diagnostics clear; `npm run verify`; `git diff --check`.
 - **Behavior check**: Home field/note dates, Ladang dates, and Detail chart endpoint dates are character-for-character unchanged for real, absent, and invalid values.
 - **Done when**: constructors run at module load and all date output remains identical.
-

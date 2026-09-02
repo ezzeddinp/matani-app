@@ -167,3 +167,23 @@ test("selected-field weather ignores an older request that resolves last", async
 
   assert.deepEqual(commits, ["field-b"]);
 });
+
+test("React Doctor performance cleanup keeps scoped mobile contracts", async () => {
+  const [home, explore, detail, onboarding] = await Promise.all(
+    [
+      "app/(tabs)/index.tsx",
+      "app/(tabs)/explore.tsx",
+      "app/detail-lahan-page.tsx",
+      "app/onboarding.tsx",
+    ].map((file) => readFile(file, "utf8"))
+  );
+
+  for (const source of [home, explore, detail]) {
+    assert.equal(source.match(/new Intl\.DateTimeFormat/g)?.length, 1);
+  }
+  assert.match(explore, /<ExpoImage[\s\S]*cachePolicy="memory-disk"/);
+  assert.match(explore, /source=\{resolveLahanThumbnailSource\(card\)\}/);
+  assert.match(onboarding, /<Image source=\{LOGO_SOURCE\}/);
+  assert.match(onboarding, /<ExpoImage[\s\S]*source=\{\{ uri: HERO_IMAGE_URI \}\}[\s\S]*cachePolicy="memory-disk"/);
+  assert.match(home, /<FlatList[\s\S]*data=\{savedLahan\}[\s\S]*keyExtractor=\{\(item\) => item\.id\}/);
+});

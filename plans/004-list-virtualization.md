@@ -1,6 +1,6 @@
 # 004 — Virtualize only lists that can grow
 
-- **Status**: TODO
+- **Status**: IMPLEMENTED — PROFILER/DEVICE CHECK PENDING
 - **Commit**: `e9a2173`
 - **Severity**: MEDIUM
 - **Category**: Performance
@@ -68,4 +68,3 @@ Do not add FlashList/LegendList. Do not virtualize short fixed lists where overh
 - **Behavior check**: on a phone, test 0, 1, 10, and 50 fields; Home vertical + horizontal scrolling; correct card navigation; picker keyboard persistence, selection checkmark, closing, and max height; narrow-screen category access.
 - **Performance check**: record React DevTools Profiler before/after and retain only measured improvements.
 - **Done when**: growing lists are virtualized without any visible or interaction regression, and short fixed lists have recorded rejection evidence.
-

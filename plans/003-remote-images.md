@@ -1,6 +1,6 @@
 # 003 — Cache remote images without changing layout
 
-- **Status**: TODO
+- **Status**: IMPLEMENTED — CACHE/DEVICE CHECK PENDING
 - **Commit**: `e9a2173`
 - **Severity**: MEDIUM
 - **Category**: Performance
@@ -65,4 +65,3 @@ For a normal remote image, import `Image as ExpoImage` from `expo-image` and pre
 - **Mechanical**: confirmed remote-image diagnostics clear without new type/lint errors; `npm run verify`; `git diff --check`.
 - **Behavior check**: test cold load, warm revisit, airplane-mode revisit, broken URL, fallback asset, rounded clipping, gradient/text overlay, and card scrolling on the same phone. Capture before/after screenshots.
 - **Done when**: remote images cache/recycle correctly and layout is visually equivalent.
-

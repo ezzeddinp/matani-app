@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
   Alert,
   Dimensions,
+  FlatList,
   Image,
   ImageBackground,
   Modal,
@@ -123,6 +124,12 @@ const parseDateToTime = (value?: string | null) => {
   return Number.isNaN(time) ? 0 : time;
 };
 
+const displayDateFormatter = new Intl.DateTimeFormat("id-ID", {
+  day: "2-digit",
+  month: "short",
+  year: "numeric",
+});
+
 const formatDisplayDate = (value?: string | null) => {
   if (!value) {
     return "--";
@@ -132,11 +139,7 @@ const formatDisplayDate = (value?: string | null) => {
     return "--";
   }
   try {
-    return new Intl.DateTimeFormat("id-ID", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    }).format(time);
+    return displayDateFormatter.format(time);
   } catch (error) {
     console.warn("Gagal memformat tanggal catatan:", error);
     return "--";
@@ -1358,15 +1361,12 @@ export default function HomeScreen() {
               <Text style={styles.emptyNdviText}>Memuat data lahan...</Text>
             </View>
           ) : savedLahan.length > 0 ? (
-            <ScrollView
+            <FlatList
               horizontal
-              showsHorizontalScrollIndicator={false}
-              style={styles.fieldsContainer}
-              contentContainerStyle={styles.fieldsContentContainer}
-            >
-              {savedLahan.map((item) => (
+              data={savedLahan}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => (
                 <LahanCard
-                  key={item.id}
                   name={item.name}
                   areaHa={item.areaHa}
                   ndviScore={lahanHealthMap[item.id]?.ndviScore ?? null}
@@ -1383,8 +1383,11 @@ export default function HomeScreen() {
                     })
                   }
                 />
-              ))}
-            </ScrollView>
+              )}
+              showsHorizontalScrollIndicator={false}
+              style={styles.fieldsContainer}
+              contentContainerStyle={styles.fieldsContentContainer}
+            />
           ) : (
             <View style={styles.emptyLahanCard}>
               <Ionicons name="map-outline" size={24} color="#999" />

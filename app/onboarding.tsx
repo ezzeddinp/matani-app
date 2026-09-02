@@ -1,3 +1,4 @@
+import { Image as ExpoImage } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React from 'react';
@@ -27,7 +28,12 @@ export default function OnboardingScreen() {
       </View>
 
       <View style={styles.heroContainer}>
-        <Image source={{ uri: HERO_IMAGE_URI }} style={styles.heroImage} />
+        <ExpoImage
+          source={{ uri: HERO_IMAGE_URI }}
+          style={styles.heroImage}
+          contentFit="cover"
+          cachePolicy="memory-disk"
+        />
         <LinearGradient
           colors={["rgba(0,0,0,0.0)", "rgba(0,0,0,0.75)"]}
           style={styles.heroOverlay}

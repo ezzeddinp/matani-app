@@ -53,6 +53,11 @@ const PADI_IMAGE = require("@/assets/foto-ladang/padi.jpg");
 const CHART_WIDTH = 320;
 const CHART_HEIGHT = 190;
 const CHART_PADDING = 30;
+const dateFormatter = new Intl.DateTimeFormat("id-ID", {
+  day: "2-digit",
+  month: "short",
+  year: "numeric",
+});
 
 const parseValue = (value: unknown) => {
   if (typeof value === "number" && Number.isFinite(value)) return value;
@@ -78,11 +83,7 @@ const formatValue = (value: number | null) =>
 const formatDate = (value: string) => {
   const timestamp = Date.parse(value);
   if (Number.isNaN(timestamp)) return "Tanggal tidak valid";
-  return new Intl.DateTimeFormat("id-ID", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  }).format(timestamp);
+  return dateFormatter.format(timestamp);
 };
 
 const formatArea = (value: number | null | undefined) =>

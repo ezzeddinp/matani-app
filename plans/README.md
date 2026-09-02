@@ -11,9 +11,9 @@ The application source was already dirty when these plans were written (`app/(ta
 | Order | Plan | Status | Depends on | Why here |
 |---|---|---|---|---|
 | 1 | [001-home-weather-race.md](001-home-weather-race.md) | IMPLEMENTED — PHONE CHECK PENDING | — | Confirmed stale-response correctness risk |
-| 2 | [002-intl-formatters.md](002-intl-formatters.md) | TODO | — | Small, behavior-preserving hot-path cleanup |
-| 3 | [003-remote-images.md](003-remote-images.md) | TODO | — | Bounded caching improvement with visual checks |
-| 4 | [004-list-virtualization.md](004-list-virtualization.md) | TODO | — | Start with the unbounded horizontal field list |
+| 2 | [002-intl-formatters.md](002-intl-formatters.md) | IMPLEMENTED — DEVICE CHECK PENDING | — | Small, behavior-preserving hot-path cleanup |
+| 3 | [003-remote-images.md](003-remote-images.md) | IMPLEMENTED — CACHE/DEVICE CHECK PENDING | — | Bounded caching improvement with visual checks |
+| 4 | [004-list-virtualization.md](004-list-virtualization.md) | IMPLEMENTED — PROFILER/DEVICE CHECK PENDING | — | Start with the unbounded horizontal field list |
 | 5 | [005-pressable-migration.md](005-pressable-migration.md) | TODO | — | Accessibility-sensitive; execute in three phone-tested batches |
 | 6 | [006-drawing-vertex-identity.md](006-drawing-vertex-identity.md) | TODO | 001–005 stable | Small state-contract change requiring map regression tests |
 | 7 | [007-explore-boundaries.md](007-explore-boundaries.md) | TODO | 006 | Highest-risk large-screen decomposition |

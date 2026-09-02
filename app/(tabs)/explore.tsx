@@ -10,6 +10,7 @@ import {
   retainMostUsefulBackendError,
 } from "@/utils/backend-api";
 import { Ionicons } from "@expo/vector-icons";
+import { Image as ExpoImage } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Location from "expo-location";
 import { useRouter } from "expo-router";
@@ -25,7 +26,6 @@ import {
   Alert,
   Dimensions,
   Image,
-  ImageBackground,
   ImageSourcePropType,
   Keyboard,
   Modal,
@@ -179,6 +179,12 @@ const parseDateToTime = (value?: string | null) => {
   return Number.isNaN(time) ? 0 : time;
 };
 
+const displayDateFormatter = new Intl.DateTimeFormat("id-ID", {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+});
+
 const getNdviDataState = (
   record: LahanHealthRecord | null | undefined
 ): NdviDataState => {
@@ -191,12 +197,7 @@ const formatDisplayDate = (value?: string | null) => {
   const time = parseDateToTime(value ?? undefined);
   if (!time) return "Baru";
   try {
-    const formatter = new Intl.DateTimeFormat("id-ID", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    });
-    return formatter.format(time);
+    return displayDateFormatter.format(time);
   } catch {
     return new Date(time).toISOString().split("T")[0];
   }
@@ -1594,12 +1595,13 @@ export default function ExploreScreen() {
                   >
                     <View style={styles.lahanCardRow}>
                       {/* Thumbnail */}
-                      <ImageBackground
-                        source={resolveLahanThumbnailSource(card)}
-                        style={styles.lahanCardThumbnail}
-                        imageStyle={styles.lahanCardThumbnailImage}
-                        resizeMode="cover"
-                      >
+                      <View style={styles.lahanCardThumbnail}>
+                        <ExpoImage
+                          source={resolveLahanThumbnailSource(card)}
+                          style={[StyleSheet.absoluteFill, styles.lahanCardThumbnailImage]}
+                          contentFit="cover"
+                          cachePolicy="memory-disk"
+                        />
                         <LinearGradient
                           colors={["transparent", "rgba(0,0,0,0.65)"]}
                           start={{ x: 0, y: 0.4 }}
@@ -1610,7 +1612,7 @@ export default function ExploreScreen() {
                             <Text style={styles.lahanCardBadgeOverlayText}>Deret waktu</Text>
                           </View>
                         </LinearGradient>
-                      </ImageBackground>
+                      </View>
 
                       {/* Content */}
                       <View style={styles.lahanCardContent}>
