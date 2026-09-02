@@ -3,10 +3,10 @@ import { Stack, useRouter } from "expo-router";
 import React from "react";
 import {
   ScrollView,
+  Pressable,
   StatusBar,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from "react-native";
 
@@ -21,13 +21,14 @@ export default function NotificationsScreen() {
 
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButton}
+          <Pressable
+            style={({ pressed }) => [styles.backButton, pressed && { opacity: 0.7 }]}
             onPress={() => router.back()}
-            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="Kembali"
           >
             <Ionicons name="arrow-back" size={24} color="#1A1A1A" />
-          </TouchableOpacity>
+          </Pressable>
           <Text style={styles.headerTitle}>Notifikasi</Text>
           <View style={styles.placeholder} />
         </View>

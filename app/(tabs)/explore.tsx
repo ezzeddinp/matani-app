@@ -29,12 +29,12 @@ import {
   ImageSourcePropType,
   Keyboard,
   Modal,
+  Pressable,
   ScrollView,
   StatusBar,
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
   TouchableWithoutFeedback,
   View,
 } from "react-native";
@@ -1297,9 +1297,14 @@ export default function ExploreScreen() {
                 {isSearching ? (
                   <ActivityIndicator size="small" color="#166534" style={styles.searchSpinner} />
                 ) : searchQuery.length > 0 ? (
-                  <TouchableOpacity onPress={handleClearSearch} style={styles.clearSearchButton} accessibilityLabel="Hapus pencarian">
+                  <Pressable
+                    onPress={handleClearSearch}
+                    style={({ pressed }) => [styles.clearSearchButton, pressed && { opacity: 0.2 }]}
+                    accessibilityRole="button"
+                    accessibilityLabel="Hapus pencarian"
+                  >
                     <Ionicons name="close-circle" size={18} color="#9CA3AF" />
-                  </TouchableOpacity>
+                  </Pressable>
                 ) : null}
                 </View>
 
@@ -1312,13 +1317,18 @@ export default function ExploreScreen() {
                     </View>
                   ) : searchResults.length > 0 ? (
                     searchResults.map((result) => (
-                      <TouchableOpacity key={result.id} style={styles.searchResultItem} onPress={() => handleSelectSearchResult(result)}>
+                      <Pressable
+                        key={result.id}
+                        style={({ pressed }) => [styles.searchResultItem, pressed && { opacity: 0.2 }]}
+                        onPress={() => handleSelectSearchResult(result)}
+                        accessibilityRole="button"
+                      >
                         <Ionicons name="location-outline" size={14} color="#166534" style={{ marginRight: 8, marginTop: 1 }} />
                         <View style={{ flex: 1 }}>
                           <Text style={styles.searchResultTitle} numberOfLines={1}>{result.label}</Text>
                           {result.subtitle && <Text style={styles.searchResultSubtitle} numberOfLines={1}>{result.subtitle}</Text>}
                         </View>
-                      </TouchableOpacity>
+                      </Pressable>
                     ))
                   ) : searchQuery.trim().length >= 3 ? (
                     <Text style={styles.searchResultEmpty}>Lokasi tidak ditemukan</Text>
@@ -1425,50 +1435,92 @@ export default function ExploreScreen() {
             )}
 
             <View style={[styles.mapControls, drawingMode && styles.mapControlsDrawing]}>
-              <TouchableOpacity style={styles.zoomButton} onPress={() => handleZoom("in")} accessibilityLabel="Perbesar peta">
+              <Pressable
+                style={({ pressed }) => [styles.zoomButton, pressed && { opacity: 0.2 }]}
+                onPress={() => handleZoom("in")}
+                accessibilityRole="button"
+                accessibilityLabel="Perbesar peta"
+              >
                 <Ionicons name="add" size={20} color="#0A3D1F" />
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.zoomButton} onPress={() => handleZoom("out")} accessibilityLabel="Perkecil peta">
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [styles.zoomButton, pressed && { opacity: 0.2 }]}
+                onPress={() => handleZoom("out")}
+                accessibilityRole="button"
+                accessibilityLabel="Perkecil peta"
+              >
                 <Ionicons name="remove" size={20} color="#0A3D1F" />
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.locationButton} onPress={handleRecenter} accessibilityLabel="Kembali ke lokasiku">
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [styles.locationButton, pressed && { opacity: 0.2 }]}
+                onPress={handleRecenter}
+                accessibilityRole="button"
+                accessibilityLabel="Kembali ke lokasiku"
+              >
                 <Ionicons name="locate" size={18} color="#0A3D1F" />
-              </TouchableOpacity>
+              </Pressable>
             </View>
 
             {drawingMode && (
               <View style={styles.drawingControlsOverlay}>
-                <TouchableOpacity
-                  style={[styles.controlButton, styles.controlButtonNeutral, activePath.length === 0 && styles.controlButtonDisabled]}
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.controlButton,
+                    styles.controlButtonNeutral,
+                    activePath.length === 0 && styles.controlButtonDisabled,
+                    pressed && activePath.length > 0 && { opacity: 0.2 },
+                  ]}
                   onPress={undoLastPoint}
                   disabled={activePath.length === 0}
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: activePath.length === 0 }}
                   accessibilityLabel="Undo titik terakhir"
                 >
                   <Ionicons name="arrow-undo-outline" size={20} color={activePath.length === 0 ? "#90A4AE" : "#1C313A"} />
                   <Text style={[styles.controlButtonText, activePath.length === 0 && styles.controlButtonTextDisabled]}>Undo</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.controlButton, styles.controlButtonNeutral, redoVertices.length === 0 && styles.controlButtonDisabled]}
+                </Pressable>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.controlButton,
+                    styles.controlButtonNeutral,
+                    redoVertices.length === 0 && styles.controlButtonDisabled,
+                    pressed && redoVertices.length > 0 && { opacity: 0.2 },
+                  ]}
                   onPress={redoLastPoint}
                   disabled={redoVertices.length === 0}
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: redoVertices.length === 0 }}
                   accessibilityLabel="Redo titik terakhir"
                 >
                   <Ionicons name="arrow-redo-outline" size={20} color={redoVertices.length === 0 ? "#90A4AE" : "#1C313A"} />
                   <Text style={[styles.controlButtonText, redoVertices.length === 0 && styles.controlButtonTextDisabled]}>Redo</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={[styles.controlButton, styles.controlButtonDanger]} onPress={cancelDrawing} accessibilityLabel="Batalkan gambar">
+                </Pressable>
+                <Pressable
+                  style={({ pressed }) => [styles.controlButton, styles.controlButtonDanger, pressed && { opacity: 0.2 }]}
+                  onPress={cancelDrawing}
+                  accessibilityRole="button"
+                  accessibilityLabel="Batalkan gambar"
+                >
                   <Ionicons name="close-outline" size={24} color="#B71C1C" />
                   <Text style={[styles.controlButtonText, styles.controlButtonTextDanger]}>Batal</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.controlButton, styles.controlButtonPrimary, activePath.length < 3 && styles.controlButtonPrimaryDisabled, activePath.length < 3 && styles.controlButtonDisabled]}
+                </Pressable>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.controlButton,
+                    styles.controlButtonPrimary,
+                    activePath.length < 3 && styles.controlButtonPrimaryDisabled,
+                    activePath.length < 3 && styles.controlButtonDisabled,
+                    pressed && activePath.length >= 3 && { opacity: 0.2 },
+                  ]}
                   onPress={finishDrawing}
                   disabled={activePath.length < 3}
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: activePath.length < 3 }}
                   accessibilityLabel="Simpan polygon"
                 >
                   <Ionicons name="checkmark-outline" size={22} color={activePath.length < 3 ? "#BBF7D0" : "#FFFFFF"} />
                   <Text style={[styles.controlButtonText, styles.controlButtonTextPrimary, activePath.length < 3 && styles.controlButtonTextPrimaryDisabled]}>Simpan</Text>
-                </TouchableOpacity>
+                </Pressable>
               </View>
             )}
           </View>
@@ -1488,26 +1540,32 @@ export default function ExploreScreen() {
 
           {/* ── HELPER ROW ── */}
           <View style={styles.drawingHelperRow}>
-            <TouchableOpacity
-              style={styles.drawingInfoButton}
+            <Pressable
+              style={({ pressed }) => [styles.drawingInfoButton, pressed && { opacity: 0.2 }]}
               onPress={() => Alert.alert(
                 "Cara Penggambaran Lahan",
                 "1. Tekan tombol Gambar Lahan Baru.\n2. Tandai minimal tiga titik pada peta sesuai batas lahan.\n3. Tekan Simpan setelah polygon tertutup untuk menyimpan lahan.",
                 [{ text: "Mengerti" }]
               )}
+              accessibilityRole="button"
               accessibilityLabel="Informasi cara penggambaran lahan"
             >
               <Ionicons name="information-circle-outline" size={15} color="#166534" style={styles.drawingInfoButtonIcon} />
               <Text style={styles.drawingInfoText}>Cara penggambaran lahan</Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
 
           {/* ── NEW FIELD CTA ── */}
-          <TouchableOpacity
-            style={[styles.newFieldButton, drawingMode && styles.disabledButton]}
+          <Pressable
+            style={({ pressed }) => [
+              styles.newFieldButton,
+              drawingMode && styles.disabledButton,
+              pressed && !drawingMode && { opacity: 0.85 },
+            ]}
             onPress={startDrawing}
             disabled={drawingMode}
-            activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: drawingMode }}
           >
             {drawingMode ? (
               <View style={styles.newFieldButtonInner}>
@@ -1528,7 +1586,7 @@ export default function ExploreScreen() {
                 <Ionicons name="arrow-forward" size={16} color="#86EFAC" style={{ marginLeft: "auto" }} />
               </LinearGradient>
             )}
-          </TouchableOpacity>
+          </Pressable>
 
           {/* ── LAHAN SAYA ── */}
           <View style={styles.sectionContainer}>
@@ -1542,32 +1600,49 @@ export default function ExploreScreen() {
                 )}
               </View>
               {savedLahan.length > 0 && (
-                <TouchableOpacity style={styles.editToggleButton} onPress={() => setShowLahanActions(!showLahanActions)}>
+                <Pressable
+                  style={({ pressed }) => [styles.editToggleButton, pressed && { opacity: 0.2 }]}
+                  onPress={() => setShowLahanActions(!showLahanActions)}
+                  accessibilityRole="button"
+                  accessibilityState={{ expanded: showLahanActions }}
+                >
                   <Ionicons name={showLahanActions ? "close" : "create-outline"} size={16} color="#166534" />
                   <Text style={styles.editToggleButtonText}>{showLahanActions ? "Selesai" : "Kelola"}</Text>
-                </TouchableOpacity>
+                </Pressable>
               )}
             </View>
 
             {hasLahanPagination && (
               <View style={styles.paginationContainer}>
-                <TouchableOpacity
-                  style={[styles.paginationButton, isPrevLahanDisabled && styles.paginationButtonDisabled]}
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.paginationButton,
+                    isPrevLahanDisabled && styles.paginationButtonDisabled,
+                    pressed && !isPrevLahanDisabled && { opacity: 0.2 },
+                  ]}
                   onPress={handlePrevLahanPage}
                   disabled={isPrevLahanDisabled}
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: isPrevLahanDisabled }}
                 >
                   <Ionicons name="chevron-back" size={14} color={isPrevLahanDisabled ? "#9CA3AF" : "#FFFFFF"} />
                   <Text style={[styles.paginationButtonText, isPrevLahanDisabled && styles.paginationButtonTextDisabled]}>Sebelumnya</Text>
-                </TouchableOpacity>
+                </Pressable>
                 <Text style={styles.paginationLabel}>{lahanPageDisplay} / {totalLahanPages}</Text>
-                <TouchableOpacity
-                  style={[styles.paginationButton, isNextLahanDisabled && styles.paginationButtonDisabled]}
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.paginationButton,
+                    isNextLahanDisabled && styles.paginationButtonDisabled,
+                    pressed && !isNextLahanDisabled && { opacity: 0.2 },
+                  ]}
                   onPress={handleNextLahanPage}
                   disabled={isNextLahanDisabled}
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: isNextLahanDisabled }}
                 >
                   <Text style={[styles.paginationButtonText, isNextLahanDisabled && styles.paginationButtonTextDisabled]}>Berikutnya</Text>
                   <Ionicons name="chevron-forward" size={14} color={isNextLahanDisabled ? "#9CA3AF" : "#FFFFFF"} />
-                </TouchableOpacity>
+                </Pressable>
               </View>
             )}
 
@@ -1582,16 +1657,16 @@ export default function ExploreScreen() {
             ) : (
               <>
                 {paginatedLahanCards.map((card) => (
-                  <TouchableOpacity
+                  <Pressable
                     key={`lahan-card-${card.id}`}
-                    style={styles.lahanCard}
-                    activeOpacity={0.92}
+                    style={({ pressed }) => [styles.lahanCard, pressed && { opacity: 0.92 }]}
                     onPress={() =>
                       router.push({
                         pathname: "/detail-lahan-page",
                         params: { id: card.id },
                       })
                     }
+                    accessibilityRole="button"
                   >
                     <View style={styles.lahanCardRow}>
                       {/* Thumbnail */}
@@ -1686,23 +1761,29 @@ export default function ExploreScreen() {
 
                     {showLahanActions && (
                       <View style={styles.lahanCardActions}>
-                        <TouchableOpacity
-                          style={styles.lahanActionButton}
+                        <Pressable
+                          style={({ pressed }) => [styles.lahanActionButton, pressed && { opacity: 0.2 }]}
                           onPress={(e) => { e.stopPropagation(); handleEditLahan(card); }}
+                          accessibilityRole="button"
                         >
                           <Ionicons name="create-outline" size={16} color="#166534" />
                           <Text style={styles.lahanActionButtonText}>Edit Nama</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={[styles.lahanActionButton, styles.lahanActionButtonDelete]}
+                        </Pressable>
+                        <Pressable
+                          style={({ pressed }) => [
+                            styles.lahanActionButton,
+                            styles.lahanActionButtonDelete,
+                            pressed && { opacity: 0.2 },
+                          ]}
                           onPress={(e) => { e.stopPropagation(); handleDeleteLahan(card.id); }}
+                          accessibilityRole="button"
                         >
                           <Ionicons name="trash-outline" size={16} color="#DC2626" />
                           <Text style={[styles.lahanActionButtonText, styles.lahanActionButtonDeleteText]}>Hapus</Text>
-                        </TouchableOpacity>
+                        </Pressable>
                       </View>
                     )}
-                  </TouchableOpacity>
+                  </Pressable>
                 ))}
               </>
             )}
@@ -1739,17 +1820,25 @@ export default function ExploreScreen() {
                 <View style={styles.aiHeaderActions}>
                   {lahanSummaryText ? (
                     <>
-                      <TouchableOpacity
-                        style={styles.aiToggleButton}
+                      <Pressable
+                        style={({ pressed }) => [styles.aiToggleButton, pressed && { opacity: 0.2 }]}
                         onPress={() => setIsLahanSummaryCollapsed((prev) => !prev)}
+                        accessibilityRole="button"
+                        accessibilityState={{ expanded: !isLahanSummaryCollapsed }}
                         accessibilityLabel={isLahanSummaryCollapsed ? "Tampilkan ringkasan" : "Sembunyikan ringkasan"}
                       >
                         <Ionicons name={isLahanSummaryCollapsed ? "chevron-down" : "chevron-up"} size={16} color="#86EFAC" />
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={[styles.aiRefreshButton, (isLahanSummaryLoading || savedLahan.length === 0) && styles.aiRefreshButtonDisabled]}
+                      </Pressable>
+                      <Pressable
+                        style={({ pressed }) => [
+                          styles.aiRefreshButton,
+                          (isLahanSummaryLoading || savedLahan.length === 0) && styles.aiRefreshButtonDisabled,
+                          pressed && !isLahanSummaryLoading && savedLahan.length > 0 && { opacity: 0.2 },
+                        ]}
                         disabled={isLahanSummaryLoading || savedLahan.length === 0}
                         onPress={handleRefreshSummary}
+                        accessibilityRole="button"
+                        accessibilityState={{ disabled: isLahanSummaryLoading || savedLahan.length === 0 }}
                         accessibilityLabel="Perbarui ringkasan observasi"
                       >
                         {isLahanSummaryLoading ? (
@@ -1760,13 +1849,19 @@ export default function ExploreScreen() {
                             <Text style={styles.aiRefreshText}>Perbarui</Text>
                           </>
                         )}
-                      </TouchableOpacity>
+                      </Pressable>
                     </>
                   ) : (
-                    <TouchableOpacity
-                      style={[styles.aiAnalyzeButton, (isLahanSummaryLoading || savedLahan.length === 0) && styles.aiRefreshButtonDisabled]}
+                    <Pressable
+                      style={({ pressed }) => [
+                        styles.aiAnalyzeButton,
+                        (isLahanSummaryLoading || savedLahan.length === 0) && styles.aiRefreshButtonDisabled,
+                        pressed && !isLahanSummaryLoading && savedLahan.length > 0 && { opacity: 0.2 },
+                      ]}
                       disabled={isLahanSummaryLoading || savedLahan.length === 0}
                       onPress={handleRefreshSummary}
+                      accessibilityRole="button"
+                      accessibilityState={{ disabled: isLahanSummaryLoading || savedLahan.length === 0 }}
                       accessibilityLabel="Ringkas observasi lahan"
                     >
                       {isLahanSummaryLoading ? (
@@ -1777,7 +1872,7 @@ export default function ExploreScreen() {
                           <Text style={styles.aiAnalyzeText}>Ringkas Data</Text>
                         </>
                       )}
-                    </TouchableOpacity>
+                    </Pressable>
                   )}
                 </View>
               </View>
@@ -1802,9 +1897,13 @@ export default function ExploreScreen() {
                 <View style={styles.aiErrorBox}>
                   <Ionicons name="warning-outline" size={20} color="#FCA5A5" />
                   <Text style={styles.aiErrorText}>{lahanSummaryError}</Text>
-                  <TouchableOpacity style={styles.aiRetryButton} onPress={handleRefreshSummary}>
+                  <Pressable
+                    style={({ pressed }) => [styles.aiRetryButton, pressed && { opacity: 0.2 }]}
+                    onPress={handleRefreshSummary}
+                    accessibilityRole="button"
+                  >
                     <Text style={styles.aiRetryText}>Coba Lagi</Text>
-                  </TouchableOpacity>
+                  </Pressable>
                 </View>
               ) : lahanSummaryText ? (
                 isLahanSummaryCollapsed ? (
@@ -1903,12 +2002,22 @@ export default function ExploreScreen() {
                         )}
                       </View>
                       <View style={styles.noteCardFooterActions}>
-                        <TouchableOpacity style={styles.noteActionButton} onPress={() => handleEditNote(note)}>
+                        <Pressable
+                          style={({ pressed }) => [styles.noteActionButton, pressed && { opacity: 0.2 }]}
+                          onPress={() => handleEditNote(note)}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Edit catatan ${note.title}`}
+                        >
                           <Ionicons name="create-outline" size={15} color="#D97706" />
-                        </TouchableOpacity>
-                        <TouchableOpacity style={[styles.noteActionButton, styles.noteDeleteButton]} onPress={() => handleDeleteNote(note.id)}>
+                        </Pressable>
+                        <Pressable
+                          style={({ pressed }) => [styles.noteActionButton, styles.noteDeleteButton, pressed && { opacity: 0.2 }]}
+                          onPress={() => handleDeleteNote(note.id)}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Hapus catatan ${note.title}`}
+                        >
                           <Ionicons name="trash-outline" size={15} color="#DC2626" />
-                        </TouchableOpacity>
+                        </Pressable>
                       </View>
                     </View>
                     <Text style={styles.noteTitle} numberOfLines={2}>{note.title}</Text>
@@ -1918,10 +2027,14 @@ export default function ExploreScreen() {
               </View>
             )}
 
-            <TouchableOpacity style={styles.newNoteButton} onPress={handleOpenNoteModal} activeOpacity={0.85}>
+            <Pressable
+              style={({ pressed }) => [styles.newNoteButton, pressed && { opacity: 0.85 }]}
+              onPress={handleOpenNoteModal}
+              accessibilityRole="button"
+            >
               <Ionicons name="add-circle-outline" size={20} color="#D97706" />
               <Text style={styles.newNoteButtonText}>Tambah Catatan Baru</Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
         </ScrollView>
 
@@ -1963,16 +2076,26 @@ export default function ExploreScreen() {
                   </View>
 
                   <View style={styles.modalButtons}>
-                    <TouchableOpacity style={styles.modalCancelButton} onPress={handleCancelSave}>
+                    <Pressable
+                      style={({ pressed }) => [styles.modalCancelButton, pressed && { opacity: 0.2 }]}
+                      onPress={handleCancelSave}
+                      accessibilityRole="button"
+                    >
                       <Text style={styles.modalCancelText}>Batal</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.modalSaveButton, isSaving && styles.modalSaveButtonDisabled]}
+                    </Pressable>
+                    <Pressable
+                      style={({ pressed }) => [
+                        styles.modalSaveButton,
+                        isSaving && styles.modalSaveButtonDisabled,
+                        pressed && !isSaving && { opacity: 0.2 },
+                      ]}
                       onPress={saveLahan}
                       disabled={isSaving}
+                      accessibilityRole="button"
+                      accessibilityState={{ disabled: isSaving }}
                     >
                       {isSaving ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={styles.modalSaveText}>Simpan Lahan</Text>}
-                    </TouchableOpacity>
+                    </Pressable>
                   </View>
                 </View>
               </TouchableWithoutFeedback>
@@ -1995,23 +2118,39 @@ export default function ExploreScreen() {
               </View>
 
               <Text style={styles.inputLabel}>Lahan (Opsional)</Text>
-              <TouchableOpacity style={styles.notePickerButton} onPress={() => setIsLahanPickerVisible((prev) => !prev)}>
+              <Pressable
+                style={({ pressed }) => [styles.notePickerButton, pressed && { opacity: 0.2 }]}
+                onPress={() => setIsLahanPickerVisible((prev) => !prev)}
+                accessibilityRole="button"
+                accessibilityState={{ expanded: isLahanPickerVisible }}
+              >
                 <Ionicons name="location-outline" size={15} color="#D97706" style={{ marginRight: 8 }} />
                 <Text style={[styles.notePickerLabel, !selectedNoteLahanName && { color: "#9CA3AF" }]}>
                   {selectedNoteLahanName ?? "Pilih lahan (opsional)"}
                 </Text>
                 <Ionicons name={isLahanPickerVisible ? "chevron-up" : "chevron-down"} size={16} color="#D97706" />
-              </TouchableOpacity>
+              </Pressable>
               {isLahanPickerVisible && (
                 <View style={styles.notePickerDropdown}>
                   <ScrollView style={styles.notePickerList} keyboardShouldPersistTaps="handled">
-                    <TouchableOpacity style={styles.notePickerOption} onPress={() => handleSelectNoteLahan(null)}>
+                    <Pressable
+                      style={({ pressed }) => [styles.notePickerOption, pressed && { opacity: 0.2 }]}
+                      onPress={() => handleSelectNoteLahan(null)}
+                      accessibilityRole="radio"
+                      accessibilityState={{ checked: selectedNoteLahanId === null }}
+                    >
                       <Text style={styles.notePickerOptionText}>Tanpa lahan</Text>
-                    </TouchableOpacity>
+                    </Pressable>
                     {savedLahan.map((item) => (
-                      <TouchableOpacity key={`picker-${item.id}`} style={styles.notePickerOption} onPress={() => handleSelectNoteLahan(item.id)}>
+                      <Pressable
+                        key={`picker-${item.id}`}
+                        style={({ pressed }) => [styles.notePickerOption, pressed && { opacity: 0.2 }]}
+                        onPress={() => handleSelectNoteLahan(item.id)}
+                        accessibilityRole="radio"
+                        accessibilityState={{ checked: selectedNoteLahanId === item.id }}
+                      >
                         <Text style={styles.notePickerOptionText}>{item.name}</Text>
-                      </TouchableOpacity>
+                      </Pressable>
                     ))}
                   </ScrollView>
                 </View>
@@ -2039,16 +2178,28 @@ export default function ExploreScreen() {
               />
 
               <View style={styles.modalButtons}>
-                <TouchableOpacity style={styles.modalCancelButton} onPress={handleCancelNote} disabled={isSavingNote}>
+                <Pressable
+                  style={({ pressed }) => [styles.modalCancelButton, pressed && !isSavingNote && { opacity: 0.2 }]}
+                  onPress={handleCancelNote}
+                  disabled={isSavingNote}
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: isSavingNote }}
+                >
                   <Text style={styles.modalCancelText}>Batal</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.modalSaveButton, (!isNoteFormValid || isSavingNote) && styles.modalSaveButtonDisabled]}
+                </Pressable>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.modalSaveButton,
+                    (!isNoteFormValid || isSavingNote) && styles.modalSaveButtonDisabled,
+                    pressed && isNoteFormValid && !isSavingNote && { opacity: 0.2 },
+                  ]}
                   onPress={handleSaveNote}
                   disabled={!isNoteFormValid || isSavingNote}
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: !isNoteFormValid || isSavingNote }}
                 >
                   {isSavingNote ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={styles.modalSaveText}>Simpan</Text>}
-                </TouchableOpacity>
+                </Pressable>
               </View>
             </View>
           </View>
@@ -2069,19 +2220,26 @@ export default function ExploreScreen() {
                 onChangeText={setEditLahanName}
               />
               <View style={styles.modalButtons}>
-                <TouchableOpacity
-                  style={styles.modalCancelButton}
+                <Pressable
+                  style={({ pressed }) => [styles.modalCancelButton, pressed && { opacity: 0.2 }]}
                   onPress={() => { setShowEditLahanModal(false); setEditingLahanId(null); setEditLahanName(""); }}
+                  accessibilityRole="button"
                 >
                   <Text style={styles.modalCancelText}>Batal</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.modalSaveButton, !editLahanName.trim() && styles.modalSaveButtonDisabled]}
+                </Pressable>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.modalSaveButton,
+                    !editLahanName.trim() && styles.modalSaveButtonDisabled,
+                    pressed && !!editLahanName.trim() && { opacity: 0.2 },
+                  ]}
                   onPress={handleSaveEditLahan}
                   disabled={!editLahanName.trim()}
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: !editLahanName.trim() }}
                 >
                   <Text style={styles.modalSaveText}>Simpan</Text>
-                </TouchableOpacity>
+                </Pressable>
               </View>
             </View>
           </View>
@@ -2102,23 +2260,39 @@ export default function ExploreScreen() {
               </View>
 
               <Text style={styles.inputLabel}>Lahan (Opsional)</Text>
-              <TouchableOpacity style={styles.notePickerButton} onPress={() => setIsLahanPickerVisible((prev) => !prev)}>
+              <Pressable
+                style={({ pressed }) => [styles.notePickerButton, pressed && { opacity: 0.2 }]}
+                onPress={() => setIsLahanPickerVisible((prev) => !prev)}
+                accessibilityRole="button"
+                accessibilityState={{ expanded: isLahanPickerVisible }}
+              >
                 <Ionicons name="location-outline" size={15} color="#D97706" style={{ marginRight: 8 }} />
                 <Text style={[styles.notePickerLabel, !selectedNoteLahanName && { color: "#9CA3AF" }]}>
                   {selectedNoteLahanName ?? "Pilih lahan (opsional)"}
                 </Text>
                 <Ionicons name={isLahanPickerVisible ? "chevron-up" : "chevron-down"} size={16} color="#D97706" />
-              </TouchableOpacity>
+              </Pressable>
               {isLahanPickerVisible && (
                 <View style={styles.notePickerDropdown}>
                   <ScrollView style={styles.notePickerList} keyboardShouldPersistTaps="handled">
-                    <TouchableOpacity style={styles.notePickerOption} onPress={() => handleSelectNoteLahan(null)}>
+                    <Pressable
+                      style={({ pressed }) => [styles.notePickerOption, pressed && { opacity: 0.2 }]}
+                      onPress={() => handleSelectNoteLahan(null)}
+                      accessibilityRole="radio"
+                      accessibilityState={{ checked: selectedNoteLahanId === null }}
+                    >
                       <Text style={styles.notePickerOptionText}>Tanpa lahan</Text>
-                    </TouchableOpacity>
+                    </Pressable>
                     {savedLahan.map((item) => (
-                      <TouchableOpacity key={`picker-${item.id}`} style={styles.notePickerOption} onPress={() => handleSelectNoteLahan(item.id)}>
+                      <Pressable
+                        key={`picker-${item.id}`}
+                        style={({ pressed }) => [styles.notePickerOption, pressed && { opacity: 0.2 }]}
+                        onPress={() => handleSelectNoteLahan(item.id)}
+                        accessibilityRole="radio"
+                        accessibilityState={{ checked: selectedNoteLahanId === item.id }}
+                      >
                         <Text style={styles.notePickerOptionText}>{item.name}</Text>
-                      </TouchableOpacity>
+                      </Pressable>
                     ))}
                   </ScrollView>
                 </View>
@@ -2146,20 +2320,28 @@ export default function ExploreScreen() {
               />
 
               <View style={styles.modalButtons}>
-                <TouchableOpacity
-                  style={styles.modalCancelButton}
+                <Pressable
+                  style={({ pressed }) => [styles.modalCancelButton, pressed && !isSavingNote && { opacity: 0.2 }]}
                   onPress={() => { setShowEditNoteModal(false); setEditingNoteId(null); resetNoteForm(); }}
                   disabled={isSavingNote}
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: isSavingNote }}
                 >
                   <Text style={styles.modalCancelText}>Batal</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.modalSaveButton, (!isNoteFormValid || isSavingNote) && styles.modalSaveButtonDisabled]}
+                </Pressable>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.modalSaveButton,
+                    (!isNoteFormValid || isSavingNote) && styles.modalSaveButtonDisabled,
+                    pressed && isNoteFormValid && !isSavingNote && { opacity: 0.2 },
+                  ]}
                   onPress={handleSaveNote}
                   disabled={!isNoteFormValid || isSavingNote}
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: !isNoteFormValid || isSavingNote }}
                 >
                   {isSavingNote ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={styles.modalSaveText}>Simpan</Text>}
-                </TouchableOpacity>
+                </Pressable>
               </View>
             </View>
           </View>

@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
 interface DrawingModeIndicatorProps {
   onCancel: () => void;
@@ -16,13 +16,18 @@ export function DrawingModeIndicator({
       <Text style={styles.drawingModeIndicatorText}>
         Mode Menggambar Aktif • {pointsCount} titik
       </Text>
-      <TouchableOpacity
+      <Pressable
         onPress={onCancel}
-        style={styles.drawingModeIndicatorClose}
+        style={({ pressed }) => [
+          styles.drawingModeIndicatorClose,
+          pressed && { opacity: 0.2 },
+        ]}
         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        accessibilityRole="button"
+        accessibilityLabel="Batalkan menggambar lahan"
       >
         <Ionicons name="close-circle" size={24} color="#FFFFFF" />
-      </TouchableOpacity>
+      </Pressable>
     </View>
   );
 }

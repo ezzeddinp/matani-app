@@ -8,7 +8,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
+  Pressable,
   View,
 } from "react-native";
 import Svg, { Circle, G, Line, Polyline, Text as SvgText } from "react-native-svg";
@@ -369,9 +369,13 @@ export default function DetailLahanPage() {
         <Ionicons name="cloud-offline-outline" size={36} color="#64748B" />
         <Text style={styles.errorTitle}>Data tidak tersedia</Text>
         <Text style={styles.errorText}>{errorMessage}</Text>
-        <TouchableOpacity style={styles.backAction} onPress={() => router.back()}>
+        <Pressable
+          style={({ pressed }) => [styles.backAction, pressed && { opacity: 0.2 }]}
+          onPress={() => router.back()}
+          accessibilityRole="button"
+        >
           <Text style={styles.backActionText}>Kembali</Text>
-        </TouchableOpacity>
+        </Pressable>
       </SafeAreaView>
     );
   }
@@ -382,13 +386,14 @@ export default function DetailLahanPage() {
       <ScrollView contentContainerStyle={styles.content}>
         <ImageBackground source={PADI_IMAGE} style={styles.hero} resizeMode="cover">
           <View style={styles.heroOverlay} />
-          <TouchableOpacity
-            style={styles.iconButton}
+          <Pressable
+            style={({ pressed }) => [styles.iconButton, pressed && { opacity: 0.2 }]}
             onPress={() => router.back()}
+            accessibilityRole="button"
             accessibilityLabel="Kembali"
           >
             <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
-          </TouchableOpacity>
+          </Pressable>
           <View style={styles.heroCopy}>
             <Text style={styles.cropLabel}>PADI</Text>
             <Text style={styles.heroTitle}>{detail.name}</Text>
@@ -421,13 +426,16 @@ export default function DetailLahanPage() {
 
           <View style={styles.segmentedControl}>
             {(["ndvi", "ndmi"] as IndexKey[]).map((key) => (
-              <TouchableOpacity
+              <Pressable
                 key={key}
-                style={[
-                  styles.segmentButton,
-                  activeIndex === key && styles.segmentButtonActive,
-                ]}
+                style={({ pressed }) => [
+                    styles.segmentButton,
+                    activeIndex === key && styles.segmentButtonActive,
+                    pressed && { opacity: 0.2 },
+                  ]}
                 onPress={() => setActiveIndex(key)}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: activeIndex === key }}
               >
                 <Text
                   style={[
@@ -437,7 +445,7 @@ export default function DetailLahanPage() {
                 >
                   {key.toUpperCase()}
                 </Text>
-              </TouchableOpacity>
+              </Pressable>
             ))}
           </View>
 
@@ -495,10 +503,15 @@ export default function DetailLahanPage() {
                     : `Batas lahan tersimpan, tetapi belum ada acquisition yang lolos kualitas${jobErrorCode ? ` (${jobErrorCode})` : ""}. Matani tidak membuat data pengganti.`)}
               </Text>
               {!measurementIsProcessing && (
-                <TouchableOpacity
-                  style={styles.backAction}
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.backAction,
+                    pressed && !isRequestingMeasurement && { opacity: 0.2 },
+                  ]}
                   onPress={() => void retryMeasurement()}
                   disabled={isRequestingMeasurement}
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: isRequestingMeasurement }}
                 >
                   {isRequestingMeasurement ? (
                     <ActivityIndicator size="small" color="#FFFFFF" />
@@ -509,7 +522,7 @@ export default function DetailLahanPage() {
                         : "Jalankan pengukuran"}
                     </Text>
                   )}
-                </TouchableOpacity>
+                </Pressable>
               )}
             </View>
           ) : (

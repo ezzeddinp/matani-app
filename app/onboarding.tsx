@@ -2,7 +2,7 @@ import { Image as ExpoImage } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React from 'react';
-import { Dimensions, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Dimensions, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const { height } = Dimensions.get('window');
@@ -50,9 +50,13 @@ export default function OnboardingScreen() {
       </View>
 
       <View style={styles.actions}>
-        <TouchableOpacity style={styles.primaryButton} activeOpacity={0.85} onPress={handleContinue}>
+        <Pressable
+          style={({ pressed }) => [styles.primaryButton, pressed && { opacity: 0.85 }]}
+          accessibilityRole="button"
+          onPress={handleContinue}
+        >
           <Text style={styles.primaryButtonLabel}>Mulai Sekarang</Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
     </SafeAreaView>
   );

@@ -17,11 +17,11 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Pressable,
   ScrollView,
   StatusBar,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from "react-native";
 
@@ -509,10 +509,11 @@ export default function WeatherScreen() {
 
       <View style={styles.header}>
         <View style={styles.headerControls}>
-          <TouchableOpacity
-            style={styles.locationSelector}
+          <Pressable
+            style={({ pressed }) => [styles.locationSelector, pressed && { opacity: 0.85 }]}
             onPress={() => setLocationMenuOpen((prev) => !prev)}
-            activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityState={{ expanded: isLocationMenuOpen }}
           >
             <Ionicons
               name="location-outline"
@@ -528,20 +529,23 @@ export default function WeatherScreen() {
               size={18}
               color="#2E7D32"
             />
-          </TouchableOpacity>
+          </Pressable>
         </View>
       </View>
 
       {isLocationMenuOpen && (
         <View style={styles.locationDropdown}>
           {LOCATION_OPTIONS.map((option) => (
-            <TouchableOpacity
+            <Pressable
               key={option.id}
-              style={[
-                styles.locationOption,
-                selectedLocationId === option.id && styles.locationOptionActive,
-              ]}
+              style={({ pressed }) => [
+                  styles.locationOption,
+                  selectedLocationId === option.id && styles.locationOptionActive,
+                  pressed && { opacity: 0.2 },
+                ]}
               onPress={() => handleSelectLocation(option.id)}
+              accessibilityRole="radio"
+              accessibilityState={{ checked: selectedLocationId === option.id }}
             >
               <Text
                 style={[
@@ -552,7 +556,7 @@ export default function WeatherScreen() {
               >
                 {option.label}
               </Text>
-            </TouchableOpacity>
+            </Pressable>
           ))}
         </View>
       )}

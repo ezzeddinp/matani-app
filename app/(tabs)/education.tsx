@@ -5,11 +5,11 @@ import { useRouter } from "expo-router";
 import React, { useMemo, useState } from "react";
 import {
   ScrollView,
+  Pressable,
   StatusBar,
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
   View,
 } from "react-native";
 
@@ -146,12 +146,14 @@ export default function EducationScreen() {
           clearButtonMode="while-editing"
         />
         {searchQuery.length > 0 && (
-          <TouchableOpacity
+          <Pressable
             onPress={() => setSearchQuery("")}
-            style={styles.clearSearchButton}
+            style={({ pressed }) => [styles.clearSearchButton, pressed && { opacity: 0.2 }]}
+            accessibilityRole="button"
+            accessibilityLabel="Hapus pencarian"
           >
             <Ionicons name="close-circle" size={18} color="#9CA3AF" />
-          </TouchableOpacity>
+          </Pressable>
         )}
       </View>
 
@@ -165,14 +167,16 @@ export default function EducationScreen() {
           {categories.map((category) => {
             const isActive = selectedCategory === category;
             return (
-              <TouchableOpacity
+              <Pressable
                 key={category}
-                style={[
-                  styles.categoryButton,
-                  isActive && styles.activeCategoryButton,
-                ]}
+                style={({ pressed }) => [
+                    styles.categoryButton,
+                    isActive && styles.activeCategoryButton,
+                    pressed && { opacity: 0.85 },
+                  ]}
                 onPress={() => handleSelectCategory(category)}
-                activeOpacity={0.85}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: isActive }}
               >
                 <Text
                   style={[
@@ -182,7 +186,7 @@ export default function EducationScreen() {
                 >
                   {category}
                 </Text>
-              </TouchableOpacity>
+              </Pressable>
             );
           })}
         </ScrollView>
@@ -211,11 +215,11 @@ export default function EducationScreen() {
           filteredArticles.map((item) => {
             const priorityStyle = renderPriorityStyles(item.priority);
             return (
-              <TouchableOpacity
+              <Pressable
                 key={item.id}
-                style={styles.educationCard}
-                activeOpacity={0.88}
+                style={({ pressed }) => [styles.educationCard, pressed && { opacity: 0.88 }]}
                 onPress={() => handleOpenDetail(item.id)}
+                accessibilityRole="button"
               >
                 <View style={styles.cardRow}>
                   <View
@@ -252,15 +256,11 @@ export default function EducationScreen() {
                       </Text>
                     </View>
                   </View>
-                  <TouchableOpacity
-                    style={styles.arrowButton}
-                    onPress={() => handleOpenDetail(item.id)}
-                    activeOpacity={0.8}
-                  >
+                  <View style={styles.arrowButton}>
                     <Ionicons name="arrow-forward" size={20} color="#2E7D32" />
-                  </TouchableOpacity>
+                  </View>
                 </View>
-              </TouchableOpacity>
+              </Pressable>
             );
           })
         )}

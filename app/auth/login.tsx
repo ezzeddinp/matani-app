@@ -8,7 +8,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
+  Pressable,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -103,23 +103,27 @@ export default function LoginScreen() {
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
               />
-              <TouchableOpacity
-                style={styles.eyeButton}
+              <Pressable
+                style={({ pressed }) => [styles.eyeButton, pressed && { opacity: 0.2 }]}
                 onPress={() => setShowPassword(!showPassword)}
+                accessibilityRole="button"
+                accessibilityLabel={showPassword ? "Sembunyikan password" : "Tampilkan password"}
               >
                 <Ionicons
                   name={showPassword ? "eye" : "eye-off"}
                   size={20}
                   color="#999"
                 />
-              </TouchableOpacity>
+              </Pressable>
             </View>
           </View>
 
           <View style={styles.optionsRow}>
-            <TouchableOpacity
-              style={styles.rememberRow}
+            <Pressable
+              style={({ pressed }) => [styles.rememberRow, pressed && { opacity: 0.2 }]}
               onPress={() => setRememberMe(!rememberMe)}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: rememberMe }}
             >
               <View style={styles.checkbox}>
                 {rememberMe && (
@@ -127,21 +131,27 @@ export default function LoginScreen() {
                 )}
               </View>
               <Text style={styles.rememberText}>Ingat saya</Text>
-            </TouchableOpacity>
-            <TouchableOpacity>
+            </Pressable>
+            <View>
               <Text style={styles.forgotText}>Lupa password?</Text>
-            </TouchableOpacity>
+            </View>
           </View>
 
-          <TouchableOpacity
-            style={[styles.signInButton, isLoading && styles.disabledButton]}
+          <Pressable
+            style={({ pressed }) => [
+              styles.signInButton,
+              isLoading && styles.disabledButton,
+              pressed && !isLoading && { opacity: 0.2 },
+            ]}
             onPress={handleSignIn}
             disabled={isLoading}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: isLoading }}
           >
             <Text style={styles.signInButtonText}>
               {isLoading ? "Masuk..." : "Masuk"}
             </Text>
-          </TouchableOpacity>
+          </Pressable>
 
           <View style={styles.footer}>
             <Text style={styles.footerText}>

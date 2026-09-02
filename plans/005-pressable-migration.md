@@ -1,6 +1,6 @@
 # 005 — Migrate touchables without losing interaction semantics
 
-- **Status**: TODO
+- **Status**: IMPLEMENTED — PHONE/SCREEN READER CHECK PENDING
 - **Commit**: `e9a2173`
 - **Severity**: MEDIUM
 - **Category**: Accessibility
@@ -75,4 +75,3 @@ Controls without explicit `activeOpacity` must reproduce TouchableOpacity's curr
 - **Behavior check**: use a phone and screen reader to test every changed control, including long/rapid taps, disabled actions, auth password visibility, Home navigation, Education cards, Detail retry/back, and all Explore map/modal/keyboard flows.
 - **Visual check**: compare pressed/unpressed screenshots or recordings; opacity, layout, color, and shadow must match.
 - **Done when**: every migrated control preserves its interaction contract and every retained Touchable has a recorded evidence-based reason.
-

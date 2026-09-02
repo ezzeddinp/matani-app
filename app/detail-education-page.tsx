@@ -8,7 +8,7 @@ import {
     StatusBar,
     StyleSheet,
     Text,
-    TouchableOpacity,
+    Pressable,
     View,
 } from 'react-native';
 
@@ -49,9 +49,14 @@ export default function DetailEducationPage() {
     <ThemedView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#F5F7FB" />
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={handleGoBack} activeOpacity={0.7}>
+        <Pressable
+          style={({ pressed }) => [styles.backButton, pressed && { opacity: 0.7 }]}
+          onPress={handleGoBack}
+          accessibilityRole="button"
+          accessibilityLabel="Kembali"
+        >
           <Ionicons name="arrow-back" size={22} color="#1F2937" />
-        </TouchableOpacity>
+        </Pressable>
         <View style={styles.headerSpacer} />
       </View>
 
@@ -118,9 +123,13 @@ export default function DetailEducationPage() {
             <Text style={styles.emptySubtitle}>
               Pastikan Anda membuka tautan edukasi dari daftar utama.
             </Text>
-            <TouchableOpacity style={styles.emptyButton} onPress={handleGoBack} activeOpacity={0.8}>
+            <Pressable
+              style={({ pressed }) => [styles.emptyButton, pressed && { opacity: 0.8 }]}
+              onPress={handleGoBack}
+              accessibilityRole="button"
+            >
               <Text style={styles.emptyButtonText}>Kembali ke edukasi</Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
         )}
       </ScrollView>

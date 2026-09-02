@@ -8,7 +8,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
+  Pressable,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -199,16 +199,18 @@ export default function SignUpScreen() {
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
               />
-              <TouchableOpacity
-                style={styles.eyeButton}
+              <Pressable
+                style={({ pressed }) => [styles.eyeButton, pressed && { opacity: 0.2 }]}
                 onPress={() => setShowPassword(!showPassword)}
+                accessibilityRole="button"
+                accessibilityLabel={showPassword ? "Sembunyikan password" : "Tampilkan password"}
               >
                 <Ionicons
                   name={showPassword ? "eye" : "eye-off"}
                   size={20}
                   color="#999"
                 />
-              </TouchableOpacity>
+              </Pressable>
             </View>
           </View>
 
@@ -222,28 +224,36 @@ export default function SignUpScreen() {
                 onChangeText={setConfirmPassword}
                 secureTextEntry={!showConfirmPassword}
               />
-              <TouchableOpacity
-                style={styles.eyeButton}
+              <Pressable
+                style={({ pressed }) => [styles.eyeButton, pressed && { opacity: 0.2 }]}
                 onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                accessibilityRole="button"
+                accessibilityLabel={showConfirmPassword ? "Sembunyikan konfirmasi password" : "Tampilkan konfirmasi password"}
               >
                 <Ionicons
                   name={showConfirmPassword ? "eye" : "eye-off"}
                   size={20}
                   color="#999"
                 />
-              </TouchableOpacity>
+              </Pressable>
             </View>
           </View>
 
-          <TouchableOpacity
-            style={[styles.createButton, isLoading && styles.disabledButton]}
+          <Pressable
+            style={({ pressed }) => [
+              styles.createButton,
+              isLoading && styles.disabledButton,
+              pressed && !isLoading && { opacity: 0.2 },
+            ]}
             onPress={handleCreateAccount}
             disabled={isLoading}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: isLoading }}
           >
             <Text style={styles.createButtonText}>
               {isLoading ? "Mendaftarkan akun..." : "Daftar"}
             </Text>
-          </TouchableOpacity>
+          </Pressable>
 
           <View style={styles.footer}>
             <Text style={styles.footerText}>

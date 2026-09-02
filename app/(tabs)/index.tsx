@@ -16,12 +16,12 @@ import {
   Image,
   ImageBackground,
   Modal,
+  Pressable,
   ScrollView,
   StatusBar,
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
   View,
 } from "react-native";
 
@@ -309,10 +309,12 @@ const LahanCard = ({
 
   return (
     <View style={styles.fieldCardContainer}>
-      <TouchableOpacity
+      <Pressable
         onPress={onPress}
         disabled={!onPress}
-        activeOpacity={0.88}
+        style={({ pressed }) => pressed && { opacity: 0.88 }}
+        accessibilityRole="button"
+        accessibilityState={{ disabled: !onPress }}
       >
         <View style={styles.fieldCard}>
           {/* Top Section with Category Image */}
@@ -355,7 +357,7 @@ const LahanCard = ({
             </View>
           </View>
         </View>
-      </TouchableOpacity>
+      </Pressable>
     </View>
   );
 };
@@ -1168,17 +1170,19 @@ export default function HomeScreen() {
         >
           <View style={styles.header}>
             <View style={styles.headerTop}>
-              <TouchableOpacity
-                style={styles.profilePicture}
+              <Pressable
+                style={({ pressed }) => [styles.profilePicture, pressed && { opacity: 0.7 }]}
                 onPress={() => router.push("/profile")}
-                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="Buka profil"
               >
                 <Ionicons name="person" size={24} color="#4CAF50" />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.lahanSelector}
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [styles.lahanSelector, pressed && { opacity: 0.7 }]}
                 onPress={() => setShowLahanPicker(!showLahanPicker)}
-                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityState={{ expanded: showLahanPicker }}
               >
                 <Ionicons
                   name="location"
@@ -1194,14 +1198,15 @@ export default function HomeScreen() {
                   size={18}
                   color="#fff"
                 />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.notificationButton}
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [styles.notificationButton, pressed && { opacity: 0.7 }]}
                 onPress={() => router.push("/notifications")}
-                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="Buka notifikasi"
               >
                 <Ionicons name="notifications" size={24} color="#4CAF50" />
-              </TouchableOpacity>
+              </Pressable>
             </View>
           </View>
         </LinearGradient>
@@ -1214,13 +1219,14 @@ export default function HomeScreen() {
               showsVerticalScrollIndicator={false}
             >
               {/* Option: Pilih Ladang (default) */}
-              <TouchableOpacity
-                style={styles.lahanPickerOption}
+              <Pressable
+                style={({ pressed }) => [styles.lahanPickerOption, pressed && { opacity: 0.7 }]}
                 onPress={() => {
                   setSelectedLahanId(null);
                   setShowLahanPicker(false);
                 }}
-                activeOpacity={0.7}
+                accessibilityRole="radio"
+                accessibilityState={{ checked: !selectedLahanId }}
               >
                 <Ionicons name="apps" size={20} color="#4CAF50" />
                 <Text
@@ -1234,18 +1240,19 @@ export default function HomeScreen() {
                 {!selectedLahanId && (
                   <Ionicons name="checkmark" size={20} color="#4CAF50" />
                 )}
-              </TouchableOpacity>
+              </Pressable>
 
               {/* User's Lahan List */}
               {savedLahan.map((lahan) => (
-                <TouchableOpacity
+                <Pressable
                   key={lahan.id}
-                  style={styles.lahanPickerOption}
+                  style={({ pressed }) => [styles.lahanPickerOption, pressed && { opacity: 0.7 }]}
                   onPress={() => {
                     setSelectedLahanId(lahan.id);
                     setShowLahanPicker(false);
                   }}
-                  activeOpacity={0.7}
+                  accessibilityRole="radio"
+                  accessibilityState={{ checked: selectedLahanId === lahan.id }}
                 >
                   <Ionicons name="location" size={20} color="#4CAF50" />
                   <Text
@@ -1260,7 +1267,7 @@ export default function HomeScreen() {
                   {selectedLahanId === lahan.id && (
                     <Ionicons name="checkmark" size={20} color="#4CAF50" />
                   )}
-                </TouchableOpacity>
+                </Pressable>
               ))}
             </ScrollView>
           </View>
@@ -1347,12 +1354,14 @@ export default function HomeScreen() {
             <Text style={[styles.sectionTitle, { marginBottom: 0 }]}>
               Lahan Saya
             </Text>
-            <TouchableOpacity
-              style={styles.addNoteButton}
+            <Pressable
+              style={({ pressed }) => [styles.addNoteButton, pressed && { opacity: 0.2 }]}
               onPress={() => router.push("/explore")}
+              accessibilityRole="button"
+              accessibilityLabel="Tambah lahan"
             >
               <Ionicons name="add" size={14} color="#fff" />
-            </TouchableOpacity>
+            </Pressable>
           </View>
           <View style={{ marginBottom: 12 }} />
 
@@ -1415,12 +1424,14 @@ export default function HomeScreen() {
                     style={styles.sectionActionSpinner}
                   />
                 )}
-                <TouchableOpacity
-                  style={styles.addNoteButton}
+                <Pressable
+                  style={({ pressed }) => [styles.addNoteButton, pressed && { opacity: 0.2 }]}
                   onPress={handleOpenNoteModal}
+                  accessibilityRole="button"
+                  accessibilityLabel="Tambah catatan"
                 >
                   <Ionicons name="add" size={14} color="#fff" />
-                </TouchableOpacity>
+                </Pressable>
               </View>
             </View>
             <View style={{ marginBottom: 12 }} />
@@ -1478,15 +1489,16 @@ export default function HomeScreen() {
               Simpan temuan lapangan langsung dari beranda.
             </Text>
 
-            <TouchableOpacity
-              style={styles.notePickerButton}
+            <Pressable
+              style={({ pressed }) => [styles.notePickerButton, pressed && { opacity: 0.85 }]}
               onPress={() => setIsLahanPickerVisible((prev) => !prev)}
-              activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityState={{ expanded: isLahanPickerVisible }}
             >
               <Text style={styles.notePickerLabel} numberOfLines={1}>
                 {selectedNoteLahanName ?? "Pilih lahan (opsional)"}
               </Text>
-            </TouchableOpacity>
+            </Pressable>
 
             {isLahanPickerVisible && (
               <View style={styles.notePickerDropdown}>
@@ -1494,17 +1506,21 @@ export default function HomeScreen() {
                   style={styles.notePickerList}
                   keyboardShouldPersistTaps="handled"
                 >
-                  <TouchableOpacity
-                    style={styles.notePickerOption}
+                  <Pressable
+                    style={({ pressed }) => [styles.notePickerOption, pressed && { opacity: 0.2 }]}
                     onPress={() => handleSelectNoteLahan(null)}
+                    accessibilityRole="radio"
+                    accessibilityState={{ checked: selectedNoteLahanId === null }}
                   >
                     <Text style={styles.notePickerOptionText}>Tanpa lahan</Text>
-                  </TouchableOpacity>
+                  </Pressable>
                   {savedLahan.map((item) => (
-                    <TouchableOpacity
+                    <Pressable
                       key={`home-note-picker-${item.id}`}
-                      style={styles.notePickerOption}
+                      style={({ pressed }) => [styles.notePickerOption, pressed && { opacity: 0.2 }]}
                       onPress={() => handleSelectNoteLahan(item.id)}
+                      accessibilityRole="radio"
+                      accessibilityState={{ checked: selectedNoteLahanId === item.id }}
                     >
                       <Text
                         style={styles.notePickerOptionText}
@@ -1512,7 +1528,7 @@ export default function HomeScreen() {
                       >
                         {item.name}
                       </Text>
-                    </TouchableOpacity>
+                    </Pressable>
                   ))}
                 </ScrollView>
               </View>
@@ -1536,27 +1552,34 @@ export default function HomeScreen() {
             />
 
             <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={styles.modalCancelButton}
+              <Pressable
+                style={({ pressed }) => [
+                  styles.modalCancelButton,
+                  pressed && !isSavingNote && { opacity: 0.2 },
+                ]}
                 onPress={handleCancelNote}
                 disabled={isSavingNote}
+                accessibilityRole="button"
+                accessibilityState={{ disabled: isSavingNote }}
               >
                 <Text style={styles.modalCancelText}>Batal</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.modalSaveButton,
-                  (!isNoteFormValid || isSavingNote) &&
-                    styles.modalSaveButtonDisabled,
-                ]}
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [
+                    styles.modalSaveButton,
+                    (!isNoteFormValid || isSavingNote) &&
+                      styles.modalSaveButtonDisabled,
+                    pressed && isNoteFormValid && !isSavingNote && { opacity: 0.85 },
+                  ]}
                 onPress={handleSaveNote}
                 disabled={!isNoteFormValid || isSavingNote}
-                activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityState={{ disabled: !isNoteFormValid || isSavingNote }}
               >
                 <Text style={styles.modalSaveText}>
                   {isSavingNote ? "Menyimpan..." : "Simpan"}
                 </Text>
-              </TouchableOpacity>
+              </Pressable>
             </View>
           </View>
         </View>

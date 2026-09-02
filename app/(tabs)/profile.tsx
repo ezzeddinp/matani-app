@@ -12,11 +12,11 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Pressable,
   ScrollView,
   StatusBar,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from "react-native";
 
@@ -298,35 +298,43 @@ export default function ProfileScreen() {
 
       <View style={styles.actionSection}>
         <Text style={styles.sectionTitle}>Aksi Cepat</Text>
-        <TouchableOpacity style={styles.actionButton}>
+        <View style={styles.actionButton}>
           <Text style={styles.actionButtonText}>Bantuan & Dukungan</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.actionButton}>
+        </View>
+        <View style={styles.actionButton}>
           <Text style={styles.actionButtonText}>Kebijakan Privasi</Text>
-        </TouchableOpacity>
+        </View>
         {isGuest ? (
-          <TouchableOpacity
-            style={[styles.actionButton, styles.loginButton]}
+          <Pressable
+            style={({ pressed }) => [
+              styles.actionButton,
+              styles.loginButton,
+              pressed && { opacity: 0.2 },
+            ]}
             onPress={() => router.replace("/auth/login")}
+            accessibilityRole="button"
           >
             <Text style={[styles.actionButtonText, styles.loginText]}>
               Masuk ke Akun
             </Text>
-          </TouchableOpacity>
+          </Pressable>
         ) : (
-          <TouchableOpacity
-            style={[
-              styles.actionButton,
-              styles.logoutButton,
-              isSigningOut && styles.logoutButtonDisabled,
-            ]}
+          <Pressable
+            style={({ pressed }) => [
+                styles.actionButton,
+                styles.logoutButton,
+                isSigningOut && styles.logoutButtonDisabled,
+                pressed && !isSigningOut && { opacity: 0.2 },
+              ]}
             onPress={handleLogout}
             disabled={isSigningOut}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: isSigningOut }}
           >
             <Text style={[styles.actionButtonText, styles.logoutText]}>
               {isSigningOut ? "Keluar…" : "Keluar dari Akun"}
             </Text>
-          </TouchableOpacity>
+          </Pressable>
         )}
       </View>
     </View>
@@ -480,12 +488,13 @@ export default function ProfileScreen() {
       return (
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>{profileError}</Text>
-          <TouchableOpacity
-            style={styles.retryButton}
+          <Pressable
+            style={({ pressed }) => [styles.retryButton, pressed && { opacity: 0.2 }]}
             onPress={handleRetryProfile}
+            accessibilityRole="button"
           >
             <Text style={styles.retryButtonText}>Coba Lagi</Text>
-          </TouchableOpacity>
+          </Pressable>
         </View>
       );
     }
@@ -500,10 +509,16 @@ export default function ProfileScreen() {
       {/* Tab Navigation */}
       <View style={styles.tabNavigation}>
         {tabs.map((tab) => (
-          <TouchableOpacity
+          <Pressable
             key={tab}
-            style={[styles.tabButton, selectedTab === tab && styles.activeTab]}
+            style={({ pressed }) => [
+              styles.tabButton,
+              selectedTab === tab && styles.activeTab,
+              pressed && { opacity: 0.2 },
+            ]}
             onPress={() => setSelectedTab(tab)}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: selectedTab === tab }}
           >
             <Text
               style={[
@@ -513,7 +528,7 @@ export default function ProfileScreen() {
             >
               {tab}
             </Text>
-          </TouchableOpacity>
+          </Pressable>
         ))}
       </View>
 

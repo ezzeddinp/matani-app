@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
 interface EmptyStateLahanProps {
   onStartDrawing: () => void;
@@ -19,13 +19,13 @@ export function EmptyStateLahan({ onStartDrawing }: EmptyStateLahanProps) {
         peta
       </Text>
 
-      <TouchableOpacity
-        style={styles.emptyStateCTA}
+      <Pressable
+        style={({ pressed }) => [styles.emptyStateCTA, pressed && { opacity: 0.8 }]}
         onPress={onStartDrawing}
-        activeOpacity={0.8}
+        accessibilityRole="button"
       >
         <Text style={styles.emptyStateCTAText}>Gambar Lahan Pertama</Text>
-      </TouchableOpacity>
+      </Pressable>
 
       <View style={styles.emptyStateStepsContainer}>
         <Text style={styles.emptyStateStepsTitle}>Cara Menggambar Lahan</Text>

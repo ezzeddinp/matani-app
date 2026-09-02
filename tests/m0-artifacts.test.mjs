@@ -187,3 +187,29 @@ test("React Doctor performance cleanup keeps scoped mobile contracts", async () 
   assert.match(onboarding, /<ExpoImage[\s\S]*source=\{\{ uri: HERO_IMAGE_URI \}\}[\s\S]*cachePolicy="memory-disk"/);
   assert.match(home, /<FlatList[\s\S]*data=\{savedLahan\}[\s\S]*keyExtractor=\{\(item\) => item\.id\}/);
 });
+
+test("Pressable migration preserves feedback and accessibility state", async () => {
+  const files = [
+    "app/(tabs)/education.tsx",
+    "app/(tabs)/explore.tsx",
+    "app/(tabs)/index.tsx",
+    "app/(tabs)/profile.tsx",
+    "app/(tabs)/weather.tsx",
+    "app/auth/login.tsx",
+    "app/auth/signup.tsx",
+    "app/detail-education-page.tsx",
+    "app/detail-lahan-page.tsx",
+    "app/notifications.tsx",
+    "app/onboarding.tsx",
+    "components/drawing-mode-indicator.tsx",
+    "components/empty-state-lahan.tsx",
+    "components/ui/collapsible.tsx",
+  ];
+  const sources = await Promise.all(files.map((file) => readFile(file, "utf8")));
+
+  sources.forEach((source) => assert.doesNotMatch(source, /TouchableOpacity/));
+  assert.match(sources.join("\n"), /pressed &&/);
+  assert.match(sources.join("\n"), /accessibilityState=\{\{ disabled:/);
+  assert.match(sources.join("\n"), /accessibilityState=\{\{ checked:/);
+  assert.match(sources.join("\n"), /accessibilityState=\{\{ expanded:/);
+});
