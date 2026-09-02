@@ -1045,6 +1045,8 @@ export default function HomeScreen() {
 
   // Update weather based on selected lahan
   useEffect(() => {
+    let active = true;
+
     const updateWeatherForLahan = async () => {
       if (!selectedLahanId) {
         // If no lahan selected, weather will use user location (already fetched)
@@ -1059,6 +1061,7 @@ export default function HomeScreen() {
       try {
         // Get lahan detail to access centroid
         const lahanDetail = await lahanService.getLahanDetail(selectedLahanId);
+        if (!active) return;
         if (!lahanDetail || !lahanDetail.centroid) {
           console.warn("No centroid data for selected lahan");
           return;
@@ -1098,9 +1101,11 @@ export default function HomeScreen() {
         } catch (reverseError) {
           console.warn("Reverse geocoding failed for lahan", reverseError);
         }
+        if (!active) return;
 
         // Fetch weather for lahan location
         const weather = await fetchWeatherData(lat, lon);
+        if (!active) return;
 
         if (weather) {
           setWeatherError(null);
@@ -1118,14 +1123,18 @@ export default function HomeScreen() {
           setWeatherError("Gagal memuat cuaca untuk ladang ini");
         }
       } catch (error) {
+        if (!active) return;
         console.error("Error fetching weather for lahan:", error);
         setWeatherError("Gagal memuat cuaca untuk ladang ini");
       } finally {
-        setLoading(false);
+        if (active) setLoading(false);
       }
     };
 
     updateWeatherForLahan();
+    return () => {
+      active = false;
+    };
   }, [selectedLahanId, savedLahan]);
 
   const selectedLahanHealth = selectedLahanId

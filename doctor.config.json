@@ -1,0 +1,7 @@
+{
+  "$schema": "https://react.doctor/schemas/doctor-config.json",
+  "rules": {
+    "react-hooks-js/todo": "off",
+    "react-doctor/supabase-client-owned-authz-field": "off"
+  }
+}

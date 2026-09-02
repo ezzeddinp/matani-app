@@ -791,22 +791,17 @@ export default function ExploreScreen() {
   };
 
   const undoLastPoint = () => {
-    setCurrentVertices((prevPath) => {
-      if (prevPath.length === 0) return prevPath;
-      const nextPath = prevPath.slice(0, -1);
-      const removedVertex = prevPath[prevPath.length - 1];
-      setRedoVertices((prevRedo) => [...prevRedo, removedVertex]);
-      return nextPath;
-    });
+    if (currentVertices.length === 0) return;
+    const removedVertex = currentVertices[currentVertices.length - 1];
+    setCurrentVertices(currentVertices.slice(0, -1));
+    setRedoVertices((prevRedo) => [...prevRedo, removedVertex]);
   };
 
   const redoLastPoint = () => {
-    setRedoVertices((prevRedo) => {
-      if (prevRedo.length === 0) return prevRedo;
-      const recoveredVertex = prevRedo[prevRedo.length - 1];
-      setCurrentVertices((prevPath) => [...prevPath, recoveredVertex]);
-      return prevRedo.slice(0, -1);
-    });
+    if (redoVertices.length === 0) return;
+    const recoveredVertex = redoVertices[redoVertices.length - 1];
+    setRedoVertices(redoVertices.slice(0, -1));
+    setCurrentVertices((prevPath) => [...prevPath, recoveredVertex]);
   };
 
   const saveLahan = async () => {

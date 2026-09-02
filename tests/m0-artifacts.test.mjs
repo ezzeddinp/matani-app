@@ -121,3 +121,49 @@ test("ordinary verification commands contain no live provider invocation", async
   ].join(" ");
   assert.doesNotMatch(verification, /sentinel|accuweather|open-meteo|gemini/i);
 });
+
+test("selected-field weather ignores an older request that resolves last", async () => {
+  const home = await readFile("app/(tabs)/index.tsx", "utf8");
+  const effect = home.slice(
+    home.indexOf("// Update weather based on selected lahan"),
+    home.indexOf("const selectedLahanHealth")
+  );
+
+  assert.match(effect, /let active = true;/);
+  assert.match(effect, /await lahanService\.getLahanDetail[\s\S]*?if \(!active\) return;/);
+  assert.match(effect, /await Location\.reverseGeocodeAsync[\s\S]*?if \(!active\) return;/);
+  assert.match(effect, /await fetchWeatherData[\s\S]*?if \(!active\) return;/);
+  assert.match(effect, /finally \{\s*if \(active\) setLoading\(false\);/);
+  assert.match(effect, /return \(\) => \{\s*active = false;/);
+
+  const deferred = () => {
+    let resolve;
+    const promise = new Promise((done) => {
+      resolve = done;
+    });
+    return { promise, resolve };
+  };
+  const commits = [];
+  let cleanup = () => {};
+  const select = (id, request) => {
+    cleanup();
+    let active = true;
+    void request.promise.then(() => {
+      if (active) commits.push(id);
+    });
+    cleanup = () => {
+      active = false;
+    };
+  };
+  const older = deferred();
+  const newer = deferred();
+
+  select("field-a", older);
+  select("field-b", newer);
+  newer.resolve();
+  await newer.promise;
+  older.resolve();
+  await older.promise;
+
+  assert.deepEqual(commits, ["field-b"]);
+});
