@@ -82,6 +82,11 @@ type SavedLahanItem = {
   category?: string | null;
 };
 
+type DrawingVertex = {
+  id: string;
+  coordinate: LatLng;
+};
+
 type SearchSuggestion = {
   id: string;
   label: string;
@@ -253,14 +258,18 @@ export default function ExploreScreen() {
   const [drawingMode, setDrawingMode] = useState(false);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [lahanName, setLahanName] = useState("");
-  const [currentVertices, setCurrentVertices] = useState<LatLng[]>([]);
+  const [currentVertices, setCurrentVertices] = useState<DrawingVertex[]>([]);
   const [pendingPolygon, setPendingPolygon] = useState<LatLng[]>([]);
-  const [redoVertices, setRedoVertices] = useState<LatLng[]>([]);
+  const [redoVertices, setRedoVertices] = useState<DrawingVertex[]>([]);
+  const nextDrawingVertexIdRef = useRef(0);
 
   const activePath = useMemo(
     () =>
       currentVertices
-        .map((coord) => ({ latitude: coord.latitude, longitude: coord.longitude }))
+        .map(({ coordinate }) => ({
+          latitude: coordinate.latitude,
+          longitude: coordinate.longitude,
+        }))
         .filter((coord): coord is LatLng => Number.isFinite(coord.latitude) && Number.isFinite(coord.longitude)),
     [currentVertices]
   );
@@ -669,7 +678,11 @@ export default function ExploreScreen() {
       latitude: Number(lat.toFixed(7)),
       longitude: Number(lon.toFixed(7)),
     };
-    setCurrentVertices((prev) => [...prev, coordinate]);
+    const vertex = {
+      id: `drawing-${nextDrawingVertexIdRef.current++}`,
+      coordinate,
+    };
+    setCurrentVertices((prev) => [...prev, vertex]);
     setRedoVertices([]);
   };
 
@@ -1411,10 +1424,10 @@ export default function ExploreScreen() {
                 );
               })}
 
-              {drawingMode && currentVertices.map((coordinate, index) => (
+              {drawingMode && currentVertices.map((vertex, index) => (
                 <Marker
-                  key={`draw-vertex-${index}-${coordinate.latitude}-${coordinate.longitude}`}
-                  coordinate={{ ...coordinate }}
+                  key={vertex.id}
+                  coordinate={{ ...vertex.coordinate }}
                   anchor={{ x: 0.5, y: 0.5 }}
                   zIndex={10 + index}
                 >

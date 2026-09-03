@@ -213,3 +213,14 @@ test("Pressable migration preserves feedback and accessibility state", async () 
   assert.match(sources.join("\n"), /accessibilityState=\{\{ checked:/);
   assert.match(sources.join("\n"), /accessibilityState=\{\{ expanded:/);
 });
+
+test("drawing vertices keep stable local identity without changing geometry payloads", async () => {
+  const explore = await readFile("app/(tabs)/explore.tsx", "utf8");
+
+  assert.match(explore, /type DrawingVertex = \{\s*id: string;\s*coordinate: LatLng;/);
+  assert.match(explore, /useState<DrawingVertex\[\]>/);
+  assert.match(explore, /key=\{vertex\.id\}/);
+  assert.match(explore, /coordinate=\{\{ \.\.\.vertex\.coordinate \}\}/);
+  assert.match(explore, /const polygonToPersist = \[\.\.\.pendingPolygon\]/);
+  assert.doesNotMatch(explore, /key=\{`draw-vertex-\$\{index\}/);
+});

@@ -1,6 +1,6 @@
 # Stable drawing vertex identity
 
-- Status: TODO
+- Status: IMPLEMENTED — PHONE CHECK PENDING
 - Baseline commit: `e9a2173`
 - Severity: Low
 - Category: Correctness / React reconciliation
