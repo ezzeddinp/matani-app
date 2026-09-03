@@ -187,6 +187,116 @@ test("CDSE adapter persists only matched same-source native-grid results", async
   assert.deepEqual(extractSourceIdentity(userdata).sceneIds, ["fixture-scene"]);
 });
 
+test("CDSE adapter retries transient catalog transport failures", async () => {
+  let attempts = 0;
+  const adapter = createCdseProcessAdapter({
+    catalogUrl: "https://catalog.test/search",
+    processUrl: "https://process.test/v1",
+    getToken: async () => "fixture-token",
+    fetchImpl: async () => {
+      attempts += 1;
+      if (attempts === 1) throw new TypeError("fixture network failure");
+      return new Response(JSON.stringify({ features: [] }), { status: 200 });
+    },
+    sleepImpl: async () => {},
+  });
+
+  const result = await adapter.measure({
+    geometry: polygon,
+    from: "2026-08-01T00:00:00Z",
+    to: "2026-08-30T00:00:00Z",
+  });
+
+  assert.equal(attempts, 2);
+  assert.equal(result.quality_status, "unavailable");
+  assert.equal(result.rejection_reason, "no-acquisition-in-window");
+});
+
+test("CDSE adapter retries malformed successful catalog responses", async () => {
+  let attempts = 0;
+  const adapter = createCdseProcessAdapter({
+    catalogUrl: "https://catalog.test/search",
+    processUrl: "https://process.test/v1",
+    getToken: async () => "fixture-token",
+    fetchImpl: async () => {
+      attempts += 1;
+      return attempts === 1
+        ? new Response("not-json", { status: 200 })
+        : new Response(JSON.stringify({ features: [] }), { status: 200 });
+    },
+    sleepImpl: async () => {},
+  });
+
+  const result = await adapter.measure({
+    geometry: polygon,
+    from: "2026-08-01T00:00:00Z",
+    to: "2026-08-30T00:00:00Z",
+  });
+
+  assert.equal(attempts, 2);
+  assert.equal(result.quality_status, "unavailable");
+});
+
+test("CDSE adapter falls back to the official legacy Catalog path on HTML", async () => {
+  const calls = [];
+  const adapter = createCdseProcessAdapter({
+    catalogUrl: "https://sh.dataspace.copernicus.eu/catalog/v1/search",
+    processUrl: "https://sh.dataspace.copernicus.eu/process/v1",
+    getToken: async () => "fixture-token",
+    fetchImpl: async (url) => {
+      calls.push(String(url));
+      return calls.length === 1
+        ? new Response("<!doctype html><title>Gateway</title>", {
+            status: 200,
+            headers: { "content-type": "text/html" },
+          })
+        : new Response(JSON.stringify({ features: [] }), {
+            status: 200,
+            headers: { "content-type": "application/geo+json" },
+          });
+    },
+    sleepImpl: async () => {},
+  });
+
+  const result = await adapter.measure({
+    geometry: polygon,
+    from: "2026-08-01T00:00:00Z",
+    to: "2026-08-30T00:00:00Z",
+  });
+
+  assert.deepEqual(calls, [
+    "https://sh.dataspace.copernicus.eu/catalog/v1/search",
+    "https://sh.dataspace.copernicus.eu/api/v1/catalog/1.0.0/search",
+  ]);
+  assert.equal(result.quality_status, "unavailable");
+  assert.equal(result.rejection_reason, "no-acquisition-in-window");
+});
+
+test("CDSE adapter accepts a BOM-prefixed catalog response", async () => {
+  let attempts = 0;
+  const adapter = createCdseProcessAdapter({
+    catalogUrl: "https://catalog.test/search",
+    processUrl: "https://process.test/v1",
+    getToken: async () => "fixture-token",
+    fetchImpl: async () => {
+      attempts += 1;
+      return new Response(`\uFEFF${JSON.stringify({ features: [] })}`, {
+        status: 200,
+      });
+    },
+    sleepImpl: async () => {},
+  });
+
+  const result = await adapter.measure({
+    geometry: polygon,
+    from: "2026-08-01T00:00:00Z",
+    to: "2026-08-30T00:00:00Z",
+  });
+
+  assert.equal(attempts, 1);
+  assert.equal(result.quality_status, "unavailable");
+});
+
 test("worker reuses an already completed idempotent job without provider spend", async () => {
   let providerCalls = 0;
   const admin = {
@@ -245,7 +355,7 @@ test("worker cache identity changes with the hosted executor revision", async ()
     to: "2026-08-30T00:00:00Z",
     idempotencyKey: "latest:field-1",
   });
-  assert.match(receivedKey, /cdse-node-fetch-v1$/);
+  assert.match(receivedKey, /cdse-node-fetch-v4$/);
 });
 
 test("worker exposes only a bounded provider diagnostic code to runtime logs", async () => {

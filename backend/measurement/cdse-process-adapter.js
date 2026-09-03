@@ -14,8 +14,13 @@ export const MEASUREMENT_VERSIONS = Object.freeze({
   algorithm: "ndvi-ndmi-v1",
   evalscript: "s2l2a-process-native-grids-v2",
   masking: "s2l2a-scl-rice-v1",
-  executor: "cdse-node-fetch-v1",
+  executor: "cdse-node-fetch-v4",
 });
+
+const CDSE_CATALOG_URL =
+  "https://sh.dataspace.copernicus.eu/catalog/v1/search";
+const CDSE_LEGACY_CATALOG_URL =
+  "https://sh.dataspace.copernicus.eu/api/v1/catalog/1.0.0/search";
 
 const MASKED_SCL = Object.freeze([0, 1, 3, 8, 9, 10]);
 const CLOUD_SHADOW_SCL = Object.freeze([3, 8, 9, 10]);
@@ -38,8 +43,19 @@ const transportError = (error, label) => {
       : "network";
   const routed = new Error(`${label}-${kind}`);
   routed.statusCode = error?.statusCode;
+  routed.retryable = true;
   return routed;
 };
+
+const retryableResponseError = (message) => {
+  const error = new Error(message);
+  error.statusCode = 502;
+  error.retryable = true;
+  return error;
+};
+
+const catalogFallbackUrl = (url) =>
+  url === CDSE_CATALOG_URL ? CDSE_LEGACY_CATALOG_URL : null;
 
 const withRetry = async (operation, { maxAttempts = 3, sleepImpl = sleep } = {}) => {
   let attempt = 0;
@@ -50,6 +66,7 @@ const withRetry = async (operation, { maxAttempts = 3, sleepImpl = sleep } = {})
       return { ...result, attempts: attempt };
     } catch (error) {
       const retryable =
+        error?.retryable === true ||
         error?.statusCode === 429 ||
         (error?.statusCode >= 500 && error?.statusCode <= 599);
       if (!retryable || attempt >= maxAttempts) {
@@ -289,10 +306,10 @@ export const createCdseProcessAdapter = ({
   sleepImpl = sleep,
   decodeRaster = rasterBands,
 } = {}) => {
-  const executeCatalog = async ({ token, request }) => {
+  const executeCatalog = async ({ token, request, requestUrl = catalogUrl }) => {
     let response;
     try {
-      response = await fetchImpl(catalogUrl, {
+      response = await fetchImpl(requestUrl, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -306,10 +323,53 @@ export const createCdseProcessAdapter = ({
       throw transportError(error, "cdse-catalog");
     }
     if (!response.ok) throw await providerError(response, "cdse-catalog");
+    let body;
+    let rawBody = "";
+    try {
+      rawBody = await response.text();
+      body = JSON.parse(rawBody.replace(/^\uFEFF/, ""));
+    } catch {
+      const contentType = response.headers.get("content-type") ?? "";
+      const trimmedBody = rawBody.trimStart();
+      console.warn(
+        JSON.stringify({
+          event: "cdse_catalog_response_invalid",
+          status: response.status,
+          contentType: contentType.slice(0, 100),
+          bodyLength: Buffer.byteLength(rawBody),
+          bodyKind:
+            rawBody.length === 0
+              ? "empty"
+              : trimmedBody.startsWith("<")
+                ? "html"
+                : "non-json",
+        }),
+      );
+      const error = retryableResponseError("process-catalog-response-invalid");
+      error.catalogResponseInvalid = true;
+      throw error;
+    }
     return {
-      body: await response.json(),
+      body,
       processingUnits: Number(response.headers.get("x-processingunits-spent")) || 0,
     };
+  };
+
+  const executeCatalogWithFallback = async ({ token, request }) => {
+    try {
+      return await executeCatalog({ token, request });
+    } catch (error) {
+      const fallbackUrl = catalogFallbackUrl(catalogUrl);
+      if (!fallbackUrl || error?.catalogResponseInvalid !== true) throw error;
+      console.warn(
+        JSON.stringify({
+          event: "cdse_catalog_legacy_fallback",
+          primaryPath: new URL(catalogUrl).pathname,
+          fallbackPath: new URL(fallbackUrl).pathname,
+        }),
+      );
+      return executeCatalog({ token, request, requestUrl: fallbackUrl });
+    }
   };
 
   const executeProcess = async ({ token, request }) => {
@@ -328,7 +388,17 @@ export const createCdseProcessAdapter = ({
     } catch (error) {
       throw transportError(error, "cdse-process");
     }
-    const parts = await extractProcessParts(response);
+    let parts;
+    try {
+      parts = await extractProcessParts(response);
+    } catch (error) {
+      if (error?.message?.startsWith("cdse-")) throw error;
+      if (error?.message?.startsWith("process-")) {
+        error.statusCode = 502;
+        error.retryable = true;
+      }
+      throw error;
+    }
     return {
       ...parts,
       processingUnits: Number(response.headers.get("x-processingunits-spent")) || 0,
@@ -348,7 +418,11 @@ export const createCdseProcessAdapter = ({
       }
       onStage("token_acquired");
       const catalog = await withRetry(
-        () => executeCatalog({ token, request: buildCatalogRequest({ geometry, from, to }) }),
+        () =>
+          executeCatalogWithFallback({
+            token,
+            request: buildCatalogRequest({ geometry, from, to }),
+          }),
         { maxAttempts: maxProviderAttempts, sleepImpl },
       );
       onStage("catalog_received");

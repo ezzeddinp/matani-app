@@ -3,7 +3,7 @@
 **Document type:** Architecture document
 **Audience:** The developer, thesis advisor, reviewers, and AI agents working in this repo
 **Status:** Active
-**Updated:** 2026-08-31
+**Updated:** 2026-09-01
 **Canonical for:** As-built and target architecture, **current measurement provenance (canonical wording — § 2)**, trust boundaries, provider decisions, Architecture Decision Records (ADRs), free-tier constraints, security risks, verification baseline, migration triggers
 **Companion documents:** [`evidence-register.md`](evidence-register.md), [`context-dump.md`](context-dump.md), [`data-evaluation-plan.md`](data-evaluation-plan.md), [`research-protocol.md`](research-protocol.md), [`product-requirements.md`](product-requirements.md), [`implementation-plan.md`](implementation-plan.md)
 
@@ -141,9 +141,10 @@ authenticates with the Supabase anon/publishable key
 > persisted as a provenance-complete hosted `measured` row. That manual worker execution
 > does not establish repeatability: later authenticated device requests were durably
 > accepted and invoked by Vercel, but their provider work failed before persistence.
-> A transport/cache-recovery remediation is locally verified and deployed, but still
-> requires one explicit post-deployment device retry before Vercel-deferred completion
-> is verified.
+> The first transport/cache-recovery remediation is deployed but still fails before
+> Catalog completion on Vercel. A second executor revision now retries bounded
+> network/timeout failures and malformed successful Catalog/Process responses; it is
+> fixture-verified and deployed, but not yet proven by a post-deployment device retry.
 
 This is **the canonical measurement-provenance wording**. All other documents link here;
 none may soften or restate it. The verified facts behind it (OBS-22/23, 2026-08-30):
@@ -179,7 +180,13 @@ none may soften or restate it. The verified facts behind it (OBS-22/23, 2026-08-
   `dpl_7URDNjYLkXyCFhng6Km5KfByLJyA` now separates and checkpoints provider stages from
   database completion, but no request arrived during its bounded post-deployment watch;
   hosted success, authenticated physical-device readback, repeatability, and formal M2
-  PASS remain open.
+  PASS remain open. A 2026-09-01 production trace then confirmed failure after
+  `token_acquired` and before `catalog_received`. Executor revision
+  `cdse-node-fetch-v2` locally treats transport failures and malformed successful
+  Catalog/Process responses as retryable within the existing bounded attempt ceiling;
+  backend fixture tests pass 42/42. Deployment
+  `dpl_GsDPR8f2c8TwkDHxHXRAKR9etTC4` is live on the stable production alias and its
+  health endpoint passes; post-deployment measurement verification remains open.
 
 **Data-state vocabulary** (per [`../AGENTS.md`](../AGENTS.md) § Vocabulary): only rows
 created by the M2 completion RPC with complete provenance can be **measured**; test rows
@@ -371,6 +378,13 @@ Each ADR aligns to a `DEC-*` in [`context-dump.md`](context-dump.md) and carries
   OAuth, and runtime logs expose only bounded stage codes. This permits a repaired
   execution path to create a new durable job instead of reusing a failed max-attempt job,
   without changing measurement semantics (OBS-30; CODE).
+- **Amendment (2026-09-01):** A production stage trace isolated the remaining failure
+  between token acquisition and Catalog completion. Executor revision
+  `cdse-node-fetch-v2` marks network/timeout failures and malformed successful
+  Catalog/Process bodies as retryable, still bounded by the configured provider-attempt
+  ceiling. The executor bump prevents reuse of exhausted `v1` jobs. This amendment is
+  fixture-verified and deployed as `dpl_GsDPR8f2c8TwkDHxHXRAKR9etTC4`; it does not yet
+  claim hosted measurement success because no post-deployment request has completed.
 - **Consequences:** Decouples satellite cost from screen rendering; enables quota
   accounting, idempotency, and honest `unavailable` states.
 - **Revisit trigger:** Acquisition volume or latency requirements outgrow the chosen job
