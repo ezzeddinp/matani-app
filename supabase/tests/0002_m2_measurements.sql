@@ -56,24 +56,28 @@ select lives_ok(
   $$select public.enqueue_measurement_job('10000000-0000-4000-8000-000000000011', '00000000-0000-4000-8000-000000000011', '2026-08-01T00:00:00Z', '2026-08-02T00:00:00Z', 'm2-idempotent')$$,
   'repeated enqueue with the same key is idempotent'
 );
+reset role;
 select results_eq(
   $$select count(*)::bigint from public.measurement_jobs where user_id = '00000000-0000-4000-8000-000000000011' and idempotency_key = 'm2-idempotent'$$,
   array[1::bigint],
   'idempotency key produces one job row'
 );
+set local role service_role;
 select lives_ok(
-  $$select public.claim_measurement_job((select id from public.measurement_jobs where user_id = '00000000-0000-4000-8000-000000000011' and idempotency_key = 'm2-idempotent'), '00000000-0000-4000-8000-000000000011')$$,
+  $$select public.claim_measurement_job((public.enqueue_measurement_job('10000000-0000-4000-8000-000000000011', '00000000-0000-4000-8000-000000000011', '2026-08-01T00:00:00Z', '2026-08-02T00:00:00Z', 'm2-idempotent')).id, '00000000-0000-4000-8000-000000000011')$$,
   'service role can claim the exact enqueued job'
 );
+reset role;
 select results_eq(
   $$select count(*)::bigint from public.measurement_jobs where lahan_id = '10000000-0000-4000-8000-000000000011' and status = 'processing' and attempts = 1$$,
   array[1::bigint],
   'claim transitions exactly one job and increments attempts'
 );
 
+set local role service_role;
 select lives_ok(
   $$select public.complete_measurement_job(
-      (select id from public.measurement_jobs where lahan_id = '10000000-0000-4000-8000-000000000011' and status = 'processing' limit 1),
+      (public.enqueue_measurement_job('10000000-0000-4000-8000-000000000011', '00000000-0000-4000-8000-000000000011', '2026-08-01T00:00:00Z', '2026-08-02T00:00:00Z', 'm2-idempotent')).id,
       jsonb_build_object(
         'provider', 'fixture-provider',
         'mission', 'Sentinel-2',
@@ -106,6 +110,7 @@ select lives_ok(
     )$$,
   'service role can atomically persist a provenance-complete result'
 );
+reset role;
 select results_eq(
   $$select count(*)::bigint from public.measurements where quality_status = 'passed'$$,
   array[1::bigint],
