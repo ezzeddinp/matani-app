@@ -13,7 +13,7 @@
     "typecheck": "tsc --noEmit",
     "typecheck:backend": "npm --prefix backend run typecheck",
     "audit:env": "node scripts/audit-env-boundaries.mjs",
-    "test": "node --test tests/m0-artifacts.test.mjs",
+    "test": "node --test tests/*.test.mjs",
     "test:backend": "npm --prefix backend test",
     "test:research": "node scripts/run-research-tests.mjs",
     "pilot:cdse": "node research/scripts/run-cdse-pilot.mjs",

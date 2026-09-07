@@ -3,7 +3,7 @@
 **Document type:** Architecture document
 **Audience:** The developer, thesis advisor, reviewers, and AI agents working in this repo
 **Status:** Active
-**Updated:** 2026-09-01
+**Updated:** 2026-09-07
 **Canonical for:** As-built and target architecture, **current measurement provenance (canonical wording — § 2)**, trust boundaries, provider decisions, Architecture Decision Records (ADRs), free-tier constraints, security risks, verification baseline, migration triggers
 **Companion documents:** [`evidence-register.md`](evidence-register.md), [`context-dump.md`](context-dump.md), [`data-evaluation-plan.md`](data-evaluation-plan.md), [`research-protocol.md`](research-protocol.md), [`product-requirements.md`](product-requirements.md), [`implementation-plan.md`](implementation-plan.md)
 
@@ -447,6 +447,12 @@ Each ADR aligns to a `DEC-*` in [`context-dump.md`](context-dump.md) and carries
 
 ### ADR-11 · Protect every provider route before quota admission
 - **Status:** Accepted and applied locally on 2026-07-28.
+- **Amendment (2026-09-07; OBS-32):** The local environment audit now checks both
+  variable names and privileged Supabase key classes across client variables, rejects
+  server-only credentials even without an Expo public prefix, and never prints values.
+  Five fixture regressions exercise this boundary (`scripts/audit-env-boundaries.mjs`,
+  `tests/env-boundaries.test.mjs`, CODE). This does not prove platform revocation or
+  runtime secret availability.
 - **Context:** The earlier Express entrypoint exposed provider-backed routes without
   authentication, origin restriction, request bounds, rate limiting, duplicate-request
   control, or sanitized failures.
@@ -464,7 +470,8 @@ Each ADR aligns to a `DEC-*` in [`context-dump.md`](context-dump.md) and carries
 
 ### ADR-12 · Freeze the M1 measurement-record contract before M2
 - **Status:** Accepted as a reviewed contract in M1 and implemented locally by the M2
-  migration/worker on 2026-08-30 (DEC-21/DEC-31); hosted application remains pending.
+  migration/worker on 2026-08-30 (DEC-21/DEC-31). Hosted use was demonstrated for one
+  scoped job (OBS-28); repeatable device completion remains open (OBS-30/31).
 - **Context:** M2 could not be implemented reproducibly while physical schema, worker
   runtime, geometry hashing, and processing-version semantics were open.
 - **Decision:** Use the contract and migration-ready draft in `research/contracts/`.
@@ -607,11 +614,11 @@ makes § 5.2 load-bearing.
 | Credential | Class | Action | Owner / status |
 |------------|-------|--------|-----------------|
 | Sentinel Hub `client_secret` (`SENTINEL_CLIENT_SECRET`) | Server-side secret | **Rotate** (and reissue as a CDSE OAuth client under ADR-02) | New CDSE OAuth client configured and verified 2026-07-29 (OBS-11); revocation of any historical commercial credential still requires platform-side confirmation |
-| Gemini key (`GOOGLE_GENERATIVE_AI_API_KEY`) | Server-side secret | **Rotate** | No active local backend key detected; historical revocation/rotation still requires platform-side confirmation |
+| Gemini key (`GOOGLE_GENERATIVE_AI_API_KEY`) | Server-side secret | **Rotate** | Local backend key present on 2026-09-07 (OBS-32); historical revocation/rotation still requires platform-side confirmation |
 | Historical AccuWeather key (`ACCUWEATHER_API_KEY`) | No longer consumed after ADR-04 implementation | **Revoke** if it ever existed or was exposed | Variable removed from the runtime and env example; platform-side revocation remains unverified |
 | Google Maps keys (iOS/Android) | Client-visible by design | **Restrict per-platform** (Android package + SHA-1 / iOS bundle ID) **and per-API**, then **monitor** usage (EVID-019) | Developer action — pending |
 | Supabase client key | Publishable/anon | Safe in Expo only with RLS correct (EVID-020, § 5.2) | Local class verified publishable; hosted RLS re-audit required after M2 migration |
-| Supabase backend admin key | Current `sb_secret_*` preferred; legacy `service_role` fallback | Configure only in backend hosting; never in Expo/client env (EVID-029) | Missing locally and not verified in hosted backend; blocks live persistence |
+| Supabase backend admin key | Current `sb_secret_*` preferred; legacy `service_role` fallback | Configure only in backend hosting; never in Expo/client env (EVID-029) | Client-env placement found and corrected to backend-only on 2026-09-07 (OBS-32); earlier hosted configuration demonstrated by OBS-28, without proving current device repeatability |
 
 ---
 
@@ -633,6 +640,14 @@ checked date and must be rechecked before any decision that depends on them.
 ---
 
 ## 7 · Verification baseline
+
+**Current verification (2026-09-07; OBS-32).** Local fixture verification passes with the
+supported Python override. Root tests now include five environment-boundary regressions;
+provider credentials in client env and privileged values under misleading names fail
+without printing secrets. The local backend publishable key now matches the same-project
+client value. Current remote CI and DB/platform controls remain unverified; historical
+checks below must not be reported as current runs. See the [dated audit](../docs/thesis-app-notion-alignment-audit-2026-09-07.md).
+
 
 Recorded **2026-07-23**, commit `d131c941bf0a260626324454825f51bbdc075f63`. Raw logs are
 disposable and live only in the session scratchpad (not tracked). **This documentation pass
@@ -659,7 +674,7 @@ vulnerabilities. The root production audit retains 11 moderate advisories solely
 Expo's transitive `xcode` → `uuid` tooling chain; npm's proposed forced resolution would
 downgrade the SDK-pinned `expo-splash-screen`, so it was not applied.
 
-**Current verification (2026-08-31).** The 2026-08-30 empty-DB migration application,
+**Historical verification (2026-08-31).** The 2026-08-30 empty-DB migration application,
 generated types, 26/26 pgTAP, and bounded provider smoke remain the latest local database
 and live-adapter evidence (OBS-22/23). On 2026-08-31, lint, root/backend type-checks, 9/9
 root tests, and 36/36 backend tests passed again; the public backend health endpoint

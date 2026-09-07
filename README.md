@@ -1,5 +1,7 @@
 # Matani
 
+**Updated:** 2026-09-07
+
 _Mata tani_ — "the farmer's eye." Matani is a padi-only mobile decision support application structured by the thesis team's GROW workflow. Its evaluation backbone asks whether Sentinel-2 NDVI/NDMI monitoring can be used defensibly over Indonesian smallholder fields. The Expo / React Native app captures field polygons and presents dated raw index observations, weather context, notes, and explicit data states without classifying or diagnosing crop health.
 
 ## Project status
@@ -13,38 +15,26 @@ The project distinguishes four data states, and the distinction is a product fea
 - **measured** — persisted and provenance-complete.
 - **unavailable** — an honest, stated absence of data.
 
-Where things stand today:
+Current status (2026-09-07; OBS-32):
 
-- The satellite path remains a **non-provenance-safe prototype**. Missing provider data now renders unavailable, and field detail reads only dated stored fixture/prototype rows; no simulator or health classifier remains. The exact as-built wording lives only in [`.agent/project-architecture.md` § 2 (Current measurement provenance)](.agent/project-architecture.md).
-- **No `measured` data exists yet.** Nothing is persisted with provenance.
-- The **M0 technical foundation passes locally and on the linked hosted Supabase
-  project**. Earlier reported GitHub Actions runs were green, but the current delta needs
-  its own green run after push. The hosted legacy schema was reconciled through
-  an incremental migration; compatibility audits, RLS, `security_invoker`, migration
-  history, and hosted pgTAP pass (OBS-08/10). Formal M0 closure also needs
-  platform-side confirmation of historical credential revocation and Google Maps key
-  restrictions.
-- **M1 is partial with real provider evidence:** CDSE OAuth, exact-polygon UTM-grid
-  requests, SCL masking, separate NDVI/NDMI pixel counts, and a checkpointed 12-month
-  run completed for `hi` and `sszs` (OBS-11/12). Those two same-area, unverified
-  candidates do not satisfy representative Indonesian sampling, season stratification,
-  or HYP-03 approval, so the output remains `prototype` and cadence is withheld.
-- Team ownership, completed evidence, and remaining M0/M1 gates are tracked in
-  [`docs/m0-m1-progress-2026-07-29.md`](docs/m0-m1-progress-2026-07-29.md).
-- What _is_ real: interactive polygon field capture persisted to Supabase (PostGIS), area computation, weather, and education content.
+- **M0 remains open:** local checks pass; exact-revision CI and platform credential/key
+  controls still require evidence.
+- **M1 is PASS** under `M1-CLOSURE-2026-08-30` (DEC-30).
+- **M2 is implemented, with acceptance open.** The sole current measurement qualification
+  is in [.agent/project-architecture.md § 2](.agent/project-architecture.md). See
+  OBS-28/30/31 for scoped hosted evidence and subsequent failures.
+- [Current audit and closure requirements](docs/thesis-app-notion-alignment-audit-2026-09-07.md).
 
-The roadmap to a real, persisted, provenance-complete pipeline runs across milestones **M0–M4** — see [`.agent/implementation-plan.md`](.agent/implementation-plan.md).
+The [canonical roadmap](.agent/implementation-plan.md) controls M0–M4 sequencing.
 
 ## Stack
 
 - **Mobile** — Expo SDK 54 / React Native 0.81 / React 19.1 with Expo Router. Expo Go is
   the default local-device workflow (DEC-22).
-- **Backend** — Express 5 (Node), colocated in [`backend/`](backend/), deployed on Vercel; the runtime and TypeScript entrypoints expose the same three routes. Satellite, weather, and Gemini data calls use this boundary; mapping/place-search/display services remain client presentation integrations (ADR-10 / DEC-20).
+- **Backend** — Express 5 (Node), colocated in [`backend/`](backend/), deployed on Vercel; the runtime and TypeScript entrypoints expose the same protected provider/measurement routes. Satellite, weather, and Gemini data calls use this boundary; mapping/place-search/display services remain client presentation integrations (ADR-10 / DEC-20).
 - **Data & auth** — Supabase: Auth, Postgres, PostGIS, Row Level Security.
 - **Maps** — Google Maps (`react-native-maps`) for polygon field drawing.
-- **Satellite** — Sentinel-2 L2A via CDSE Sentinel Hub Statistical API. Provider
-  endpoint/OAuth migration is applied; the persisted production measurement pipeline
-  remains M2.
+- **Satellite** — Sentinel-2 L2A via CDSE Catalog and native-grid Process API measurement requests; Statistical API remains research/legacy code (CODE: `backend/measurement/`; ADR-15).
 - **Weather** — Open-Meteo through the protected backend, with WMO weather-code mapping.
 - **AI data summary** — optional, env-configured Google Gemini summary, disabled by default and constrained to descriptive output.
 

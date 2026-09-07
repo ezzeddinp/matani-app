@@ -4,7 +4,7 @@
 **Audience:** The developer, thesis advisor, reviewers, and AI agents working in this repo
 **Status:** Active — M2 implemented and verified locally; one scoped manual hosted
 measurement is verified, while repeatable Vercel-deferred completion remains open
-**Updated:** 2026-08-31
+**Updated:** 2026-09-07
 **Canonical for:** the engineering measurement contract, provider adapter, quality pipeline, persistence/provenance, cache identity, idempotency, fixtures, and Indonesia-specific masking/resolution behavior
 **Companion documents:** [`research-protocol.md`](research-protocol.md), [`project-architecture.md`](project-architecture.md), [`product-requirements.md`](product-requirements.md), [`implementation-plan.md`](implementation-plan.md), [`evidence-register.md`](evidence-register.md)
 
@@ -21,9 +21,7 @@ This is the **engineering realization** of the research standard. Read it this w
   research-evaluation requirement.
 - **External facts are cited, never restated.** Every externally sourced figure carries an `EVID-*` / `OBS-*` ID from [`evidence-register.md`](evidence-register.md); decisions carry `DEC-*` (from [`context-dump.md`](context-dump.md)) and architecture decisions carry `ADR-*` (from [`project-architecture.md`](project-architecture.md)); hypotheses carry `HYP-*` (from [`research-protocol.md`](research-protocol.md)). This document does not re-copy quota numbers, SCL class ids, or band resolutions — it cites the ID.
 - **The canonical provenance paragraph lives elsewhere.** The single source of truth for what the satellite pipeline does today is [`project-architecture.md`](project-architecture.md) § 2 (Current measurement provenance). § 1 below links to it and does not restate it.
-- **Physical design is implemented locally, not hosted.** § 5 owns the logical contract;
-  the sole physical schema is the versioned M2 migration. OBS-22 proves clean local
-  application and DB behavior. Hosted application remains an explicit gate.
+- **Schema implementation and deployment evidence are separate.** § 5 owns the logical contract; the versioned migration owns its physical realization. OBS-22 verifies local DB behavior; OBS-28 establishes hosted schema use for one job. Current migration parity and cross-user hosted isolation still require a fresh audit (OBS-32).
 
 ---
 
@@ -32,19 +30,15 @@ This is the **engineering realization** of the research standard. Read it this w
 The repository contains the M2 adapter, worker, migration, privileged persistence RPCs,
 mobile request/read path, fixture tests, DB tests, and bounded live smoke (OBS-22/23).
 The **canonical current-product wording** remains
-[`project-architecture.md`](project-architecture.md) § 2. Hosted Supabase/backend/device
-One manual hosted measurement passed (OBS-28), but later authenticated deferred jobs
-failed before persistence. The locally verified executor remediation is deployed but has
-not received a post-deployment device retry (OBS-30), so the implementation is not called
-production-ready.
+[`project-architecture.md`](project-architecture.md) § 2. The dated hosted observations establish scoped operation and later failures; they do not close the repeatable device-flow acceptance gate (OBS-28/30/31/32).
 
 ### Current implementation and deployment gates
 
 | Item | Local state | Hosted state |
 |------|-------------|--------------|
-| Exact polygon, dynamic ≤31-day window, SCL mask, native grids | Implemented in `backend/measurement/`; fixture and live-smoke verified (OBS-22/23) | Backend health/auth boundary reachable; worker configuration unverified (OBS-24) |
-| Durable jobs, provenance, stats, RLS, idempotency | Migration and 26/26 pgTAP pass from empty local DB (OBS-22) | Migration not applied; CLI is not linked |
-| App save/request/read/detail polling | Implemented in `explore.tsx`, `index.tsx`, `detail-lahan-page.tsx`, `utils/backend-api.ts` (CODE) | Public backend reachable; admin/CDSE configuration and authenticated device smoke unverified (OBS-24) |
+| Exact polygon, dynamic ≤31-day window, SCL mask, native grids | Implemented in `backend/measurement/`; fixture and live-smoke verified (OBS-22/23) | Scoped provider/worker execution recorded; repeatable deferred completion open (OBS-28/30/31) |
+| Durable jobs, provenance, stats, RLS, idempotency | Migration and 26/26 pgTAP pass from empty local DB (OBS-22) | Hosted schema used by one completed job (OBS-28); current migration/RLS re-audit open (OBS-32) |
+| App save/request/read/detail polling | Implemented in `explore.tsx`, `index.tsx`, `detail-lahan-page.tsx`, `utils/backend-api.ts` (CODE) | Authenticated device requests accepted, later jobs failed; successful device readback open (OBS-30/31) |
 | Legacy bbox route and `lahan_health` | Retained for compatibility but removed from M2 measurement surfaces | Must not be used as measurement data |
 
 ---
@@ -275,7 +269,7 @@ source-provenance path; DEC-29 approves the active RQ wording. M2 subsequently i
 the amended two-native-grid Process path locally (DEC-31; OBS-22/23).
 
 M1 is formally closed under `M1-CLOSURE-2026-08-30` (DEC-30). The M2 schema/worker/app
-path is locally implemented, but hosted deployment and remote persistence are not claimed.
+path is implemented; its scoped hosted evidence and remaining gates are qualified in architecture § 2 (OBS-28/30/31).
 
 `research/lib/cdse-pilot.mjs` and `research/scripts/run-cdse-pilot.mjs` additionally
 implement the explicitly enabled, out-of-band pilot boundary from § 7. The runner accepts

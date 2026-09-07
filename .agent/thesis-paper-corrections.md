@@ -2,11 +2,30 @@
 
 **Document type:** Working corrections and synchronization record for the thesis paper
 **Audience:** The thesis team and advisor
-**Status:** Applied in synchronized candidate `.agent/thesis-aligned-2026-08-31.docx` and PDF; the 21 August candidate and all earlier source drafts are preserved; advisor approval pending
-**Updated:** 2026-08-31
+**Status:** September candidate supersedes the August operational-status wording; original PDF and earlier sources preserved; advisor approval pending (DEC-34)
+**Updated:** 2026-09-07
 **Context:** Produced during the DEC-14 alignment of the `.agent/` suite with the paper. Same format as the paper's own "Main Corrections Applied" appendix. Priority: 1–2 are defense risks; 3–5 are accuracy fixes; 6–7 are wording hardening.
 
-**Applied artifact:** The current reproducible generator is
+## 7 September 2026 synchronization (DEC-34; OBS-32)
+
+The developer-confirmed latest PDF is `thesis fix (2).pdf`. A text comparison against the
+editable August layout source found the meaningful differences in RQ3 number notation
+and bibliography access dates; line wrapping and table extraction explain other
+differences. The September generator preserves those latest-PDF changes and revises
+deployment claims throughout the abstract, methods, tables, Figure 2, results, discussion,
+and conclusion. One manual hosted result is acknowledged; repeatable deferred device
+completion remains open. Original PDF formatting is not claimed to be byte-identical
+after the new render.
+
+Current candidate: `.agent/thesis-aligned-2026-09-07.docx` and PDF. Generator:
+[`../scripts/finalize-thesis-2026-09-07.py`](../scripts/finalize-thesis-2026-09-07.py).
+The [dated audit](../docs/thesis-app-notion-alignment-audit-2026-09-07.md) owns artifact
+traceability and remaining gates. Architecture § 2 remains the sole canonical
+measurement-provenance wording. No research method or advisor approval was invented.
+
+## Historical August artifact
+
+**Applied artifact (31 August):** The historical reproducible generator is
 [`../scripts/finalize-thesis-2026-08-31.ps1`](../scripts/finalize-thesis-2026-08-31.ps1),
 with Word PDF export through
 [`../scripts/export-thesis-pdf.ps1`](../scripts/export-thesis-pdf.ps1).

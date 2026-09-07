@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000">
+<rect width="1600" height="1000" fill="white"/>
+<style>text{font-family:Arial,sans-serif;fill:#17212b}.title{font-size:36px;font-weight:bold}.heading{font-size:28px;font-weight:bold}.body{font-size:24px}.note{font-size:21px}</style>
+<text x="65" y="65" class="title">MATANI: RESEARCH AND DELIVERY EVIDENCE</text>
+<text x="65" y="105" class="note">Alignment audit: 7 September 2026. Earlier operational evidence retains its original date.</text>
+<rect x="45" y="145" width="1510" height="215" rx="12" fill="#ecfeff" stroke="#0f766e" stroke-width="2"/>
+<text x="70" y="190" class="heading">APPROVED TELUKNAGA STUDY: SITE-SCOPED RESEARCH PROTOTYPE</text>
+<text x="70" y="235" class="body">One 0.157-ha padi field; 1 July 2025 to 1 July 2026; 86 acquisitions</text>
+<text x="70" y="275" class="body">32 passed / 54 rejected under provisional NDVI ≥9 and NDMI ≥3 valid-pixel floors</text>
+<text x="70" y="315" class="body">Dry: monthly cadence for this field. Wet: no defensible cadence. No national or diagnostic claim.</text>
+<rect x="45" y="390" width="1510" height="245" rx="12" fill="#eef8f1" stroke="#2e8b57" stroke-width="2"/>
+<text x="70" y="435" class="heading">IMPLEMENTED MEASUREMENT PATH</text>
+<text x="70" y="480" class="body">Authenticated save/retry → durable job → bounded exact-polygon Catalog discovery</text>
+<text x="70" y="520" class="body">NDVI 10 m raster + metadata / NDMI 20 m raster + metadata → strict source match</text>
+<text x="70" y="560" class="body">Versioned quality decision → typed provenance and per-index rows → owner-scoped read</text>
+<text x="70" y="603" class="note">7 Sep local checks: lint and types; root 18/18; backend 44/44; research 3/3. DB 26/26 remains dated 30 Aug.</text>
+<rect x="45" y="665" width="720" height="210" rx="12" fill="#eff6ff" stroke="#2563eb" stroke-width="2"/>
+<text x="70" y="710" class="heading">ONE MANUAL HOSTED SUCCESS</text>
+<text x="70" y="753" class="body">Approved execution recorded 31 August</text>
+<text x="70" y="793" class="body">Real provider result persisted; view returned measured</text>
+<text x="70" y="835" class="note">Scoped operational evidence; not device-flow completion</text>
+<rect x="795" y="665" width="760" height="210" rx="12" fill="#fff1f2" stroke="#dc2626" stroke-width="2"/>
+<text x="820" y="710" class="heading">DEVICE DELIVERY: ACCEPTANCE OPEN</text>
+<text x="820" y="753" class="body">Later HTTP 202 requests invoked deferred work</text>
+<text x="820" y="793" class="body">Provider jobs failed before persistence</text>
+<text x="820" y="835" class="note">Successful deployed completion + owner readback unverified</text>
+<text x="65" y="930" class="heading">BOUNDARY: observed success does not establish repeatability.</text>
+<text x="65" y="972" class="note">Remote CI, platform controls, current hosted RLS audit, field validation, UAT, and academic acceptance remain open.</text>
+</svg>

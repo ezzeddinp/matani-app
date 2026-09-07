@@ -3,7 +3,7 @@
 **Document type:** Implementation roadmap
 **Audience:** The developer, thesis advisor, reviewers, and AI agents working in this repo
 **Status:** Active
-**Updated:** 2026-08-31
+**Updated:** 2026-09-07
 **Canonical for:** Milestone sequencing, milestone acceptance criteria, and the definition of done for thesis engineering work
 **Companion documents:** [`project-architecture.md`](project-architecture.md), [`data-evaluation-plan.md`](data-evaluation-plan.md), [`research-protocol.md`](research-protocol.md), [`product-requirements.md`](product-requirements.md), [`evidence-register.md`](evidence-register.md), [`context-dump.md`](context-dump.md)
 
@@ -22,64 +22,27 @@ This is the canonical **order of engineering work** for the Matani thesis. Read 
   progress. A claim is complete only when it cites current verification evidence.
 - **No milestone may violate an invariant.** INV-01…INV-09 ([`product-requirements.md`](product-requirements.md) § 1) hold at every milestone boundary. DEC-24 removed the production fixture substitution and interpretive health labels before M2; this is an honesty/scope correction, not a claim that M2 measurement persistence exists. No new violation may be introduced.
 
-**Execution status (2026-08-28).**
+**Execution status (2026-09-07; OBS-32).**
 
-- **M0: current local/hosted gates pass; current remote CI and external credential
-  confirmation remain.**
-  The 2026-08-28 audit re-verified scoped lint, root and backend type-checks, 7/7 root
-  tests, and 26/26 backend tests (OBS-17). The Python research suite could not be re-run
-  because Python 3 is absent on the audit workstation; its earlier result is historical.
-  Protected backend routes, disabled-by-default
-  Gemini, clean DB reset/reapply, pgTAP, generated types, placeholder Expo config, and
-  two earlier green remote `Verify` runs pass (OBS-02/08). The linked hosted project was audited,
-  reconciled with an incremental migration, and re-audited: 48 field rows remain, the
-  tested compatibility defects are zero, all operational tables have RLS enabled,
-  `lahan_with_info` uses `security_invoker`, hosted pgTAP passes 10/10, and migration
-  history is synchronized (OBS-10). Because this unit changes code, migrations, tests,
-  and the workflow, it needs a new green `Verify` run after push; the earlier runs do not
-  cover this delta. The local environment-boundary audit confirms server provider keys
-  are not stored in the client env, but cannot classify the backend Supabase credential
-  as a recognized publishable/anon format. Formal M0 closure therefore still requires
-  the developer's platform-side confirmation that the backend key is non-privileged,
-  historically exposed server credentials were revoked or absent, and Google Maps keys
-  are platform/API restricted as specified in § 5.3 of `project-architecture.md`; no
-  secret values belong in this evidence. Current remote CI remains unverified.
-- **M1: PASS — closed under `M1-CLOSURE-2026-08-30` (DEC-30).**
-  A valid CDSE OAuth client, CDSE endpoints, exact-polygon UTM metre grids, versioned SCL
-  masking, separate NDVI/NDMI pixel accounting, bounded retry, and request/PU accounting
-  are proven for `hi` and `sszs` (OBS-11). A checkpointed 12-month run completed 24/24
-  field-months and 72 successful calls (OBS-12). The approved Teluknaga run subsequently
-  completed 12/12 field-months and produced OBS-19.
-  DEC-27 records the advisor's dated WhatsApp approval for Teluknaga, Banten as the single
-  thesis study region and provisional valid-pixel floors of 9 NDVI / 3 NDMI. This amends
-  the former multi-region expectation for the available thesis timeline while explicitly
-  limiting every result and cadence statement to Teluknaga and its wet/dry labels. DEC-26
-  keeps independent raster comparison outside M1 and active thesis acceptance.
-  The 2026-08-28 implementation removes the study runner's former two-field limit and
-  adds a tested `m1-study-input-v1` remote-assisted manifest, dynamic request/retry
-  budgeting, no-network preflight, verification declaration gates, site-specific monthly
-  season labels, and field plus site × season reporting. This makes the approved-input
-  study executable. The ignored private manifest now contains one evidence-backed padi
-  field, site-specific BMKG labels, approved scope, and approved provisional floors, and
-  its no-network preflight passes. This does not independently prove the private evidence,
-  supply exact Statistical API mosaic-selection provenance, or produce a cadence outcome. The
-  current CDSE quota was rechecked (EVID-010), and the approved run totals are within that
-  allowance. The advisor relayed approval of the final RQ1/RQ3 wording on 2026-08-30 (DEC-29).
-  The synchronized worktree passes the complete local verification chain (OBS-21), and
-  the canonical/Notion review record is complete. M1 acceptance is therefore closed by
-  DEC-30. This does not close M0's remote-CI and external credential/platform controls;
-  those remain prerequisite project gates before production M2 deployment.
-- **M2: implementation complete locally; public backend reachable; formal PASS blocked by remaining hosted gates.**
-  The exact-polygon/native-grid Process adapter, strict source matching, SCL quality
-  pipeline, durable job/provenance schema, privileged RPCs, RLS read view, authenticated
-  worker route, and mobile request/read/detail flow are implemented (DEC-31). Empty-DB
-  migration plus 26/26 pgTAP, generated DB types, fixture suites, lint/type-check, and the
-  bounded live Teluknaga adapter smoke pass (OBS-22/23). M2 is not marked PASS because the
-  CLI is not linked to hosted Supabase, the migration is not confirmed hosted, backend
-  Supabase admin/CDSE configuration is not verified, and no authenticated physical-app
-  job has yet persisted/read a hosted measurement. The stable Vercel alias now passes a
-  public health check and fails closed without a token (OBS-24), but that closes only the
-  reachability sub-gate.
+- **M0: local checks pass; formal gate open.** The complete fixture verification chain
+  passes using the supported Python override. The environment-boundary defect is fixed
+  and regression-tested. Exact-revision remote CI cannot be read through the available
+  GitHub connection (404); historical credential revocation, Maps key restrictions,
+  and current hosted migration/RLS verification still need evidence. Local admin-key
+  placement is now backend-only; that does not verify hosted configuration (OBS-32).
+- **M1: PASS**, retained under `M1-CLOSURE-2026-08-30` (DEC-30). Scope, final RQs,
+  quality floors, cadence review, and contract acceptance remain unchanged (DEC-29).
+- **M2: implemented; formal acceptance open.** The canonical qualification is [`project-architecture.md`](project-architecture.md) § 2.
+  OBS-28 proves one manual hosted result, while OBS-30/31 document failed deferred device
+  jobs. Hosted schema presence and configured credentials must no longer be described
+  as wholly absent. Full migration/RLS re-audit and a successful deployed device
+  save/retry-to-read flow remain required. Local CLI link metadata exists but does not
+  prove current hosted parity (OBS-32).
+- **Sequencing:** no new live M2 execution or M3/M4 work is advanced while the M0 gate
+  remains open. The pre-existing M2 implementation does not waive acceptance (DEC-34).
+
+See the [dated audit](../docs/thesis-app-notion-alignment-audit-2026-09-07.md) for
+verification commands, artifact traceability, Notion links, and remaining gates.
 
 ---
 

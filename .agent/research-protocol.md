@@ -2,8 +2,8 @@
 
 **Document type:** Research protocol
 **Audience:** The developer, thesis advisor, reviewers, and AI agents working in this repo
-**Status:** Active — draft pending advisor review
-**Updated:** 2026-08-30
+**Status:** Active — RQ1/RQ3 and M1 scope approved (DEC-29/30); validation remains open
+**Updated:** 2026-09-07
 **Canonical for:** Research questions, hypotheses, methodology, and validity of the Sentinel-2 NDVI/NDMI monitoring evaluation, and the thesis paper's system-evaluation track (§ 16)
 **Companion documents:** [`evidence-register.md`](evidence-register.md), [`data-evaluation-plan.md`](data-evaluation-plan.md), [`project-architecture.md`](project-architecture.md), [`implementation-plan.md`](implementation-plan.md), [`product-requirements.md`](product-requirements.md)
 
@@ -17,7 +17,7 @@ This protocol is the single canonical home for **what the thesis is trying to le
 - **External facts are cited, never restated.** Every externally sourced figure or claim carries an `EVID-*` / `OBS-*` ID from [`evidence-register.md`](evidence-register.md). This document does not re-copy the number or the canonical wording; it cites the ID and adds a short role-specific gloss. If a fact you need has no EVID entry yet, it must be added to the register first (see the register's "Adding new evidence").
 - **Decisions are cited by `DEC-*`.** Product and thesis decisions live in [`context-dump.md`](context-dump.md) § 5. This protocol implements and elaborates them; it does not re-decide them.
 - **Hypotheses are typed `HYP-*` and defined here.** Every falsifiable claim this thesis intends to test is registered in § 1 with an ID, a directional statement, and an explicit falsification criterion (§ 12). A `HYP-*` is a *question the data will answer*, never a finding — do not cite a HYP as if it were established.
-- **Nothing here claims the current code is thesis-ready.** The synthetic production fallback has been removed (DEC-24), but the satellite path remains bbox-based, fixed-window, transient, and non-provenance-safe; this protocol defines the standard the work must reach.
+- **Nothing here claims thesis readiness.** Current implementation provenance belongs solely to [`project-architecture.md`](project-architecture.md) § 2. Software/deployment evidence does not establish scientific validity (OBS-28/30/31/32).
 - **The active RQ wording below is advisor-approved as relayed by the developer on 2026-08-30.** Any later substantive change requires a new advisor review.
 
 ---

@@ -3,7 +3,7 @@
 **Document type:** Product requirements document
 **Audience:** The developer, thesis advisor, reviewers, and AI agents working in this repo
 **Status:** Active
-**Updated:** 2026-08-31
+**Updated:** 2026-09-07
 **Canonical for:** Feature behavior, scope tags, and product invariants
 **Companion documents:** [`product-brief.md`](product-brief.md), [`project-architecture.md`](project-architecture.md), [`design-guidelines.md`](design-guidelines.md), [`research-protocol.md`](research-protocol.md), [`data-evaluation-plan.md`](data-evaluation-plan.md), [`implementation-plan.md`](implementation-plan.md)
 
@@ -48,9 +48,8 @@ The invariants below are **product-wide constraints** that no feature may violat
 
 The locally verified M2 path is designed to satisfy INV-01–06 and INV-09: only
 provenance-complete passed values become visible numbers, quality and per-index counts are
-shown, and absence/rejection remains honest (OBS-22/23). The configured hosted product has
-not passed migration/backend/device deployment, so this is not yet evidence that a user
-can obtain a remote measurement. The canonical qualification is
+shown, and absence/rejection remains honest (OBS-22/23). The scoped hosted result does
+not establish repeatable device delivery (OBS-28/30/31). The canonical qualification is
 [`project-architecture.md`](project-architecture.md) § Current measurement provenance.
 
 ---
@@ -248,11 +247,11 @@ error states without hiding a loaded field; derive no diagnosis or condition cla
 
 ### PRD-15 · Profile · [As-built]
 
-**Behavior.** The profile tab (`app/(tabs)/profile.tsx`) shows the authenticated user's profile and their actual saved-field count/area, and offers sign-out. Notification capability is explicitly unavailable. The statistics tab does not display metadata-derived NDVI, alert, health, productivity, or monitoring-efficiency figures because those event/aggregate contracts are not implemented; DEC-31's local measurement writer only supplies provenance-complete dated observations and remains hosted-deployment pending. Achievement cards are labeled product previews based only on account age and saved-field count; they are not persisted credentials or agronomic assessments (DEC-20/31; OBS-22).
+**Behavior.** The profile tab (`app/(tabs)/profile.tsx`) shows the authenticated user's profile and their actual saved-field count/area, and offers sign-out. Notification capability is explicitly unavailable. The statistics tab does not display metadata-derived NDVI, alert, health, productivity, or monitoring-efficiency figures because those event/aggregate contracts are not implemented; DEC-31's local measurement writer only supplies provenance-complete dated observations with hosted qualification in architecture § 2 (OBS-28/30/31). Achievement cards are labeled product previews based only on account age and saved-field count; they are not persisted credentials or agronomic assessments (DEC-20/31; OBS-22).
 
 **Acceptance criteria.** Profile reflects the current session's user; sign-out clears the session and returns to the auth flow; a signed-out user cannot read another user's profile or fields (RLS; EVID-020). Unsupported notifications, usage events, measurement averages, productivity metrics, and expertise badges are unavailable or explicitly preview-only.
 
-### PRD-16 · Measurement pipeline · [As-built local; hosted pending]
+### PRD-16 · Measurement pipeline · [Implemented; hosted acceptance open]
 
 **Behavior.** The implemented local path replaces the legacy prototype on current
 measurement surfaces with a controlled, persisted, provenance-safe pipeline. Engineering
@@ -260,7 +259,7 @@ detail and deployment qualification live in [`data-evaluation-plan.md`](data-eva
 
 - **Request/refresh, not render-triggered.** Opening a screen never triggers satellite processing; measurement is an explicit request served by an idempotent controlled worker, and screens **read the persisted result** (ADR-06; [`project-architecture.md`](project-architecture.md) § 3 governing principle).
 - **Provenance-complete persistence.** Every stored measurement carries acquisition window, polygon geometry, provider, quality flags, valid-pixel counts per index, and masking rule-set version (INV-03; [`project-architecture.md`](project-architecture.md) § 3 provenance contract).
-- **Honest unavailable states.** When no quality-passing polygon-level observation exists for a field/window, the product shows an explicit `unavailable` state — replacing the labeled synthetic fixture fallback (INV-01/02/06; [`research-protocol.md`](research-protocol.md) § 8).
+- **Honest unavailable states.** When no quality-passing polygon-level observation exists for a field/window, the product shows an explicit `unavailable` state — preserving DEC-24's removal of synthetic substitution (INV-01/02/06; [`research-protocol.md`](research-protocol.md) § 8).
 - **Valid-pixel visibility.** The user can see per-index valid-pixel sufficiency and polygon-level cloud/shadow state (INV-04; [`research-protocol.md`](research-protocol.md) §§ 8–9); NDVI (10 m, B04/B08) and NDMI (SWIR B11 at 20 m) valid-pixel counts are surfaced independently (EVID-009).
 - **True acquisition dates only.** The displayed date is always the satellite observation date (INV-05).
 
@@ -270,12 +269,9 @@ detail and deployment qualification live in [`data-evaluation-plan.md`](data-eva
 - Every `measured` value is reproducible from its stored provenance (INV-03).
 - No cadence claim appears anywhere until the feasibility study licenses it (INV-08; [`research-protocol.md`](research-protocol.md) § 4).
 
-**Current-fidelity note.** Local implementation and bounded live adapter smoke pass
-(OBS-22/23), public backend reachability/fail-closed authentication pass (OBS-24), and one
-explicitly approved manual hosted measurement persisted successfully (OBS-28). Later
-authenticated device requests invoked Vercel-deferred work but failed before persistence;
-the transport/cache-recovery change is locally verified and deployed, and awaits a
-post-deployment device retry (OBS-30). Formal M2 acceptance and repeatability remain open.
+**Current-fidelity note.** Use [`project-architecture.md`](project-architecture.md) § 2 for current provenance qualification.
+OBS-28/30/31 distinguish the scoped manual hosted result from failed deferred device
+jobs. OBS-32 refreshes local verification, not deployment or formal M2 acceptance.
 
 ### PRD-17 · Weather risk score card · [As-built] · HYP-07
 
@@ -329,6 +325,6 @@ Milestones (from [`product-brief.md`](product-brief.md) § 4; roadmap in [`imple
 
 **Invariant coverage.** Local M2 code enforces INV-01–06/09 through typed persistence,
 quality-gated values, acquisition dates, and honest absence (OBS-22/23). Hosted/device
-compliance remains unverified until deployment. INV-07 holds because Gemini is optional
+compliance remains unverified for repeatable device delivery (OBS-28/30/31). INV-07 holds because Gemini is optional
 and disabled by default. INV-08 holds because UI copy makes no cadence promise beyond the
 advisor-reviewed M1 outcome.
