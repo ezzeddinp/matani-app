@@ -3,7 +3,7 @@
 **Document type:** Design guidelines
 **Audience:** The developer, thesis advisor, reviewers, and AI agents working in this repo
 **Status:** Active
-**Updated:** 2026-08-31
+**Updated:** 2026-09-07
 **Canonical for:** Design tokens, the screen map, component patterns, and data-state presentation rules
 **Companion documents:** [`product-requirements.md`](product-requirements.md), [`product-brief.md`](product-brief.md), [`project-architecture.md`](project-architecture.md), [`context-dump.md`](context-dump.md)
 
@@ -149,7 +149,7 @@ Derived from `app/` file-based routing (`expo-router`). Ordered by user flow.
 | 2 | `app/onboarding.tsx` | Onboarding | Single welcome screen — "Selamat Datang di MATANI" + "Mulai Sekarang" CTA (`onboarding.tsx:23,48`). |
 | 3 | `app/auth/index.tsx` | Auth redirect | Redirects to `/auth/login` (`auth/index.tsx:3`). |
 | 4 | `app/auth/login.tsx` | Login | Supabase email/password sign-in. |
-| 5 | `app/auth/signup.tsx` | Sign-up | Supabase account creation. |
+| 5 | `app/auth/signup.tsx` | Sign-up | Supabase account creation with inline, bounded Indonesian error copy; raw provider/transport details are not displayed (`utils/auth-error.ts`, CODE; DEC-35). |
 | 6 | `app/(tabs)/index.tsx` | **Beranda** (Home) | Dashboard: latest raw observation, weather card, field carousel (`_layout.tsx:67-73`). |
 | 7 | `app/(tabs)/explore.tsx` | **Ladang** (Fields) | Map-based padi-field list + interactive polygon drawing; raw NDVI/NDMI state (`_layout.tsx:74-80`). |
 | 8 | `app/(tabs)/education.tsx` | **Edukasi** (Education) | Article list with filter/sort (`_layout.tsx:81-87`). |

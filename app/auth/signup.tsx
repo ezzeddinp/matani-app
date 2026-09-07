@@ -1,4 +1,5 @@
 import { authService } from "@/hooks/supabase";
+import { getSignUpErrorMessage } from "@/utils/auth-error";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useState } from "react";
@@ -109,29 +110,8 @@ export default function SignUpScreen() {
       }
 
       navigateToHome();
-    } catch (err: any) {
-      console.error("❌ Sign up error:", err);
-
-      // Handle unique constraint violations
-      const errorMessage = err?.message || "";
-      if (
-        errorMessage.includes("duplicate key") ||
-        errorMessage.includes("unique constraint")
-      ) {
-        if (errorMessage.includes("username")) {
-          setErrorMessage(
-            "Username sudah digunakan. Silakan gunakan username lain."
-          );
-        } else if (errorMessage.includes("phone")) {
-          setErrorMessage(
-            "Nomor telepon sudah terdaftar. Silakan gunakan nomor lain."
-          );
-        } else {
-          setErrorMessage("Email sudah terdaftar. Silakan gunakan email lain.");
-        }
-      } else {
-        setErrorMessage(errorMessage || "Terjadi kesalahan saat membuat akun.");
-      }
+    } catch (error: unknown) {
+      setErrorMessage(getSignUpErrorMessage(error));
     } finally {
       setIsLoading(false);
     }

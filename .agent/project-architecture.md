@@ -126,6 +126,12 @@ authenticates with the Supabase anon/publishable key
 (`EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY`), client-safe **conditional on RLS**
 (EVID-020).
 
+The auth-to-profile trigger remains the owner of initial `public.users` creation. Migration
+`20260907000100_auth_signup_profile_collision.sql` makes optional unique username/phone
+collisions non-fatal to the Auth transaction: the account and required profile row are
+created, while any already-owned optional value remains unset for later correction
+(CODE; DEC-35). Other integrity failures still abort rather than being swallowed.
+
 ---
 
 ## 2 · Current measurement provenance
@@ -402,6 +408,11 @@ Each ADR aligns to a `DEC-*` in [`context-dump.md`](context-dump.md) and carries
   retired from the installation path. The baseline lives under `supabase/migrations/`,
   its pgTAP coverage under `supabase/tests/`, and generated TypeScript schema types under
   `supabase/types/` (CODE).
+- **Amendment (2026-09-07):** The versioned auth-profile trigger treats username and
+  phone number as optional profile attributes. A uniqueness collision leaves the
+  conflicting attribute unset and does not roll back the new Auth account; only those
+  named uniqueness constraints are recovered, and other integrity failures still abort
+  (`20260907000100_auth_signup_profile_collision.sql`, CODE; DEC-35).
 - **Revisit trigger:** N/A (foundational) — but migration ordering is re-audited whenever
   schema changes.
 

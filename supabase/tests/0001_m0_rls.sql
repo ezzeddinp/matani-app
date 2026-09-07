@@ -1,12 +1,37 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = public, extensions, pg_catalog;
-select plan(11);
+select plan(14);
 
 insert into auth.users (id, email, raw_app_meta_data, raw_user_meta_data, aud, role)
 values
-  ('00000000-0000-4000-8000-000000000001', 'a@example.test', '{}', '{}', 'authenticated', 'authenticated'),
+  ('00000000-0000-4000-8000-000000000001', 'a@example.test', '{}', '{"username":"taken_name","phone_number":"081234567890"}', 'authenticated', 'authenticated'),
   ('00000000-0000-4000-8000-000000000002', 'b@example.test', '{}', '{}', 'authenticated', 'authenticated');
+
+insert into auth.users (id, email, raw_app_meta_data, raw_user_meta_data, aud, role)
+values (
+  '00000000-0000-4000-8000-000000000003',
+  'c@example.test',
+  '{}',
+  '{"username":"taken_name","phone_number":"081234567890"}',
+  'authenticated',
+  'authenticated'
+);
+
+select ok(
+  exists (select 1 from public.users where id = '00000000-0000-4000-8000-000000000003'),
+  'duplicate optional profile data does not abort auth signup'
+);
+select is(
+  (select username from public.users where id = '00000000-0000-4000-8000-000000000003'),
+  null,
+  'duplicate username is left unset on the new profile'
+);
+select is(
+  (select phone_number from public.users where id = '00000000-0000-4000-8000-000000000003'),
+  null,
+  'duplicate phone number is left unset on the new profile'
+);
 
 insert into public.lahan (id, user_id, name, category, geom)
 values
