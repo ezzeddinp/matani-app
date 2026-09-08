@@ -45,7 +45,8 @@ export function AuthScreen({ children, eyebrow, subtitle, title }: AuthScreenPro
         >
           <ScrollView
             contentContainerStyle={styles.scrollContent}
-            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="none"
+            keyboardShouldPersistTaps="always"
             showsVerticalScrollIndicator={false}
           >
             <View style={styles.content}>

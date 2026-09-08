@@ -103,8 +103,8 @@ export default function LoginScreen() {
         autoCapitalize="none"
         autoCorrect={false}
         autoComplete="email"
-        textContentType="emailAddress"
         returnKeyType="next"
+        submitBehavior="submit"
         onSubmitEditing={() => passwordRef.current?.focus()}
       />
 
@@ -122,13 +122,16 @@ export default function LoginScreen() {
         autoCapitalize="none"
         autoCorrect={false}
         autoComplete="current-password"
-        textContentType="password"
         returnKeyType="done"
+        submitBehavior="blurAndSubmit"
         onSubmitEditing={handleSignIn}
         rightElement={
           <Pressable
             style={({ pressed }) => [authStyles.eyeButton, pressed && styles.pressed]}
-            onPress={() => setShowPassword((visible) => !visible)}
+            onPress={() => {
+              setShowPassword((visible) => !visible);
+              requestAnimationFrame(() => passwordRef.current?.focus());
+            }}
             accessibilityRole="button"
             accessibilityLabel={showPassword ? "Sembunyikan password" : "Tampilkan password"}
           >

@@ -52,16 +52,27 @@ test("mobile auth persists sessions and handles email verification redirects", a
   assert.doesNotMatch(login, /rememberMe|Lupa password/);
 });
 
-test("root Vercel entrypoint delegates to the tested backend app", async () => {
-  const vercelConfig = JSON.parse(await readFile("vercel.json", "utf8"));
-  const entrypoint = await readFile("app.mjs", "utf8");
+test("Vercel backend project exposes a directly detectable Express app", async () => {
+  const vercelConfig = JSON.parse(await readFile("backend/vercel.json", "utf8"));
+  const entrypoint = await readFile("backend/app.js", "utf8");
   const backendPackage = JSON.parse(await readFile("backend/package.json", "utf8"));
 
-  assert.equal(vercelConfig.installCommand, "npm install --prefix backend");
-  assert.equal(vercelConfig.buildCommand, "npm run build --prefix backend");
-  assert.equal(vercelConfig.functions["app.mjs"].maxDuration, 300);
-  assert.match(entrypoint, /export \{ default \} from "\.\/backend\/app\.js"/);
+  assert.equal(vercelConfig.functions["app.js"].maxDuration, 300);
+  assert.match(entrypoint, /import express from "express"/);
+  assert.match(entrypoint, /export default createApp\(\)/);
   assert.equal(backendPackage.scripts.build, "tsc --noEmit");
+});
+
+test("auth fields keep Android keyboard focus stable", async () => {
+  const authScreen = await readFile("components/auth/auth-screen.tsx", "utf8");
+  const signup = await readFile("app/auth/signup.tsx", "utf8");
+
+  assert.match(authScreen, /keyboardDismissMode="none"/);
+  assert.match(authScreen, /keyboardShouldPersistTaps="always"/);
+  assert.match(signup, /importantForAutofill="no"/);
+  assert.match(signup, /submitBehavior="submit"/);
+  assert.match(signup, /requestAnimationFrame\(\(\) => passwordRef\.current\?\.focus\(\)\)/);
+  assert.doesNotMatch(signup, /textContentType=/);
 });
 
 test("auth migration keeps optional profile collisions from aborting signup", async () => {

@@ -20,6 +20,7 @@ const config: ExpoConfig = {
   },
   android: {
     package: "com.matani.app",
+    softwareKeyboardLayoutMode: "pan",
     adaptiveIcon: {
       backgroundColor: "#E6F4FE",
       foregroundImage: "./assets/images/android-icon-foreground.png",

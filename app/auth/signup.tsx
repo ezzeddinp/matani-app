@@ -187,6 +187,7 @@ export default function SignUpScreen() {
             autoCorrect={false}
             autoComplete="username-new"
             returnKeyType="next"
+            submitBehavior="submit"
             onSubmitEditing={() => emailRef.current?.focus()}
           />
 
@@ -204,8 +205,8 @@ export default function SignUpScreen() {
             autoCapitalize="none"
             autoCorrect={false}
             autoComplete="email"
-            textContentType="emailAddress"
             returnKeyType="next"
+            submitBehavior="submit"
             onSubmitEditing={() => phoneRef.current?.focus()}
           />
 
@@ -222,8 +223,8 @@ export default function SignUpScreen() {
             }}
             keyboardType="phone-pad"
             autoComplete="tel"
-            textContentType="telephoneNumber"
             returnKeyType="next"
+            submitBehavior="submit"
             onSubmitEditing={() => passwordRef.current?.focus()}
           />
 
@@ -240,14 +241,18 @@ export default function SignUpScreen() {
             secureTextEntry={!showPassword}
             autoCapitalize="none"
             autoCorrect={false}
-            autoComplete="new-password"
-            textContentType="newPassword"
+            autoComplete="off"
+            importantForAutofill="no"
             returnKeyType="next"
+            submitBehavior="submit"
             onSubmitEditing={() => confirmPasswordRef.current?.focus()}
             rightElement={
               <Pressable
                 style={({ pressed }) => [authStyles.eyeButton, pressed && styles.pressed]}
-                onPress={() => setShowPassword((visible) => !visible)}
+                onPress={() => {
+                  setShowPassword((visible) => !visible);
+                  requestAnimationFrame(() => passwordRef.current?.focus());
+                }}
                 accessibilityRole="button"
                 accessibilityLabel={showPassword ? "Sembunyikan password" : "Tampilkan password"}
               >
@@ -273,14 +278,18 @@ export default function SignUpScreen() {
             secureTextEntry={!showConfirmPassword}
             autoCapitalize="none"
             autoCorrect={false}
-            autoComplete="new-password"
-            textContentType="newPassword"
+            autoComplete="off"
+            importantForAutofill="no"
             returnKeyType="done"
+            submitBehavior="blurAndSubmit"
             onSubmitEditing={handleCreateAccount}
             rightElement={
               <Pressable
                 style={({ pressed }) => [authStyles.eyeButton, pressed && styles.pressed]}
-                onPress={() => setShowConfirmPassword((visible) => !visible)}
+                onPress={() => {
+                  setShowConfirmPassword((visible) => !visible);
+                  requestAnimationFrame(() => confirmPasswordRef.current?.focus());
+                }}
                 accessibilityRole="button"
                 accessibilityLabel={
                   showConfirmPassword

@@ -80,9 +80,10 @@ research measurements.
 ### 1.2 Backend (Express 5 / Node, colocated in `backend/`)
 
 Single Express app, `backend/index.js`, listening on **port 5001** locally. It mounts four
-protected provider/measurement routers through `backend/app.js`. Root `app.mjs` re-exports
-that same app for Vercel's repository-root entrypoint discovery, while root `vercel.json`
-installs and type-checks the independently managed backend package (CODE; DEC-36). The stable Vercel
+protected provider/measurement routers through `backend/app.js`. Each connected Vercel
+backend project uses `backend/` as its Root Directory, so Vercel installs that package and
+detects the direct `express` import plus default app export in `backend/app.js`; no repository-root
+server shim is used (`backend/vercel.json`, CODE; DEC-36). The stable Vercel
 production alias is publicly reachable and its protected route fails closed without
 a token (OBS-24/34); this reachability check does not prove hosted measurement persistence.
 
@@ -561,22 +562,22 @@ Each ADR aligns to a `DEC-*` in [`context-dump.md`](context-dump.md) and carries
   cannot preserve per-index native grids and masking semantics, or measured workload
   triggers ADR-03.
 
-### ADR-16 · Repository-root Vercel adapter for the colocated Express backend
-- **Status:** Accepted and locally build-verified on 2026-09-08 (DEC-36).
-- **Context:** The connected Vercel project built the repository root and searched only
-  conventional root server entrypoints. The Express implementation and its deployment
-  configuration lived under `backend/`, so commit `38ac274` failed with `No entrypoint
-  found` before a server function was produced.
-- **Decision:** Keep backend ownership in `backend/`; expose it through a minimal root
-  `app.mjs`, install backend dependencies through root `vercel.json`, and make the backend
-  build a no-emit type-check because Vercel bundles the source entrypoint directly.
-- **Consequences:** Both repository-root and backend-local development resolve the same
-  Express app. The root adapter contains no route logic or credentials. Vercel CLI 59.11.7
-  completed linked preview/production builds; the deployed revision reached `READY`, the
-  public health route returned HTTP 200 JSON, and a protected route returned HTTP 401 JSON
-  without a token (OBS-34).
-- **Revisit trigger:** The project returns to a guaranteed `backend/` Root Directory or
-  moves to a workspace/build system with a single explicit deployment unit.
+### ADR-16 · Vercel backend project root for the colocated Express API
+- **Status:** Accepted and deployment-verified on 2026-09-08 (DEC-36).
+- **Context:** Multiple Vercel projects were connected to the same repository with
+  inconsistent Root Directory settings. Repository-root builds could see the Expo package
+  but not a conventional Express entrypoint: commit `38ac274` failed with `No entrypoint
+  found`, and the root re-export in `26aa62c` then failed static detection because it did
+  not itself import `express`.
+- **Decision:** Keep backend ownership in `backend/`; configure every connected backend
+  project with `backend/` as its Root Directory, let Vercel detect `backend/app.js` directly,
+  retain the no-emit backend type-check, and remove the repository-root server shim.
+- **Consequences:** Cloud installs use `backend/package.json` and its lockfile, the detected
+  entrypoint directly imports Express and exports the app, and the Expo dependency tree is
+  outside the backend build. Production reachability and fail-closed auth evidence remain
+  recorded under OBS-34.
+- **Revisit trigger:** The API moves out of `backend/`, or one Vercel project intentionally
+  becomes a web deployment for the Expo application.
 
 ---
 
