@@ -57,17 +57,26 @@ research measurements.
   explicitly select Expo Go. Unused `@expo/ui` and `expo-dev-client` are absent so the
   default thesis-team device workflow does not imply a custom development build
   (DEC-22).
-- **Google Maps** renders the interactive polygon field-drawing surface (via
-  `react-native-maps`). Map SDK keys are **injected at build time from environment** by
-  `app.config.ts` — iOS from `GOOGLE_MAPS_API_KEY_IOS` (`app.config.ts:16`), Android from
-  `GOOGLE_MAPS_API_KEY_ANDROID` (`app.config.ts:34`). These land in the compiled native
-  config and are **client-visible in the shipped binary** (see § 5.3).
+- `react-native-maps` renders the interactive polygon field-drawing surface. Android uses
+  Google Maps; iOS uses its native provider so Expo Go and standalone iOS builds do not
+  depend on an iOS Google Maps key. A configured Android key is injected at build time
+  through the `react-native-maps` config plugin; placeholder values are discarded by
+  `app.config.ts`. Keys in a compiled native client remain **client-visible in the shipped
+  binary** (see § 5.3). The screen reports a ten-second base-map load timeout and supports
+  retry plus satellite/standard switching (CODE; DEC-39; ADR-17).
 - When configured, `EXPO_PUBLIC_API_URL` is the authoritative backend origin. Manifest/LAN
   candidates are constructed only when no public URL is configured, so a production
   response cannot be hidden by a later local-network timeout (DEC-33; OBS-27).
   Saving/retrying a field explicitly posts its field UUID to `/measurements/request`;
   current measurement surfaces do not issue the legacy `/ndvi?bbox` request
   (`utils/backend-api.ts`, `app/(tabs)/explore.tsx`, CODE).
+- `expo-document-picker` and `expo-file-system` read a user-selected GeoJSON file from
+  the device cache. `utils/geojson-import.ts` accepts one simple WGS84 Polygon, rejects
+  ambiguous or invalid geometry before persistence, and hands normalized longitude/
+  latitude vertices to the existing field-save boundary. The same utility serializes
+  pending or saved geometry as a one-feature WGS84 `FeatureCollection`; `expo-sharing`
+  exports its `.geojson` cache file and `expo-clipboard` provides the text fallback
+  (CODE; DEC-38/39; ADR-17).
 - Expo Go development without a public URL adds the current Metro manifest host as a LAN
   backend candidate.
   Backend responses must be JSON; Vercel SSO/HTML responses are classified as
@@ -599,6 +608,26 @@ Each ADR aligns to a `DEC-*` in [`context-dump.md`](context-dump.md) and carries
   recorded under OBS-34.
 - **Revisit trigger:** The API moves out of `backend/`, or one Vercel project intentionally
   becomes a web deployment for the Expo application.
+
+### ADR-17 · Bidirectional GeoJSON boundary and platform-native map fallback
+- **Status:** Accepted; static checks and both mobile bundles verified on 2026-09-08,
+  physical-device interaction pending (DEC-39).
+- **Context:** Raster comparison requires Copernicus Browser and Matani to use the exact
+  same field boundary. Import alone still forced users to recreate Matani-drawn geometry
+  elsewhere. The field map was also reported as an unexplained green surface while iOS
+  forced the Google provider and local map-key variables contained placeholders.
+- **Decision:** Serialize each pending or saved Matani polygon as one RFC 7946-style WGS84
+  Polygon Feature in a `FeatureCollection`, without a deprecated `crs` member. Preview the
+  exact longitude-latitude sequence before copy/share and enable post-save export by
+  default. Use the platform map provider on iOS and Google Maps on Android; ignore placeholder
+  keys at config resolution, and expose timeout, retry, and base-map switching in the field UI.
+- **Consequences:** The geometry can round-trip through Matani's own parser without vertex
+  changes; users can transfer the same boundary to Copernicus Browser. iOS no longer requires
+  Google Maps configuration for this surface. Standalone Android still requires a restricted
+  Maps SDK key at build time. Tile/provider availability remains external, but failure is visible
+  and recoverable instead of appearing as a permanent blank map.
+- **Revisit trigger:** The product adopts a common cross-platform tile provider, supports
+  multi-feature/multipolygon imports, or needs direct browser workspace integration.
 
 ---
 

@@ -126,16 +126,21 @@ M2 migration, server-only worker configuration, and authenticated device gates p
 
 ### PRD-06 · Field management — map, polygon drawing, search, geocode · [As-built]
 
-**Behavior.** The ladang tab (`app/(tabs)/explore.tsx`) renders a Google Map (`react-native-maps`, `MapView`/`Polygon`/`Marker`) on which the user draws a field polygon by tapping vertices into `pendingPolygon` (`explore.tsx:409`); polygons persist as PostGIS geometry ([`project-architecture.md`](project-architecture.md) § 1.3). Place search queries **OpenStreetMap Nominatim** (`explore.tsx:720`, min 3 chars, debounced, limit 6), not a paid geocoder. Reverse geocoding of the user location and saved-field centroids uses **on-device `expo-location`** `Location.reverseGeocodeAsync` (`explore.tsx:662,778`), with a cache (`geocodeCacheRef`) and a rate-limit cooldown that falls back to a coordinate label rather than failing (`explore.tsx:487-496`).
+**Behavior.** The ladang tab (`app/(tabs)/explore.tsx`) renders a native `react-native-maps` surface (`MapView`/`Polygon`/`Marker`) using Google Maps on Android and the platform map on iOS. The user can draw a field polygon or import one `.geojson`/`.json` file through the native document picker (DEC-38/39). Import accepts one WGS84 Polygon only, validates structure, coordinate range, vertex count, holes, degeneracy, and self-intersection locally, fits the map to the preview, and routes the reviewed geometry through the same PostGIS save and automatic measurement path. Any saved or pending field can be previewed and exported as a one-feature WGS84 GeoJSON `FeatureCollection`, with longitude-latitude ordering and a closed exterior ring (`utils/geojson-import.ts`, CODE). Place search queries **OpenStreetMap Nominatim**, not a paid geocoder. Reverse geocoding uses on-device `expo-location`, with a cache and rate-limit fallback rather than a fabricated place name (CODE).
 
 **Acceptance criteria.**
 - A drawn polygon of ≥3 vertices can be persisted (`explore.tsx:582` filters <3-vertex geometries).
+- A file import accepts exactly one Polygon in WGS84/GeoJSON longitude-latitude order, 3–249 display vertices, no holes or self-intersections, and at most 1 MB; invalid files surface bounded Indonesian guidance and are never persisted.
+- Import review exposes source filename, vertex count, estimated area, editable field name, and the map preview before save; cancel clears the pending geometry.
+- Empty `FeatureCollection` input identifies that no polygon feature was saved instead of reporting an ambiguous one-polygon error.
+- GeoJSON preview exposes the exact text, filename, coordinate-order guidance, copy action, and native file-share action. Saving a newly drawn field offers export by default; every saved field retains a GeoJSON action.
+- If the satellite base map does not report loaded within ten seconds, the map shows recovery actions for retry and standard/satellite switching instead of leaving an unexplained blank surface.
 - Outside drawing mode, the map accepts direct pan/drag and zoom gestures without handing the gesture to the surrounding page scroll.
 - During drawing, place search is hidden and the Undo, Redo, Batal, and Simpan actions stay top-anchored inside the visible map area.
 - Place search returns location suggestions or an empty state; it never blocks field creation.
 - Reverse-geocode rate limiting degrades to a coordinate label, never to a fabricated place name.
 
-**Current-fidelity note.** Google Maps SDK keys are client-visible by design; the control
+**Current-fidelity note.** Android Google Maps SDK keys are client-visible by design; the control
 is per-platform + per-API key restriction, not secrecy (EVID-019;
 [`project-architecture.md`](project-architecture.md) § 5.3). The M0 backend bounds the
 current bbox prototype. Exact-polygon vertex/area/self-intersection validation applies to
@@ -152,7 +157,7 @@ the M2 measurement request, which is implemented locally
 - The displayed area is the authoritative PostGIS geography-based hectare value when available.
 - The database rejects new non-padi categories, and legacy labels are preserved without false conversion.
 
-**Current-fidelity note.** Earlier project descriptions referred to "Turf area computation," but Turf was never used for area and its unused packages have now been removed from the root dependency set (`package.json:13-43`). The client estimate remains the hand-rolled planar shoelace formula (`explore.tsx:814-823`), which is **not equal-area** and is only a pre-save estimate; the authoritative value is the PostGIS geography column. Equal-area handling is a [Thesis] requirement ([`research-protocol.md`](research-protocol.md) § 7 — "area-in-hectares derived on an equal-area basis").
+**Current-fidelity note.** Earlier project descriptions referred to "Turf area computation," but Turf was never used. The client now estimates preview area on a local metric plane centred at the polygon latitude (`utils/geojson-import.ts`, CODE); it remains a pre-save estimate. The authoritative value is the PostGIS geography column. Equal-area handling is a [Thesis] requirement ([`research-protocol.md`](research-protocol.md) § 7 — "area-in-hectares derived on an equal-area basis").
 
 ### PRD-08 · Ladang field cards — latest observation · [As-built]
 

@@ -9,11 +9,22 @@ import {
   requestLahanMeasurement,
   retainMostUsefulBackendError,
 } from "@/utils/backend-api";
+import {
+  buildFieldGeoJson,
+  calculatePolygonAreaHa,
+  ExportedFieldGeoJson,
+  GeoJsonImportError,
+  parseFieldGeoJson,
+} from "@/utils/geojson-import";
 import { Ionicons } from "@expo/vector-icons";
+import * as Clipboard from "expo-clipboard";
+import * as DocumentPicker from "expo-document-picker";
+import { File, Paths } from "expo-file-system";
 import { Image as ExpoImage } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Location from "expo-location";
 import { useRouter } from "expo-router";
+import * as Sharing from "expo-sharing";
 import React, {
   useCallback,
   useEffect,
@@ -29,10 +40,12 @@ import {
   ImageSourcePropType,
   Keyboard,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StatusBar,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   TouchableWithoutFeedback,
@@ -128,6 +141,7 @@ const FULL_MAP_HEIGHT = Math.max(
 const LAHAN_PAGE_SIZE = 5;
 const DEFAULT_LAHAN_THUMBNAIL = PADI_CATEGORY.thumbnail;
 const GEOCODE_CACHE_PRECISION = 4;
+const MAX_GEOJSON_FILE_BYTES = 1_000_000;
 const GEOCODE_RATE_LIMIT_COOLDOWN_MS = 5 * 60 * 1000;
 const RATE_LIMIT_LOG_INTERVAL_MS = 60 * 1000;
 
@@ -260,8 +274,15 @@ export default function ExploreScreen() {
   const [lahanName, setLahanName] = useState("");
   const [currentVertices, setCurrentVertices] = useState<DrawingVertex[]>([]);
   const [pendingPolygon, setPendingPolygon] = useState<LatLng[]>([]);
+  const [pendingPolygonSource, setPendingPolygonSource] = useState<"draw" | "geojson">("draw");
+  const [importedFileName, setImportedFileName] = useState<string | null>(null);
+  const [isImportingGeoJson, setIsImportingGeoJson] = useState(false);
+  const [geoJsonPreview, setGeoJsonPreview] = useState<ExportedFieldGeoJson | null>(null);
+  const [resumeSaveAfterGeoJsonPreview, setResumeSaveAfterGeoJsonPreview] = useState(false);
+  const [exportAfterSave, setExportAfterSave] = useState(true);
   const [redoVertices, setRedoVertices] = useState<DrawingVertex[]>([]);
   const nextDrawingVertexIdRef = useRef(0);
+  const geoJsonImportInFlightRef = useRef(false);
 
   const activePath = useMemo(
     () =>
@@ -299,6 +320,10 @@ export default function ExploreScreen() {
   const [isLahanPickerVisible, setIsLahanPickerVisible] = useState(false);
   const [scrollEnabled, setScrollEnabled] = useState(true);
   const mapRef = useRef<MapView>(null);
+  const [baseMapType, setBaseMapType] = useState<"satellite" | "standard">("satellite");
+  const [mapHasLoaded, setMapHasLoaded] = useState(false);
+  const [mapLoadTimedOut, setMapLoadTimedOut] = useState(false);
+  const [mapRenderKey, setMapRenderKey] = useState(0);
   const currentRegionRef = useRef<Region | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
   const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -318,6 +343,12 @@ export default function ExploreScreen() {
     }, 300);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    if (mapHasLoaded) return;
+    const timeout = setTimeout(() => setMapLoadTimedOut(true), 10_000);
+    return () => clearTimeout(timeout);
+  }, [baseMapType, mapHasLoaded, mapRenderKey]);
 
   const releaseScrollLock = useCallback(() => {
     setScrollEnabled((prev) => { if (prev) return prev; return true; });
@@ -686,18 +717,6 @@ export default function ExploreScreen() {
     setRedoVertices([]);
   };
 
-  const calculateArea = (coordinates: LatLng[]) => {
-    if (coordinates.length < 3) return 0;
-    let area = 0;
-    for (let i = 0; i < coordinates.length; i++) {
-      const j = (i + 1) % coordinates.length;
-      area += coordinates[i].longitude * coordinates[j].latitude;
-      area -= coordinates[j].longitude * coordinates[i].latitude;
-    }
-    area = Math.abs(area) / 2;
-    return area * 10000;
-  };
-
   const clearActivePath = useCallback(() => {
     setCurrentVertices([]); setPendingPolygon([]); setRedoVertices([]);
   }, []);
@@ -789,20 +808,144 @@ export default function ExploreScreen() {
   }, [scheduleScrollLockReset]);
 
   const startDrawing = () => {
-    setDrawingMode(true); setShowSaveModal(false); setLahanName(""); clearActivePath();
+    setDrawingMode(true); setShowSaveModal(false); setLahanName("");
+    setPendingPolygonSource("draw"); setImportedFileName(null); clearActivePath();
     Alert.alert("Mode Gambar Aktif", "Tap pada peta untuk menandai titik-titik polygon.");
   };
 
   const finishDrawing = () => {
     if (activePath.length < 3) { Alert.alert("Error", "Minimal 3 titik diperlukan untuk membuat polygon lahan."); return; }
     const completedPath = activePath.map((coord) => ({ ...coord }));
+    setPendingPolygonSource("draw"); setImportedFileName(null);
     setPendingPolygon(completedPath); setDrawingMode(false); setShowSaveModal(true);
     setCurrentVertices([]); setRedoVertices([]);
   };
 
   const cancelDrawing = () => {
-    setDrawingMode(false); setShowSaveModal(false); setLahanName(""); clearActivePath();
+    setDrawingMode(false); setShowSaveModal(false); setLahanName("");
+    setPendingPolygonSource("draw"); setImportedFileName(null); clearActivePath();
   };
+
+  const importGeoJson = async () => {
+    if (drawingMode || geoJsonImportInFlightRef.current) return;
+    try {
+      geoJsonImportInFlightRef.current = true;
+      setIsImportingGeoJson(true);
+      const result = await DocumentPicker.getDocumentAsync({
+        type: "*/*",
+        copyToCacheDirectory: true,
+        multiple: false,
+        base64: false,
+      });
+      if (result.canceled) return;
+      const asset = result.assets[0];
+      if (!/\.(?:geo)?json$/i.test(asset.name)) {
+        throw new GeoJsonImportError(
+          "INVALID_JSON",
+          "Pilih file dengan ekstensi .geojson atau .json.",
+        );
+      }
+      if (typeof asset.size === "number" && asset.size > MAX_GEOJSON_FILE_BYTES) {
+        throw new GeoJsonImportError(
+          "INVALID_JSON",
+          "Ukuran GeoJSON maksimal 1 MB.",
+        );
+      }
+      const text = await new File(asset.uri).text();
+      if (text.length > MAX_GEOJSON_FILE_BYTES) {
+        throw new GeoJsonImportError("INVALID_JSON", "Ukuran GeoJSON maksimal 1 MB.");
+      }
+      const imported = parseFieldGeoJson(text, asset.name);
+      clearActivePath();
+      setPendingPolygon(imported.coordinates);
+      setPendingPolygonSource("geojson");
+      setImportedFileName(asset.name);
+      setLahanName(imported.suggestedName ?? "");
+      setDrawingMode(false);
+      setShowSaveModal(true);
+      mapRef.current?.fitToCoordinates(imported.coordinates, {
+        edgePadding: { top: 80, right: 48, bottom: 80, left: 48 },
+        animated: true,
+      });
+    } catch (error) {
+      console.warn("Gagal mengimpor GeoJSON:", error);
+      Alert.alert(
+        "GeoJSON tidak dapat diimpor",
+        error instanceof GeoJsonImportError
+          ? error.message
+          : "File tidak dapat dibaca. Pastikan file berisi satu Polygon WGS84 yang valid.",
+      );
+    } finally {
+      geoJsonImportInFlightRef.current = false;
+      setIsImportingGeoJson(false);
+    }
+  };
+
+  const openGeoJsonPreview = useCallback((
+    name: string,
+    coordinates: LatLng[],
+    returnToSave = false,
+  ) => {
+    try {
+      setGeoJsonPreview(buildFieldGeoJson(name, coordinates));
+      setResumeSaveAfterGeoJsonPreview(returnToSave);
+      if (returnToSave) setShowSaveModal(false);
+    } catch (error) {
+      console.warn("Gagal membuat GeoJSON:", error);
+      Alert.alert("GeoJSON tidak dapat dibuat", "Polygon lahan belum valid untuk diekspor.");
+    }
+  }, []);
+
+  const closeGeoJsonPreview = useCallback(() => {
+    setGeoJsonPreview(null);
+    if (resumeSaveAfterGeoJsonPreview) setShowSaveModal(true);
+    setResumeSaveAfterGeoJsonPreview(false);
+  }, [resumeSaveAfterGeoJsonPreview]);
+
+  const copyGeoJson = useCallback(async (exported: ExportedFieldGeoJson) => {
+    await Clipboard.setStringAsync(exported.text);
+    Alert.alert("GeoJSON disalin", "Isi GeoJSON sudah disalin ke clipboard.");
+  }, []);
+
+  const shareGeoJson = useCallback(async (exported: ExportedFieldGeoJson) => {
+    try {
+      if (!(await Sharing.isAvailableAsync())) {
+        await Clipboard.setStringAsync(exported.text);
+        Alert.alert(
+          "GeoJSON disalin",
+          "Perangkat ini tidak menyediakan menu ekspor file, jadi isi GeoJSON disalin ke clipboard.",
+        );
+        return;
+      }
+      const outputFile = new File(Paths.cache, exported.fileName);
+      outputFile.create({ overwrite: true, intermediates: true });
+      outputFile.write(exported.text);
+      await Sharing.shareAsync(outputFile.uri, {
+        dialogTitle: `Ekspor ${exported.fileName}`,
+        mimeType: "application/geo+json",
+        UTI: "public.geojson",
+      });
+    } catch (error) {
+      console.warn("Gagal mengekspor GeoJSON:", error);
+      Alert.alert(
+        "Ekspor gagal",
+        "File GeoJSON belum dapat dibagikan. Coba tombol Salin GeoJSON pada pratinjau.",
+      );
+    }
+  }, []);
+
+  const retryBaseMap = useCallback(() => {
+    setMapHasLoaded(false);
+    setMapLoadTimedOut(false);
+    setMapRenderKey((current) => current + 1);
+  }, []);
+
+  const switchBaseMap = useCallback(() => {
+    setBaseMapType((current) => current === "satellite" ? "standard" : "satellite");
+    setMapHasLoaded(false);
+    setMapLoadTimedOut(false);
+    setMapRenderKey((current) => current + 1);
+  }, []);
 
   const undoLastPoint = () => {
     if (currentVertices.length === 0) return;
@@ -824,7 +967,7 @@ export default function ExploreScreen() {
     if (pendingPolygon.length < 3) { Alert.alert("Error", "Polygon lahan belum lengkap untuk disimpan."); return; }
     if (isSaving) return;
     const polygonToPersist = [...pendingPolygon];
-    const area = calculateArea(polygonToPersist);
+    const area = calculatePolygonAreaHa(polygonToPersist);
     try {
       setIsSaving(true);
       const { data: authData, error: authError } = await supabase.auth.getUser();
@@ -861,7 +1004,8 @@ export default function ExploreScreen() {
         return [...filtered, newSavedLahan];
       });
       loadSavedLahan();
-      setShowSaveModal(false); setLahanName(""); clearActivePath();
+      setShowSaveModal(false); setLahanName("");
+      setPendingPolygonSource("draw"); setImportedFileName(null); clearActivePath();
       let measurementAccepted = false;
       if (savedEntry?.id) {
         try {
@@ -872,12 +1016,15 @@ export default function ExploreScreen() {
           console.warn("Pengukuran lahan belum dapat diproses:", measurementError);
         }
       }
+      if (exportAfterSave) {
+        await shareGeoJson(buildFieldGeoJson(trimmedName, polygonToPersist));
+      }
       Alert.alert(
         "Lahan tersimpan",
         `Lahan "${trimmedName}" berhasil disimpan.\nLuas: ${areaText} ha\n\n${
           measurementAccepted
             ? "Job NDVI/NDMI diterima dan sedang diproses; hasil hanya tampil jika acquisition dan kualitasnya tersedia."
-            : "Job NDVI/NDMI belum berhasil dimulai. Buka detail lahan lalu pilih Jalankan job antrean; batas lahan tetap tersimpan."
+            : "Job NDVI/NDMI belum berhasil dimulai. Detail lahan akan mencoba kembali secara otomatis; batas lahan tetap tersimpan."
         }`
       );
     } catch (error: any) {
@@ -893,7 +1040,8 @@ export default function ExploreScreen() {
   };
 
   const handleCancelSave = () => {
-    setShowSaveModal(false); setLahanName(""); clearActivePath();
+    setShowSaveModal(false); setLahanName(""); setPendingPolygonSource("draw");
+    setImportedFileName(null); clearActivePath();
   };
 
   const lahanNameLookup = useMemo(() => {
@@ -1252,8 +1400,9 @@ export default function ExploreScreen() {
     );
   };
 
-  const pendingArea = calculateArea(pendingPolygon);
+  const pendingArea = calculatePolygonAreaHa(pendingPolygon);
   const formattedPendingArea = Number.isFinite(pendingArea) ? pendingArea.toFixed(2) : "0.00";
+  const isFieldSaveDisabled = isSaving || !lahanName.trim();
   const isNoteFormValid = noteTitle.trim().length > 0 && noteContent.trim().length > 0;
 
   // ─── RENDER ──────────────────────────────────────────────────────────────────
@@ -1352,6 +1501,7 @@ export default function ExploreScreen() {
             )}
 
             <MapView
+              key={`field-map-${mapRenderKey}`}
               ref={mapRef}
               style={styles.map}
               initialRegion={userLocation}
@@ -1361,8 +1511,12 @@ export default function ExploreScreen() {
               onTouchStart={handleMapTouchStart}
               onTouchEnd={handleMapTouchEnd}
               onTouchCancel={handleMapTouchEnd}
-              provider={PROVIDER_GOOGLE}
-              mapType="satellite"
+              provider={Platform.OS === "android" ? PROVIDER_GOOGLE : undefined}
+              mapType={baseMapType}
+              onMapLoaded={() => {
+                setMapHasLoaded(true);
+                setMapLoadTimedOut(false);
+              }}
               showsUserLocation
               showsMyLocationButton={false}
               showsCompass={false}
@@ -1440,6 +1594,38 @@ export default function ExploreScreen() {
               ))}
             </MapView>
 
+            {mapLoadTimedOut && (
+              <View style={styles.mapLoadErrorCard} accessibilityRole="alert">
+                <View style={styles.mapLoadErrorHeader}>
+                  <Ionicons name="map-outline" size={20} color="#92400E" />
+                  <Text style={styles.mapLoadErrorTitle}>Peta dasar belum termuat</Text>
+                </View>
+                <Text style={styles.mapLoadErrorText}>
+                  Periksa koneksi lalu coba lagi, atau ganti ke peta {baseMapType === "satellite" ? "standar" : "satelit"}.
+                </Text>
+                <View style={styles.mapLoadErrorActions}>
+                  <Pressable
+                    style={({ pressed }) => [styles.mapLoadRetryButton, pressed && { opacity: 0.75 }]}
+                    onPress={retryBaseMap}
+                    accessibilityRole="button"
+                  >
+                    <Ionicons name="refresh" size={15} color="#166534" />
+                    <Text style={styles.mapLoadRetryText}>Coba lagi</Text>
+                  </Pressable>
+                  <Pressable
+                    style={({ pressed }) => [styles.mapLoadSwitchButton, pressed && { opacity: 0.85 }]}
+                    onPress={switchBaseMap}
+                    accessibilityRole="button"
+                  >
+                    <Ionicons name="layers-outline" size={15} color="#FFFFFF" />
+                    <Text style={styles.mapLoadSwitchText}>
+                      Peta {baseMapType === "satellite" ? "standar" : "satelit"}
+                    </Text>
+                  </Pressable>
+                </View>
+              </View>
+            )}
+
             {drawingMode && (
               <DrawingModeIndicator
                 onCancel={cancelDrawing}
@@ -1448,6 +1634,14 @@ export default function ExploreScreen() {
             )}
 
             <View style={[styles.mapControls, drawingMode && styles.mapControlsDrawing]}>
+              <Pressable
+                style={({ pressed }) => [styles.zoomButton, pressed && { opacity: 0.2 }]}
+                onPress={switchBaseMap}
+                accessibilityRole="button"
+                accessibilityLabel={`Gunakan peta ${baseMapType === "satellite" ? "standar" : "satelit"}`}
+              >
+                <Ionicons name="layers-outline" size={18} color="#0A3D1F" />
+              </Pressable>
               <Pressable
                 style={({ pressed }) => [styles.zoomButton, pressed && { opacity: 0.2 }]}
                 onPress={() => handleZoom("in")}
@@ -1599,6 +1793,35 @@ export default function ExploreScreen() {
                 <Ionicons name="arrow-forward" size={16} color="#86EFAC" style={{ marginLeft: "auto" }} />
               </LinearGradient>
             )}
+          </Pressable>
+
+          <Pressable
+            style={({ pressed }) => [
+              styles.importFieldButton,
+              (drawingMode || isImportingGeoJson) && styles.importFieldButtonDisabled,
+              pressed && !drawingMode && !isImportingGeoJson && { opacity: 0.72 },
+            ]}
+            onPress={importGeoJson}
+            disabled={drawingMode || isImportingGeoJson}
+            accessibilityRole="button"
+            accessibilityLabel="Impor batas lahan dari GeoJSON"
+            accessibilityHint="Membuka pemilih file untuk satu polygon WGS84"
+            accessibilityState={{ disabled: drawingMode || isImportingGeoJson, busy: isImportingGeoJson }}
+          >
+            <View style={styles.importFieldIcon}>
+              {isImportingGeoJson ? (
+                <ActivityIndicator size="small" color="#166534" />
+              ) : (
+                <Ionicons name="document-attach-outline" size={20} color="#166534" />
+              )}
+            </View>
+            <View style={styles.importFieldCopy}>
+              <Text style={styles.importFieldTitle}>
+                {isImportingGeoJson ? "Membaca GeoJSON..." : "Impor GeoJSON"}
+              </Text>
+              <Text style={styles.importFieldSubtitle}>Satu Polygon | WGS84 (EPSG:4326) | maks. 1 MB</Text>
+            </View>
+            {!isImportingGeoJson && <Ionicons name="chevron-forward" size={18} color="#4B7C5D" />}
           </Pressable>
 
           {/* ── LAHAN SAYA ── */}
@@ -1772,8 +1995,21 @@ export default function ExploreScreen() {
                       </View>
                     </View>
 
-                    {showLahanActions && (
-                      <View style={styles.lahanCardActions}>
+                    <View style={styles.lahanCardActions}>
+                      <Pressable
+                        style={({ pressed }) => [styles.lahanActionButton, pressed && { opacity: 0.2 }]}
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          openGeoJsonPreview(card.name, card.coordinates);
+                        }}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Ekspor GeoJSON ${card.name}`}
+                      >
+                        <Ionicons name="code-download-outline" size={16} color="#166534" />
+                        <Text style={styles.lahanActionButtonText}>GeoJSON</Text>
+                      </Pressable>
+                      {showLahanActions && (
+                        <>
                         <Pressable
                           style={({ pressed }) => [styles.lahanActionButton, pressed && { opacity: 0.2 }]}
                           onPress={(e) => { e.stopPropagation(); handleEditLahan(card); }}
@@ -1794,8 +2030,9 @@ export default function ExploreScreen() {
                           <Ionicons name="trash-outline" size={16} color="#DC2626" />
                           <Text style={[styles.lahanActionButtonText, styles.lahanActionButtonDeleteText]}>Hapus</Text>
                         </Pressable>
-                      </View>
-                    )}
+                        </>
+                      )}
+                    </View>
                   </Pressable>
                 ))}
               </>
@@ -2052,13 +2289,31 @@ export default function ExploreScreen() {
         </ScrollView>
 
         {/* ── MODAL SIMPAN LAHAN ── */}
-        <Modal visible={showSaveModal} transparent animationType="slide">
+        <Modal
+          visible={showSaveModal}
+          transparent
+          animationType="slide"
+          onRequestClose={handleCancelSave}
+        >
           <TouchableWithoutFeedback onPress={handleCancelSave}>
             <View style={styles.modalOverlay}>
               <TouchableWithoutFeedback onPress={() => {}}>
                 <View style={styles.modalContent}>
                   <View style={styles.modalHandle} />
-                  <Text style={styles.modalTitle}>Simpan Lahan Baru</Text>
+                  <Text style={styles.modalTitle}>
+                    {pendingPolygonSource === "geojson" ? "Tinjau GeoJSON" : "Simpan Lahan Baru"}
+                  </Text>
+                  {pendingPolygonSource === "geojson" && (
+                    <View style={styles.importReviewBanner}>
+                      <Ionicons name="checkmark-circle" size={20} color="#166534" />
+                      <View style={styles.importReviewCopy}>
+                        <Text style={styles.importReviewTitle}>Polygon siap disimpan</Text>
+                        <Text style={styles.importReviewFile} numberOfLines={1}>
+                          {importedFileName}
+                        </Text>
+                      </View>
+                    </View>
+                  )}
                   <View style={styles.modalInfoRow}>
                     <View style={styles.modalInfoChip}>
                       <Ionicons name="resize-outline" size={13} color="#166534" />
@@ -2070,6 +2325,24 @@ export default function ExploreScreen() {
                     </View>
                   </View>
 
+                  <Pressable
+                    style={({ pressed }) => [styles.geoJsonPreviewButton, pressed && { opacity: 0.75 }]}
+                    onPress={() => openGeoJsonPreview(
+                      lahanName.trim() || "Lahan Matani",
+                      pendingPolygon,
+                      true,
+                    )}
+                    accessibilityRole="button"
+                    accessibilityLabel="Pratinjau titik GeoJSON"
+                  >
+                    <Ionicons name="code-slash-outline" size={17} color="#166534" />
+                    <View style={styles.geoJsonPreviewButtonCopy}>
+                      <Text style={styles.geoJsonPreviewButtonTitle}>Pratinjau GeoJSON</Text>
+                      <Text style={styles.geoJsonPreviewButtonSubtitle}>Periksa urutan longitude, latitude dan ring polygon</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={16} color="#4B7C5D" />
+                  </Pressable>
+
                   <Text style={styles.inputLabel}>Nama Lahan</Text>
                   <TextInput
                     style={styles.textInput}
@@ -2077,6 +2350,10 @@ export default function ExploreScreen() {
                     placeholderTextColor="#9CA3AF"
                     value={lahanName}
                     onChangeText={setLahanName}
+                    maxLength={80}
+                    autoCapitalize="words"
+                    returnKeyType="done"
+                    accessibilityLabel="Nama lahan"
                   />
 
                   <Text style={styles.inputLabel}>Tanaman</Text>
@@ -2086,6 +2363,20 @@ export default function ExploreScreen() {
                       Padi
                     </Text>
                     <Ionicons name="lock-closed-outline" size={16} color="#166534" />
+                  </View>
+
+                  <View style={styles.exportAfterSaveRow}>
+                    <View style={styles.exportAfterSaveCopy}>
+                      <Text style={styles.exportAfterSaveTitle}>Ekspor setelah disimpan</Text>
+                      <Text style={styles.exportAfterSaveSubtitle}>Buka menu simpan/bagikan untuk file .geojson</Text>
+                    </View>
+                    <Switch
+                      value={exportAfterSave}
+                      onValueChange={setExportAfterSave}
+                      trackColor={{ false: "#D1D5DB", true: "#86EFAC" }}
+                      thumbColor={exportAfterSave ? "#166534" : "#F9FAFB"}
+                      accessibilityLabel="Ekspor GeoJSON setelah lahan disimpan"
+                    />
                   </View>
 
                   <View style={styles.modalButtons}>
@@ -2099,15 +2390,22 @@ export default function ExploreScreen() {
                     <Pressable
                       style={({ pressed }) => [
                         styles.modalSaveButton,
-                        isSaving && styles.modalSaveButtonDisabled,
-                        pressed && !isSaving && { opacity: 0.2 },
+                        isFieldSaveDisabled && styles.modalSaveButtonDisabled,
+                        pressed && !isFieldSaveDisabled && { opacity: 0.2 },
                       ]}
                       onPress={saveLahan}
-                      disabled={isSaving}
+                      disabled={isFieldSaveDisabled}
                       accessibilityRole="button"
-                      accessibilityState={{ disabled: isSaving }}
+                      accessibilityLabel="Simpan lahan"
+                      accessibilityState={{ disabled: isFieldSaveDisabled, busy: isSaving }}
                     >
-                      {isSaving ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={styles.modalSaveText}>Simpan Lahan</Text>}
+                      {isSaving ? (
+                        <ActivityIndicator size="small" color="#FFFFFF" />
+                      ) : (
+                        <Text style={styles.modalSaveText}>
+                          {exportAfterSave ? "Simpan & Ekspor" : "Simpan Lahan"}
+                        </Text>
+                      )}
                     </Pressable>
                   </View>
                 </View>
@@ -2117,6 +2415,74 @@ export default function ExploreScreen() {
         </Modal>
 
         {/* ── MODAL CATATAN BARU ── */}
+        <Modal
+          visible={geoJsonPreview !== null}
+          transparent
+          animationType="slide"
+          onRequestClose={closeGeoJsonPreview}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.geoJsonModalContent}>
+              <View style={styles.modalHandle} />
+              <View style={styles.geoJsonModalHeader}>
+                <View style={styles.geoJsonModalIcon}>
+                  <Ionicons name="code-slash-outline" size={20} color="#166534" />
+                </View>
+                <View style={styles.geoJsonModalHeaderCopy}>
+                  <Text style={styles.modalTitle}>Pratinjau GeoJSON</Text>
+                  <Text style={styles.geoJsonModalFileName} numberOfLines={1}>
+                    {geoJsonPreview?.fileName}
+                  </Text>
+                </View>
+                <Pressable
+                  style={({ pressed }) => [styles.geoJsonCloseButton, pressed && { opacity: 0.6 }]}
+                  onPress={closeGeoJsonPreview}
+                  accessibilityRole="button"
+                  accessibilityLabel="Tutup pratinjau GeoJSON"
+                >
+                  <Ionicons name="close" size={21} color="#374151" />
+                </Pressable>
+              </View>
+              <View style={styles.geoJsonFormatBanner}>
+                <Ionicons name="checkmark-circle" size={18} color="#166534" />
+                <Text style={styles.geoJsonFormatText}>
+                  WGS84 · satu Polygon · siap diimpor ke Copernicus Browser
+                </Text>
+              </View>
+              <ScrollView
+                style={styles.geoJsonCodeScroll}
+                contentContainerStyle={styles.geoJsonCodeContent}
+                nestedScrollEnabled
+              >
+                <Text style={styles.geoJsonCodeText} selectable>
+                  {geoJsonPreview?.text}
+                </Text>
+              </ScrollView>
+              <Text style={styles.geoJsonCoordinateHint}>
+                Setiap titik ditulis sebagai [longitude, latitude]. Titik pertama diulang di akhir untuk menutup ring.
+              </Text>
+              <View style={styles.geoJsonModalActions}>
+                <Pressable
+                  style={({ pressed }) => [styles.geoJsonCopyButton, pressed && { opacity: 0.75 }]}
+                  onPress={() => geoJsonPreview && copyGeoJson(geoJsonPreview)}
+                  accessibilityRole="button"
+                >
+                  <Ionicons name="copy-outline" size={17} color="#166534" />
+                  <Text style={styles.geoJsonCopyButtonText}>Salin</Text>
+                </Pressable>
+                <Pressable
+                  style={({ pressed }) => [styles.geoJsonExportButton, pressed && { opacity: 0.85 }]}
+                  onPress={() => geoJsonPreview && shareGeoJson(geoJsonPreview)}
+                  accessibilityRole="button"
+                >
+                  <Ionicons name="share-outline" size={17} color="#FFFFFF" />
+                  <Text style={styles.geoJsonExportButtonText}>Ekspor file</Text>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
         <Modal visible={showNoteModal} transparent animationType="fade">
           <View style={styles.modalOverlay}>
             <View style={styles.noteModalContent}>
@@ -2465,6 +2831,51 @@ const styles = StyleSheet.create({
     width: "100%",
     height: "100%",
   },
+  mapLoadErrorCard: {
+    position: "absolute",
+    left: 22,
+    right: 70,
+    top: "42%",
+    padding: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#FDE68A",
+    backgroundColor: "rgba(255,251,235,0.97)",
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.16,
+    shadowRadius: 10,
+    elevation: 8,
+    zIndex: 25,
+  },
+  mapLoadErrorHeader: { flexDirection: "row", alignItems: "center", gap: 8 },
+  mapLoadErrorTitle: { flex: 1, fontSize: 14, fontWeight: "800", color: "#78350F" },
+  mapLoadErrorText: { marginTop: 6, fontSize: 12, lineHeight: 17, color: "#92400E" },
+  mapLoadErrorActions: { flexDirection: "row", gap: 8, marginTop: 12 },
+  mapLoadRetryButton: {
+    flex: 1,
+    minHeight: 38,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#86EFAC",
+    backgroundColor: "#F0FDF4",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+  },
+  mapLoadRetryText: { fontSize: 12, fontWeight: "700", color: "#166534" },
+  mapLoadSwitchButton: {
+    flex: 1.25,
+    minHeight: 38,
+    borderRadius: 10,
+    backgroundColor: "#166534",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+  },
+  mapLoadSwitchText: { fontSize: 12, fontWeight: "700", color: "#FFFFFF" },
   searchContainer: {
     position: "absolute",
     top: 16,
@@ -2714,7 +3125,7 @@ const styles = StyleSheet.create({
   newFieldButton: {
     marginHorizontal: 16,
     marginTop: 8,
-    marginBottom: 20,
+    marginBottom: 10,
     borderRadius: 16,
     overflow: "hidden",
     shadowColor: "#166534",
@@ -2758,6 +3169,32 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
   },
   disabledButtonText: { color: "#9CA3AF" },
+  importFieldButton: {
+    minHeight: 64,
+    marginHorizontal: 16,
+    marginBottom: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: "#A7D7B7",
+    backgroundColor: "#F4FBF6",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  importFieldButtonDisabled: { opacity: 0.5 },
+  importFieldIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: "#DCFCE7",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  importFieldCopy: { flex: 1 },
+  importFieldTitle: { fontSize: 14, fontWeight: "800", color: "#0A3D1F" },
+  importFieldSubtitle: { marginTop: 3, fontSize: 11, lineHeight: 15, color: "#4B7C5D" },
 
   // ── SECTIONS ──
   sectionContainer: {
@@ -3335,6 +3772,21 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   modalTitle: { fontSize: 18, fontWeight: "800", color: "#0D1B12", letterSpacing: -0.3 },
+  importReviewBanner: {
+    marginTop: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#BBF7D0",
+    backgroundColor: "#F0FDF4",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  importReviewCopy: { flex: 1 },
+  importReviewTitle: { fontSize: 13, fontWeight: "700", color: "#14532D" },
+  importReviewFile: { marginTop: 2, fontSize: 11, color: "#4B7C5D" },
   modalSubtitle: { fontSize: 13, color: "#9CA3AF", marginTop: 4, marginBottom: 16 },
   modalInfoRow: {
     flexDirection: "row",
@@ -3354,6 +3806,23 @@ const styles = StyleSheet.create({
     gap: 5,
   },
   modalInfoChipText: { fontSize: 12, fontWeight: "600", color: "#166534" },
+  geoJsonPreviewButton: {
+    minHeight: 54,
+    marginBottom: 16,
+    marginTop: -8,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#BBF7D0",
+    backgroundColor: "#F0FDF4",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  geoJsonPreviewButtonCopy: { flex: 1 },
+  geoJsonPreviewButtonTitle: { fontSize: 13, fontWeight: "700", color: "#14532D" },
+  geoJsonPreviewButtonSubtitle: { marginTop: 2, fontSize: 10, lineHeight: 14, color: "#4B7C5D" },
   inputLabel: {
     fontSize: 12,
     fontWeight: "700",
@@ -3386,6 +3855,22 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   categoryPickerLabel: { flex: 1, fontSize: 14, color: "#111827", fontWeight: "500" },
+  exportAfterSaveRow: {
+    minHeight: 56,
+    marginTop: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    backgroundColor: "#F9FAFB",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  exportAfterSaveCopy: { flex: 1 },
+  exportAfterSaveTitle: { fontSize: 13, fontWeight: "700", color: "#1F2937" },
+  exportAfterSaveSubtitle: { marginTop: 2, fontSize: 10, lineHeight: 14, color: "#6B7280" },
   categoryPickerDropdown: {
     borderWidth: 1.5,
     borderColor: "#E5E7EB",
@@ -3439,6 +3924,88 @@ const styles = StyleSheet.create({
   },
   modalSaveButtonDisabled: { opacity: 0.5 },
   modalSaveText: { color: "#FFFFFF", fontWeight: "700", fontSize: 14 },
+
+  geoJsonModalContent: {
+    width: "100%",
+    maxHeight: height * 0.88,
+    paddingHorizontal: 20,
+    paddingTop: 14,
+    paddingBottom: 30,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    backgroundColor: "#FFFFFF",
+  },
+  geoJsonModalHeader: { flexDirection: "row", alignItems: "center", gap: 10 },
+  geoJsonModalIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 11,
+    backgroundColor: "#DCFCE7",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  geoJsonModalHeaderCopy: { flex: 1 },
+  geoJsonModalFileName: { marginTop: 2, fontSize: 11, color: "#6B7280" },
+  geoJsonCloseButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: "#F3F4F6",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  geoJsonFormatBanner: {
+    marginTop: 16,
+    paddingHorizontal: 11,
+    paddingVertical: 9,
+    borderRadius: 10,
+    backgroundColor: "#F0FDF4",
+    borderWidth: 1,
+    borderColor: "#BBF7D0",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  geoJsonFormatText: { flex: 1, fontSize: 11, lineHeight: 16, color: "#166534", fontWeight: "600" },
+  geoJsonCodeScroll: {
+    maxHeight: height * 0.43,
+    marginTop: 12,
+    borderRadius: 12,
+    backgroundColor: "#0F172A",
+  },
+  geoJsonCodeContent: { padding: 14 },
+  geoJsonCodeText: {
+    color: "#D1FAE5",
+    fontSize: 11,
+    lineHeight: 17,
+    fontFamily: Platform.select({ ios: "Menlo", android: "monospace", default: "monospace" }),
+  },
+  geoJsonCoordinateHint: { marginTop: 10, fontSize: 11, lineHeight: 16, color: "#6B7280" },
+  geoJsonModalActions: { flexDirection: "row", gap: 10, marginTop: 16 },
+  geoJsonCopyButton: {
+    flex: 1,
+    minHeight: 46,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#86EFAC",
+    backgroundColor: "#F0FDF4",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 7,
+  },
+  geoJsonCopyButtonText: { color: "#166534", fontSize: 14, fontWeight: "700" },
+  geoJsonExportButton: {
+    flex: 1.5,
+    minHeight: 46,
+    borderRadius: 12,
+    backgroundColor: "#166534",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 7,
+  },
+  geoJsonExportButtonText: { color: "#FFFFFF", fontSize: 14, fontWeight: "700" },
 
   noteModalContent: {
     backgroundColor: "#FFFFFF",

@@ -152,7 +152,7 @@ Derived from `app/` file-based routing (`expo-router`). Ordered by user flow.
 | 5 | `app/auth/signup.tsx` | Sign-up | Branded account creation with clear optional fields, Indonesian phone normalization, a distinct email-confirmation success state, and bounded errors (`components/auth/auth-screen.tsx`, `utils/auth-error.ts`, CODE; DEC-35/36). |
 | 5a | `app/auth/callback.tsx` | Email verification | Focused verification progress/error state that completes the Supabase redirect and returns the user to login when recovery is needed (CODE; DEC-36). |
 | 6 | `app/(tabs)/index.tsx` | **Beranda** (Home) | Dashboard: latest raw observation, weather card, field carousel (`_layout.tsx:67-73`). |
-| 7 | `app/(tabs)/explore.tsx` | **Ladang** (Fields) | Map-based padi-field list + interactive polygon drawing; raw NDVI/NDMI state (`_layout.tsx:74-80`). |
+| 7 | `app/(tabs)/explore.tsx` | **Ladang** (Fields) | Map-based padi-field list with interactive drawing, reviewed GeoJSON import/export, exact-coordinate preview, and recoverable base-map loading; raw NDVI/NDMI state (`utils/geojson-import.ts`, CODE; DEC-38/39). |
 | 8 | `app/(tabs)/education.tsx` | **Edukasi** (Education) | Article list with filter/sort (`_layout.tsx:81-87`). |
 | 9 | `app/(tabs)/weather.tsx` | **Cuaca** (Weather) | Current conditions, metric grid, risk alert (`_layout.tsx:88-94`). |
 | 10 | `app/(tabs)/profile.tsx` | **Profil** (Profile) | Account and saved-field facts, sign-out, explicit unavailable notification/metric states, and preview-only achievements (`_layout.tsx:95-101`; DEC-20). |
@@ -202,7 +202,9 @@ unavailable and achievement cards are labeled preview-only (`app/(tabs)/profile.
 
 The weather-icon set is a real design asset: 12 PNGs (`Icon=Sunny.png`, `Icon=Cloudy.png`, `Icon=Rainy.png`, `…Thunderstorm`, `…Snowfall`, `…Night`, etc.), keyed by `WeatherIconKey` with a `default` → Cloudy fallback. `mapWmoWeatherCodeToIconKey` maps the Open-Meteo WMO code contract to these provider-agnostic assets (DEC-07; ADR-04).
 
-The Ladang map keeps pan/drag enabled in normal browsing. In drawing mode, location search is hidden and the drawing status plus Undo, Redo, Batal, and Simpan controls are top-anchored inside the map so the completion path remains reachable on short mobile viewports (`app/(tabs)/explore.tsx`).
+The Ladang map keeps pan/drag enabled in normal browsing. In drawing mode, location search is hidden and the drawing status plus Undo, Redo, Batal, and Simpan controls are top-anchored inside the map so the completion path remains reachable on short mobile viewports. A persistent layers control switches between satellite and standard base maps. A timed load-failure card explains the blank-map state and provides retry and base-map fallback actions (`app/(tabs)/explore.tsx`, CODE; DEC-39).
+
+GeoJSON import is a secondary outlined action beneath the primary drawing CTA. Its helper copy states the single-Polygon, WGS84, and 1 MB constraints before the native picker opens. During reading it exposes a busy state; successful parsing opens the existing save sheet with filename, point count, area estimate, editable name, and a fitted map preview. Validation errors use specific Indonesian recovery copy and retain no pending geometry. The save sheet offers exact GeoJSON preview plus an enabled-by-default post-save export. Every saved-field card exposes the same GeoJSON action. The preview sheet shows a format-status banner, selectable monospaced text, coordinate-order guidance, and separate copy/file-export actions (`app/(tabs)/explore.tsx`, `utils/geojson-import.ts`, CODE; DEC-38/39).
 
 ### 6.2 Icon system
 

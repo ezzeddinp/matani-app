@@ -95,10 +95,14 @@ export function auditEnvBoundaries(client, server) {
       client.GOOGLE_GENERATIVE_AI_API_KEY ? "unsafe client placement" : server.GOOGLE_GENERATIVE_AI_API_KEY ? "backend only" : "missing"
     }`
   );
+  const androidMapKey = client.GOOGLE_MAPS_API_KEY_ANDROID?.trim();
+  const androidMapKeyConfigured = Boolean(
+    androidMapKey &&
+    !androidMapKey.startsWith("your-") &&
+    !androidMapKey.includes("replace"),
+  );
   findings.push(
-    `Google Maps key presence: iOS=${Boolean(client.GOOGLE_MAPS_API_KEY_IOS)}, Android=${Boolean(
-      client.GOOGLE_MAPS_API_KEY_ANDROID
-    )}; platform restrictions require console verification`
+    `Android Google Maps key configured: ${androidMapKeyConfigured}; Android app/API restrictions require console verification. iOS uses the native provider.`
   );
 
   return { unsafe, findings };

@@ -1,5 +1,43 @@
 import type { ExpoConfig } from "expo/config";
 
+const configuredMapKey = (value?: string) => {
+  const trimmed = value?.trim();
+  if (!trimmed || trimmed.startsWith("your-") || trimmed.includes("replace")) return undefined;
+  return trimmed;
+};
+
+const androidGoogleMapsApiKey = configuredMapKey(process.env.GOOGLE_MAPS_API_KEY_ANDROID);
+
+const plugins: ExpoConfig["plugins"] = [
+  "expo-router",
+  "expo-font",
+  "expo-web-browser",
+  "expo-image",
+  "expo-status-bar",
+  "expo-sharing",
+  [
+    "expo-splash-screen",
+    {
+      image: "./assets/images/splash-matani-logo.png",
+      imageWidth: 200,
+      resizeMode: "contain",
+      backgroundColor: "#ffffff",
+      dark: {
+        backgroundColor: "#000000",
+      },
+    },
+  ],
+];
+
+if (androidGoogleMapsApiKey) {
+  plugins.push([
+    "react-native-maps",
+    {
+      androidGoogleMapsApiKey,
+    },
+  ]);
+}
+
 const config: ExpoConfig = {
   name: "matani-app",
   slug: "matani-app",
@@ -11,9 +49,6 @@ const config: ExpoConfig = {
   ios: {
     bundleIdentifier: "com.matani.app",
     supportsTablet: true,
-    config: {
-      googleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY_IOS ?? "",
-    },
     runtimeVersion: {
       policy: "appVersion",
     },
@@ -28,35 +63,12 @@ const config: ExpoConfig = {
       monochromeImage: "./assets/images/android-icon-monochrome.png",
     },
     predictiveBackGestureEnabled: false,
-    config: {
-      googleMaps: {
-        apiKey: process.env.GOOGLE_MAPS_API_KEY_ANDROID ?? "",
-      },
-    },
   },
   web: {
     output: "static",
     favicon: "./assets/images/matani-logo.png",
   },
-  plugins: [
-    "expo-router",
-    "expo-font",
-    "expo-web-browser",
-    "expo-image",
-    "expo-status-bar",
-    [
-      "expo-splash-screen",
-      {
-        image: "./assets/images/splash-matani-logo.png",
-        imageWidth: 200,
-        resizeMode: "contain",
-        backgroundColor: "#ffffff",
-        dark: {
-          backgroundColor: "#000000",
-        },
-      },
-    ],
-  ],
+  plugins,
   experiments: {
     typedRoutes: true,
     reactCompiler: true,

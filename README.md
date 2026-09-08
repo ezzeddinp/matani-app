@@ -99,7 +99,7 @@ npm run db:test
 npm run db:types
 ```
 
-**Note on Maps keys:** `GOOGLE_MAPS_API_KEY_IOS` / `GOOGLE_MAPS_API_KEY_ANDROID` are injected into the native build from env by `app.config.ts` at build time. They are **client-visible in the shipped binary by design** — the control is per-platform, per-API key restriction, not secrecy.
+**Note on Maps keys:** Android standalone builds inject `GOOGLE_MAPS_API_KEY_ANDROID` through `app.config.ts`; iOS uses its native map provider. The Android key is **client-visible in the shipped binary by design** — the control is Android app/API restriction, not secrecy.
 
 ## Documentation map
 
