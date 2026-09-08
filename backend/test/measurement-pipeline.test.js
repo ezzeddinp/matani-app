@@ -179,6 +179,7 @@ test("CDSE adapter persists only matched same-source native-grid results", async
     to: "2026-08-30T00:00:00Z",
   });
   assert.equal(calls.length, 3);
+  assert.ok(calls.every(({ options }) => options.redirect === "error"));
   assert.equal(result.quality_status, "passed");
   assert.deepEqual(result.source_product_ids, ["S2A_FIXTURE.SAFE"]);
   assert.equal(result.index_stats[0].valid_pixel_count, 10);

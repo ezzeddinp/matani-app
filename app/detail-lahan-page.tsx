@@ -604,7 +604,7 @@ const styles = StyleSheet.create({
   backActionText: { color: "#FFFFFF", fontWeight: "700" },
   content: { paddingBottom: 36 },
   hero: { height: 230, justifyContent: "space-between", padding: 18 },
-  heroOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(5, 30, 16, 0.48)" },
+  heroOverlay: { ...StyleSheet.absoluteFill, backgroundColor: "rgba(5, 30, 16, 0.48)" },
   iconButton: { width: 42, height: 42, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(15, 23, 42, 0.55)" },
   heroCopy: { maxWidth: "90%" },
   cropLabel: { color: "#BBF7D0", fontSize: 12, fontWeight: "800" },

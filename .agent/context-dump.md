@@ -5,11 +5,6 @@
 **Status:** Active
 **Updated:** 2026-09-08
 
-**DEC-37 (2026-09-08, active):** The developer requires automatic NDVI/NDMI initialization
-when opening an empty field detail. Request once per visit through the existing
-idempotent backend worker; retain stored values and explicit failed/unavailable states.
-This amends earlier screen-open restrictions in ADR-06; it does not approve synthetic
-values or establish formal M2 PASS.
 **Canonical for:** Project history, the hackathon→thesis pivot, superseded ideas, the decisions index (DEC-*), and the EN↔ID glossary
 **Companion documents:** [`evidence-register.md`](evidence-register.md), [`project-architecture.md`](project-architecture.md), [`research-protocol.md`](research-protocol.md), [`product-brief.md`](product-brief.md), [`implementation-plan.md`](implementation-plan.md)
 
@@ -188,6 +183,7 @@ elaborate them.
 
 | ID | Decision | Date | Rationale | Status |
 |----|----------|------|-----------|--------|
+| **DEC-37** | Initialize NDVI/NDMI automatically when opening an empty field detail, once per visit through the idempotent worker; retain stored values and explicit failed/unavailable states. | 2026-09-08 | The developer reports that manual-only initialization leaves field details empty. This amends earlier screen-open restrictions in ADR-06, without approving synthetic values or establishing formal M2 PASS. | Active |
 | **DEC-01** | Thesis focus is **remote-sensing evaluation** (Sentinel-2 NDVI/NDMI monitoring for Indonesian smallholder farms); the app is the **delivery/field-interaction vehicle**, not the contribution. | 2026-07-23 | Keeps the research question — measurement quality and feasibility — distinct from app engineering, so the thesis is defensible on its own terms. | **Amended by DEC-14** |
 | **DEC-02** | Documentation is written in **English** with an **EN↔ID glossary** (see § 7). | 2026-07-23 | Reviewers/advisor and AI agents work in English; Indonesian domain terms are retained where they are the product's own words. | Active |
 | **DEC-03** | **No wholesale stack rewrite.** Retain Expo/React Native, Supabase (Auth + Postgres + PostGIS + RLS), Express/Node API, Vercel, Google Maps, Sentinel-2 L2A, and Sentinel Hub Statistical API semantics. | 2026-07-23 | The existing stack is sound and already carries field-capture (`supabase_setup.sql`, `explore.tsx`); effort belongs on measurement provenance, not re-platforming. | Active |

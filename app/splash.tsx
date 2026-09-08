@@ -189,7 +189,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
   },
   shapeLayer: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     overflow: "hidden",
   },
   // topArc: {

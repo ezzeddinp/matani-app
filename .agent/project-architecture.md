@@ -44,15 +44,16 @@ OpenStreetMap Nominatim for place search (`app/(tabs)/explore.tsx:755-778`), and
 avatar/display-image hosts. Those presentation integrations do not create or label
 research measurements.
 
-### 1.1 Mobile app (Expo SDK 54 / React Native 0.81)
+### 1.1 Mobile app (Expo SDK 57 / React Native 0.86; CODE)
 
 - Expo Router with **file-based routes** under `app/` (`app/_layout.tsx`, tab group
   `app/(tabs)/` = `index`, `explore`, `weather`, `education`, `profile`; plus
   `auth/`, `detail-lahan-page.tsx`, `detail-education-page.tsx`, `onboarding`,
   `notifications`, `splash`, `modal`). `typedRoutes` and `reactCompiler` are enabled
   (`app.config.ts:59-62`).
-- React 19.1 and the Expo SDK 54 package matrix are pinned through `package.json` /
-  `package-lock.json` (EVID-022). `npm start`, `npm run ios`, and `npm run android`
+- React 19.2 and the Expo SDK 57 package matrix are pinned through `package.json` /
+  `package-lock.json` after upstream commit `da0463e` (CODE; ADR-13 amendment).
+  `npm start`, `npm run ios`, and `npm run android`
   explicitly select Expo Go. Unused `@expo/ui` and `expo-dev-client` are absent so the
   default thesis-team device workflow does not imply a custom development build
   (DEC-22).
@@ -518,6 +519,15 @@ Each ADR aligns to a `DEC-*` in [`context-dump.md`](context-dump.md) and carries
   requires a material processing/masking change before the M2 migration.
 
 ### ADR-13 · Pin Expo SDK 54 and make Expo Go the default device workflow
+- **As-built amendment (2026-09-08):** Upstream commit `da0463e`, merged in `b4ba39f`,
+  restores SDK 57 / React Native 0.86 / React 19.2 and compatible Router imports. This
+  differs from the original SDK 54 decision and is retained as the incoming repository
+  state, not an independently approved platform decision. Three obsolete
+  `StyleSheet.absoluteFillObject` references were replaced with `absoluteFill`, and a
+  duplicate Router import was consolidated. The installed lockfile passes type-check
+  and an offline 1,807-module iOS export; device compatibility remains unverified
+  (`package.json`, `app/_layout.tsx`, `app/detail-lahan-page.tsx`, `app/onboarding.tsx`,
+  `app/splash.tsx`, CODE; scoped local build observation, 2026-09-08).
 - **Status:** Accepted and applied locally on 2026-07-28 (DEC-22).
 - **Context:** The thesis team's installed device clients could not open the prior SDK 57
   project. SDK packages must move as one compatibility matrix, not as a single `expo`

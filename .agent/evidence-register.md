@@ -16,6 +16,12 @@ or Process completion. Automatic approval review rejected the private-field prob
 before execution; real-field completion remains unverified. Sources: scoped Vercel
 runtime logs, read-only Supabase audit, Vercel environment update output, and public
 HTTP response on the checked date. No general provider reliability claim follows.
+
+**OBS-37 deployment follow-up (2026-09-08):** Git revision `b4ba39f` includes the fix
+`9050f06`; Vercel deployment `dpl_A5eLR8gYDxmcqZruQ8tgUK6D1if9` completed its backend
+build and is Ready at the stable alias. A public root GET returned HTTP 200 with
+`status: ok`. The latest bounded runtime-log read contained only that health request,
+so this is deployment/reachability evidence, not measured-result verification.
 **Canonical for:** Every externally sourced factual claim (EVID-*) and dated observation (OBS-*) used anywhere in this repository
 **Companion documents:** [`research-protocol.md`](research-protocol.md), [`project-architecture.md`](project-architecture.md), [`data-evaluation-plan.md`](data-evaluation-plan.md), [`product-brief.md`](product-brief.md), [`context-dump.md`](context-dump.md)
 
