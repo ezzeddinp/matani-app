@@ -72,6 +72,8 @@ test("auth fields keep Android keyboard focus stable", async () => {
   assert.match(signup, /importantForAutofill="no"/);
   assert.match(signup, /submitBehavior="submit"/);
   assert.match(signup, /requestAnimationFrame\(\(\) => passwordRef\.current\?\.focus\(\)\)/);
+  assert.doesNotMatch(authScreen, /setFocused|fieldShellFocused/);
+  assert.doesNotMatch(authScreen, /onFocus=\{[^}]*setFocused/);
   assert.doesNotMatch(signup, /textContentType=/);
 });
 

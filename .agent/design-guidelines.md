@@ -193,7 +193,7 @@ unavailable and achievement cards are labeled preview-only (`app/(tabs)/profile.
 
 | Component | Role | Cite |
 |---|---|---|
-| `components/auth/auth-screen.tsx` | Shared authentication shell, focused icon field, safe error/success notice, and common action/footer styles. Uses the dark Matani green ramp, white elevated form card, 44 px minimum icon actions, persistent keyboard taps, explicit next-field submission, and focus restoration after password-visibility actions. | `components/auth/auth-screen.tsx`, `app/auth/login.tsx`, `app/auth/signup.tsx` (CODE; DEC-36) |
+| `components/auth/auth-screen.tsx` | Shared authentication shell, icon field, safe error/success notice, and common action/footer styles. Uses the dark Matani green ramp, white elevated form card, 44 px minimum icon actions, persistent keyboard taps, explicit next-field submission, and focus restoration after password-visibility actions. Field wrappers remain structurally and visually stable during native focus changes so Android does not immediately blur the input. | `components/auth/auth-screen.tsx`, `app/auth/login.tsx`, `app/auth/signup.tsx` (CODE; DEC-36) |
 | `components/drawing-mode-indicator.tsx` | Floating banner during polygon drawing ("Mode Menggambar Aktif • N titik"), orange `#FF5722` | `drawing-mode-indicator.tsx:9-27` |
 | `components/empty-state-lahan.tsx` | Empty-fields onboarding: leaf icon, CTA, 3-step how-to | `empty-state-lahan.tsx:8-69` |
 | `components/haptic-tab.tsx` | Tab-bar button wrapper adding iOS haptic feedback on press | `haptic-tab.tsx:5-18` |

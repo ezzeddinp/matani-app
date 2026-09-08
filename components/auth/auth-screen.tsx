@@ -5,7 +5,6 @@ import React, {
   type ComponentProps,
   forwardRef,
   type ReactNode,
-  useState,
 } from "react";
 import {
   KeyboardAvoidingView,
@@ -88,16 +87,14 @@ export const AuthField = forwardRef<TextInput, AuthFieldProps>(function AuthFiel
   { icon, label, prefix, rightElement, style, ...inputProps },
   ref,
 ) {
-  const [focused, setFocused] = useState(false);
-
   return (
     <View style={styles.fieldGroup}>
       <Text style={styles.fieldLabel}>{label}</Text>
-      <View style={[styles.fieldShell, focused && styles.fieldShellFocused]}>
+      <View style={styles.fieldShell}>
         <Ionicons
           name={icon}
           size={20}
-          color={focused ? "#166534" : "#6B7A70"}
+          color="#6B7A70"
           style={styles.fieldIcon}
         />
         {prefix ? <Text style={styles.fieldPrefix}>{prefix}</Text> : null}
@@ -105,14 +102,6 @@ export const AuthField = forwardRef<TextInput, AuthFieldProps>(function AuthFiel
           ref={ref}
           {...inputProps}
           accessibilityLabel={inputProps.accessibilityLabel ?? label}
-          onBlur={(event) => {
-            setFocused(false);
-            inputProps.onBlur?.(event);
-          }}
-          onFocus={(event) => {
-            setFocused(true);
-            inputProps.onFocus?.(event);
-          }}
           placeholderTextColor="#8B978F"
           selectionColor="#23824D"
           style={[styles.fieldInput, style]}
@@ -332,15 +321,6 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     backgroundColor: "#F7FAF7",
     paddingLeft: 15,
-  },
-  fieldShellFocused: {
-    borderColor: "#23824D",
-    backgroundColor: "#FFFFFF",
-    shadowColor: "#23824D",
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.12,
-    shadowRadius: 7,
-    elevation: 1,
   },
   fieldIcon: {
     marginRight: 11,
