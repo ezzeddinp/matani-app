@@ -4,6 +4,18 @@
 **Audience:** The developer, thesis advisor, reviewers, and AI agents working in this repo
 **Status:** Active
 **Updated:** 2026-09-08
+
+**OBS-37 (2026-09-08, scoped production diagnosis):** Vercel logs for the stable backend
+show token acquisition followed by three Catalog HTTP 200 responses with `text/html`
+and body length 21,948, ending in `provider-response-invalid`. A read-only hosted audit
+found failed jobs and only one existing observation. The exact prior cloud URL value
+was not observable; it is not proven to have been empty. Production Catalog/Process
+configuration was normalized to the defaults in `backend/config.js`. A public Catalog
+collections GET returned JSON, but that does not verify authenticated polygon search
+or Process completion. Automatic approval review rejected the private-field probe
+before execution; real-field completion remains unverified. Sources: scoped Vercel
+runtime logs, read-only Supabase audit, Vercel environment update output, and public
+HTTP response on the checked date. No general provider reliability claim follows.
 **Canonical for:** Every externally sourced factual claim (EVID-*) and dated observation (OBS-*) used anywhere in this repository
 **Companion documents:** [`research-protocol.md`](research-protocol.md), [`project-architecture.md`](project-architecture.md), [`data-evaluation-plan.md`](data-evaluation-plan.md), [`product-brief.md`](product-brief.md), [`context-dump.md`](context-dump.md)
 

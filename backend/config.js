@@ -9,6 +9,16 @@ const parseOrigins = (value) =>
     .map((origin) => origin.trim())
     .filter(Boolean);
 
+const providerUrl = (value, fallback) => {
+  const normalized = value?.trim();
+  if (!normalized) return fallback;
+  const url = new URL(normalized);
+  if (url.protocol !== 'https:' || url.username || url.password) {
+    throw new Error('invalid-provider-url');
+  }
+  return url.href;
+};
+
 export const loadConfig = (env = process.env) => ({
   nodeEnv: env.NODE_ENV ?? "development",
   port: parsePositiveInteger(env.PORT, 5001),
@@ -33,8 +43,8 @@ export const loadConfig = (env = process.env) => ({
   ndviValidPixelFloor: parsePositiveInteger(env.NDVI_VALID_PIXEL_FLOOR, 9),
   ndmiValidPixelFloor: parsePositiveInteger(env.NDMI_VALID_PIXEL_FLOOR, 3),
   sentinelCatalogUrl:
-    env.SENTINEL_CATALOG_URL ?? "https://sh.dataspace.copernicus.eu/catalog/v1/search",
+    providerUrl(env.SENTINEL_CATALOG_URL, "https://sh.dataspace.copernicus.eu/catalog/v1/search"),
   sentinelProcessUrl:
-    env.SENTINEL_PROCESS_URL ?? "https://sh.dataspace.copernicus.eu/process/v1",
+    providerUrl(env.SENTINEL_PROCESS_URL, "https://sh.dataspace.copernicus.eu/process/v1"),
   aiSummaryEnabled: env.AI_SUMMARY_ENABLED === "true",
 });

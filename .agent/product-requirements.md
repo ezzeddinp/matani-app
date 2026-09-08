@@ -213,9 +213,10 @@ the mobile surface remains non-blocking when the summary is unavailable
 **Behavior.** The field-detail screen reads saved metadata, persisted
 `measurement_observations`, and the latest durable job. It polls while queued/processing,
 plots only quality-passing values, and lists acquisition date, quality status, rejection
-reason, and separate NDVI/NDMI valid-pixel counts. A retry action explicitly requests a
-job. A zero-attempt queued job is identified as not yet started and exposes the same
-explicit action rather than being hidden behind an indefinite processing state. A
+reason, and separate NDVI/NDMI valid-pixel counts. Opening an empty detail automatically
+requests one idempotent job per visit, including queued/failed jobs and processing leases
+older than ten minutes. Active processing and completed unavailable results do not start
+another request. `Coba lagi` provides manual recovery (DEC-37; `utils/measurement-start.ts`, CODE). A
 configured production origin is authoritative and structured backend errors are not
 replaced by LAN fallback timeouts. Metadata remains visible if observation/job reads fail.
 
@@ -262,7 +263,7 @@ error states without hiding a loaded field; derive no diagnosis or condition cla
 measurement surfaces with a controlled, persisted, provenance-safe pipeline. Engineering
 detail and deployment qualification live in [`data-evaluation-plan.md`](data-evaluation-plan.md).
 
-- **Request/refresh, not render-triggered.** Opening a screen never triggers satellite processing; measurement is an explicit request served by an idempotent controlled worker, and screens **read the persisted result** (ADR-06; [`project-architecture.md`](project-architecture.md) § 3 governing principle).
+- **Bounded automatic initialization.** Empty field details can request one idempotent backend job per visit; rerenders and polling read persisted results. Saving and manual retry use the same controlled worker boundary (DEC-37; ADR-06).
 - **Provenance-complete persistence.** Every stored measurement carries acquisition window, polygon geometry, provider, quality flags, valid-pixel counts per index, and masking rule-set version (INV-03; [`project-architecture.md`](project-architecture.md) § 3 provenance contract).
 - **Honest unavailable states.** When no quality-passing polygon-level observation exists for a field/window, the product shows an explicit `unavailable` state — preserving DEC-24's removal of synthetic substitution (INV-01/02/06; [`research-protocol.md`](research-protocol.md) § 8).
 - **Valid-pixel visibility.** The user can see per-index valid-pixel sufficiency and polygon-level cloud/shadow state (INV-04; [`research-protocol.md`](research-protocol.md) §§ 8–9); NDVI (10 m, B04/B08) and NDMI (SWIR B11 at 20 m) valid-pixel counts are surfaced independently (EVID-009).

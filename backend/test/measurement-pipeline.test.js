@@ -355,7 +355,7 @@ test("worker cache identity changes with the hosted executor revision", async ()
     to: "2026-08-30T00:00:00Z",
     idempotencyKey: "latest:field-1",
   });
-  assert.match(receivedKey, /cdse-node-fetch-v4$/);
+  assert.match(receivedKey, /cdse-node-fetch-v5$/);
 });
 
 test("worker exposes only a bounded provider diagnostic code to runtime logs", async () => {

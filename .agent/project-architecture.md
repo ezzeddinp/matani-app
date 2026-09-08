@@ -156,16 +156,19 @@ created, while any already-owned optional value remains unset for later correcti
 > persisted as a provenance-complete hosted `measured` row. That manual worker execution
 > does not establish repeatability: later authenticated device requests were durably
 > accepted and invoked by Vercel, but their provider work failed before persistence.
-> The first transport/cache-recovery remediation is deployed but still fails before
-> Catalog completion on Vercel. A second executor revision now retries bounded
-> network/timeout failures and malformed successful Catalog/Process responses; it is
-> fixture-verified and deployed, but not yet proven by a post-deployment device retry.
+> A 2026-09-08 production trace confirms Catalog returned HTML rather than JSON after
+> token acquisition. The current remediation normalizes provider URLs, rejects
+> redirects, and uses a fresh executor cache revision. Empty field details now request
+> an idempotent job automatically once per visit and poll persisted results. Hosted
+> completion still requires an explicitly approved real-field test; automatic approval
+> review blocked the private-polygon probe (OBS-37; DEC-37).
 
 This is **the canonical measurement-provenance wording**. All other documents link here;
 none may soften or restate it. The verified facts behind it (OBS-22/23, 2026-08-30):
 
-- **No rendering-triggered satellite request or synthetic substitution remains.** Field
-  save/retry explicitly calls `POST /measurements/request`; screens query persisted rows
+- **No repeated render-triggered processing or synthetic substitution remains.** Field
+  save/retry and bounded empty-detail initialization call `POST /measurements/request`;
+  screens query persisted rows (DEC-37)
   and retain honest queued, failed, rejected, and unavailable states
   (`app/(tabs)/explore.tsx`, `utils/backend-api.ts`, `app/detail-lahan-page.tsx`, CODE).
 - **The measurement boundary is implemented locally.** The Node adapter validates and
@@ -373,6 +376,14 @@ Each ADR aligns to a `DEC-*` in [`context-dump.md`](context-dump.md) and carries
   remains outside the measurement/labeling boundary.
 
 ### ADR-06 · Controlled acquisition worker/job boundary
+- **Amendment (2026-09-08; DEC-37):** Empty field details automatically request one
+  idempotent job per visit, unless a completed result or active processing lease exists.
+  This supersedes the earlier prohibition on screen-open initialization, while retaining
+  persisted reads, backend deduplication, and no provider calls from React rendering.
+  Catalog/Process URLs are trimmed, blank values use canonical defaults, and non-HTTPS
+  or credential-bearing URLs are rejected. Executor `cdse-node-fetch-v5` rejects
+  redirects and separates repaired jobs from exhausted earlier executions. Production
+  URL configuration was normalized; hosted completion remains unverified (OBS-37).
 - **Status:** Accepted; Node worker, durable job schema, and explicit request path are
   implemented and locally verified. One manual hosted completion is observed; Vercel
   deferred invocation is observed but successful deferred completion remains pending

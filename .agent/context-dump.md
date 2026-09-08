@@ -4,6 +4,12 @@
 **Audience:** The developer, thesis advisor, reviewers, and AI agents working in this repo
 **Status:** Active
 **Updated:** 2026-09-08
+
+**DEC-37 (2026-09-08, active):** The developer requires automatic NDVI/NDMI initialization
+when opening an empty field detail. Request once per visit through the existing
+idempotent backend worker; retain stored values and explicit failed/unavailable states.
+This amends earlier screen-open restrictions in ADR-06; it does not approve synthetic
+values or establish formal M2 PASS.
 **Canonical for:** Project history, the hackathon→thesis pivot, superseded ideas, the decisions index (DEC-*), and the EN↔ID glossary
 **Companion documents:** [`evidence-register.md`](evidence-register.md), [`project-architecture.md`](project-architecture.md), [`research-protocol.md`](research-protocol.md), [`product-brief.md`](product-brief.md), [`implementation-plan.md`](implementation-plan.md)
 

@@ -3,7 +3,7 @@
 **Document type:** Implementation roadmap
 **Audience:** The developer, thesis advisor, reviewers, and AI agents working in this repo
 **Status:** Active
-**Updated:** 2026-09-07
+**Updated:** 2026-09-08
 **Canonical for:** Milestone sequencing, milestone acceptance criteria, and the definition of done for thesis engineering work
 **Companion documents:** [`project-architecture.md`](project-architecture.md), [`data-evaluation-plan.md`](data-evaluation-plan.md), [`research-protocol.md`](research-protocol.md), [`product-requirements.md`](product-requirements.md), [`evidence-register.md`](evidence-register.md), [`context-dump.md`](context-dump.md)
 
@@ -135,7 +135,7 @@ Independent raster comparison is not an M1 acceptance criterion (DEC-26).
 
 ## M2 — Real persisted measurement pipeline
 
-**Goal.** Replace the transient bbox prototype with a **controlled, persisted, provenance-safe pipeline**: measurements are requested (never render-triggered), computed over the real field polygon, quality-gated, persisted with full provenance, and shown with acquisition date and quality — or shown as an honest `unavailable` state. DEC-24 already removed synthetic substitution; M2 makes INV-03/04/05 concretely satisfiable.
+**Goal.** Replace the transient bbox prototype with a **controlled, persisted, provenance-safe pipeline**: measurements are requested through an idempotent worker (including bounded empty-detail initialization under DEC-37), computed over the real field polygon, quality-gated, persisted with full provenance, and shown with acquisition date and quality — or shown as an honest `unavailable` state. DEC-24 already removed synthetic substitution; M2 makes INV-03/04/05 concretely satisfiable.
 
 **Why it precedes the next.** M3's research validation consumes **persisted, provenance-complete measurements** ([`data-evaluation-plan.md`](data-evaluation-plan.md) § 8) — there is nothing to validate until they exist and carry the provenance that makes `measured` reproducible and distinguishable from `unavailable` and synthetic. The pipeline must exist and be honest before its outputs can be analyzed.
 

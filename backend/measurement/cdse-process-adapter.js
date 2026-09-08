@@ -14,7 +14,7 @@ export const MEASUREMENT_VERSIONS = Object.freeze({
   algorithm: "ndvi-ndmi-v1",
   evalscript: "s2l2a-process-native-grids-v2",
   masking: "s2l2a-scl-rice-v1",
-  executor: "cdse-node-fetch-v4",
+  executor: "cdse-node-fetch-v5",
 });
 
 const CDSE_CATALOG_URL =
@@ -311,6 +311,7 @@ export const createCdseProcessAdapter = ({
     try {
       response = await fetchImpl(requestUrl, {
         method: "POST",
+        redirect: "error",
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
@@ -377,6 +378,7 @@ export const createCdseProcessAdapter = ({
     try {
       response = await fetchImpl(processUrl, {
         method: "POST",
+        redirect: "error",
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",

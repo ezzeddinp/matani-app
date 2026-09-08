@@ -1,7 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { shouldStartMeasurement } from "@/utils/measurement-start";
 import {
   ActivityIndicator,
   ImageBackground,
@@ -211,6 +212,7 @@ export default function DetailLahanPage() {
   const [jobErrorCode, setJobErrorCode] = useState<string | null>(null);
   const [refreshTick, setRefreshTick] = useState(0);
   const [isRequestingMeasurement, setIsRequestingMeasurement] = useState(false);
+  const automaticField = useRef<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -260,6 +262,7 @@ export default function DetailLahanPage() {
               status?: string | null;
               attempts?: number | null;
               error_code?: string | null;
+              updated_at?: string | null;
             }
           | null;
         setJobStatus(latestJob?.status ?? null);
@@ -270,11 +273,6 @@ export default function DetailLahanPage() {
           setObservationErrorMessage(
             "Status job pengukuran gagal dimuat. Metadata lahan tetap tersedia."
           );
-        }
-        if (["queued", "processing"].includes(latestJob?.status ?? "")) {
-          retryTimer = setTimeout(() => {
-            if (active) setRefreshTick((value) => value + 1);
-          }, 4_000);
         }
         if (observationResult.error) {
           console.error("Gagal memuat riwayat observasi lahan:", observationResult.error);
@@ -303,6 +301,29 @@ export default function DetailLahanPage() {
           .filter((point): point is TimelinePoint => point !== null);
 
         setObservations(timeline);
+        setIsLoading(false);
+        if (
+          !jobResult.error &&
+          automaticField.current !== fieldId &&
+          shouldStartMeasurement(timeline.length, latestJob)
+        ) {
+          automaticField.current = fieldId;
+          setIsRequestingMeasurement(true);
+          try {
+            await requestLahanMeasurement(fieldId);
+            if (active) setRefreshTick((value) => value + 1);
+          } catch (error) {
+            if (active) setObservationErrorMessage(
+              `Pengukuran otomatis belum berhasil. ${describeBackendError(error)}`,
+            );
+          } finally {
+            if (active) setIsRequestingMeasurement(false);
+          }
+        } else if (["queued", "processing"].includes(latestJob?.status ?? "")) {
+          retryTimer = setTimeout(() => {
+            if (active) setRefreshTick((value) => value + 1);
+          }, 4_000);
+        }
       } catch (error) {
         if (!active) return;
         console.error("Gagal memuat data lahan:", error);
@@ -350,7 +371,7 @@ export default function DetailLahanPage() {
   ).length;
   const queuedWithoutAttempt =
     jobStatus === "queued" && (jobAttempts ?? 0) === 0;
-  const measurementIsProcessing = jobStatus === "processing";
+  const measurementIsProcessing = jobStatus === "processing" || isRequestingMeasurement;
 
   if (isLoading) {
     return (
@@ -491,7 +512,7 @@ export default function DetailLahanPage() {
                   : measurementIsProcessing
                   ? "Pengukuran sedang diproses"
                   : queuedWithoutAttempt
-                  ? "Pengukuran belum dijalankan"
+                  ? "Menyiapkan pengukuran otomatis"
                   : "Belum ada riwayat observasi"}
               </Text>
               <Text style={styles.emptyTimelineText}>
@@ -499,7 +520,7 @@ export default function DetailLahanPage() {
                   (measurementIsProcessing
                     ? "Matani sedang mengambil raster Sentinel-2 dan menghitung pixel valid. Halaman ini memeriksa hasil secara otomatis."
                     : queuedWithoutAttempt
-                    ? "Job sudah tersimpan, tetapi worker belum pernah mencobanya. Jalankan job antrean tanpa membuat lahan baru."
+                    ? "Matani menjalankan pengukuran otomatis dan memeriksa hasilnya berkala."
                     : `Batas lahan tersimpan, tetapi belum ada acquisition yang lolos kualitas${jobErrorCode ? ` (${jobErrorCode})` : ""}. Matani tidak membuat data pengganti.`)}
               </Text>
               {!measurementIsProcessing && (
@@ -517,9 +538,7 @@ export default function DetailLahanPage() {
                     <ActivityIndicator size="small" color="#FFFFFF" />
                   ) : (
                     <Text style={styles.backActionText}>
-                      {queuedWithoutAttempt
-                        ? "Jalankan job antrean"
-                        : "Jalankan pengukuran"}
+                      Coba lagi
                     </Text>
                   )}
                 </Pressable>

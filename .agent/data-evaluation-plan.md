@@ -4,7 +4,11 @@
 **Audience:** The developer, thesis advisor, reviewers, and AI agents working in this repo
 **Status:** Active — M2 implemented and verified locally; one scoped manual hosted
 measurement is verified, while repeatable Vercel-deferred completion remains open
-**Updated:** 2026-09-07
+**Updated:** 2026-09-08
+
+**DEC-37 amendment:** Empty field details may initialize one idempotent measurement job
+per visit; polling reads stored observations. This changes the request trigger only,
+not index computation, quality gates, or provenance (`utils/measurement-start.ts`, CODE).
 **Canonical for:** the engineering measurement contract, provider adapter, quality pipeline, persistence/provenance, cache identity, idempotency, fixtures, and Indonesia-specific masking/resolution behavior
 **Companion documents:** [`research-protocol.md`](research-protocol.md), [`project-architecture.md`](project-architecture.md), [`product-requirements.md`](product-requirements.md), [`implementation-plan.md`](implementation-plan.md), [`evidence-register.md`](evidence-register.md)
 
