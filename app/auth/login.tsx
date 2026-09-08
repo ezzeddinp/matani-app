@@ -1,24 +1,32 @@
+import {
+  AuthField,
+  AuthNotice,
+  AuthScreen,
+  authStyles,
+} from "@/components/auth/auth-screen";
 import { authService } from "@/hooks/supabase";
+import { getLoginErrorMessage } from "@/utils/auth-error";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   BackHandler,
-  ScrollView,
+  Pressable,
   StyleSheet,
   Text,
   TextInput,
-  Pressable,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function LoginScreen() {
   const router = useRouter();
+  const passwordRef = useRef<TextInput>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -26,20 +34,24 @@ export default function LoginScreen() {
     useCallback(() => {
       const subscription = BackHandler.addEventListener(
         "hardwareBackPress",
-        () => true
+        () => true,
       );
       return () => subscription.remove();
-    }, [])
+    }, []),
   );
 
   const handleSignIn = async () => {
     if (isLoading) return;
 
-    const trimmedEmail = email.trim().toLowerCase();
-    const trimmedPassword = password.trim();
+    const normalizedEmail = email.trim().toLowerCase();
 
-    if (!trimmedEmail || !trimmedPassword) {
+    if (!normalizedEmail || !password) {
       setErrorMessage("Email dan password wajib diisi.");
+      return;
+    }
+
+    if (!EMAIL_PATTERN.test(normalizedEmail)) {
+      setErrorMessage("Format email belum benar.");
       return;
     }
 
@@ -48,240 +60,154 @@ export default function LoginScreen() {
       setErrorMessage(null);
 
       const data = await authService.signIn({
-        email: trimmedEmail,
-        password: trimmedPassword,
+        email: normalizedEmail,
+        password,
       });
 
       if (!data.session?.user) {
-        setErrorMessage("Sesi login tidak tersedia. Silakan coba lagi.");
+        setErrorMessage("Sesi masuk belum tersedia. Silakan coba lagi.");
         return;
       }
 
       router.replace("/(tabs)");
-    } catch (err: any) {
-      console.error("❌ Sign in error:", err);
-      setErrorMessage(err?.message || "Terjadi kesalahan saat masuk.");
+    } catch (error: unknown) {
+      setErrorMessage(getLoginErrorMessage(error));
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleSignUp = () => {
-    router.replace("/auth/signup");
-  };
-
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.topBar} />
+    <AuthScreen
+      eyebrow="Pantau lahan dengan tenang"
+      title="Selamat datang kembali"
+      subtitle="Masuk untuk melihat ladang padi, cuaca, dan observasi terbaru Anda."
+    >
+      <View style={styles.cardHeading}>
+        <Text style={styles.cardTitle}>Masuk ke akun</Text>
+        <Text style={styles.cardSubtitle}>Gunakan email yang terdaftar di Matani.</Text>
+      </View>
 
-        <View style={styles.form}>
-          <Text style={styles.pageTitle}>Masuk</Text>
+      {errorMessage ? <AuthNotice message={errorMessage} /> : null}
 
-          {errorMessage && (
-            <Text style={styles.errorMessage}>{errorMessage}</Text>
-          )}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Email</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="contoh@gmail.com"
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
-          </View>
+      <AuthField
+        icon="mail-outline"
+        label="Email"
+        placeholder="nama@email.com"
+        value={email}
+        onChangeText={(value) => {
+          setEmail(value);
+          if (errorMessage) setErrorMessage(null);
+        }}
+        keyboardType="email-address"
+        autoCapitalize="none"
+        autoCorrect={false}
+        autoComplete="email"
+        textContentType="emailAddress"
+        returnKeyType="next"
+        onSubmitEditing={() => passwordRef.current?.focus()}
+      />
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Password</Text>
-            <View style={styles.passwordContainer}>
-              <TextInput
-                style={styles.passwordInput}
-                placeholder="Minimal 8 karakter"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry={!showPassword}
-              />
-              <Pressable
-                style={({ pressed }) => [styles.eyeButton, pressed && { opacity: 0.2 }]}
-                onPress={() => setShowPassword(!showPassword)}
-                accessibilityRole="button"
-                accessibilityLabel={showPassword ? "Sembunyikan password" : "Tampilkan password"}
-              >
-                <Ionicons
-                  name={showPassword ? "eye" : "eye-off"}
-                  size={20}
-                  color="#999"
-                />
-              </Pressable>
-            </View>
-          </View>
-
-          <View style={styles.optionsRow}>
-            <Pressable
-              style={({ pressed }) => [styles.rememberRow, pressed && { opacity: 0.2 }]}
-              onPress={() => setRememberMe(!rememberMe)}
-              accessibilityRole="checkbox"
-              accessibilityState={{ checked: rememberMe }}
-            >
-              <View style={styles.checkbox}>
-                {rememberMe && (
-                  <Ionicons name="checkmark" size={12} color="#000" />
-                )}
-              </View>
-              <Text style={styles.rememberText}>Ingat saya</Text>
-            </Pressable>
-            <View>
-              <Text style={styles.forgotText}>Lupa password?</Text>
-            </View>
-          </View>
-
+      <AuthField
+        ref={passwordRef}
+        icon="lock-closed-outline"
+        label="Password"
+        placeholder="Masukkan password"
+        value={password}
+        onChangeText={(value) => {
+          setPassword(value);
+          if (errorMessage) setErrorMessage(null);
+        }}
+        secureTextEntry={!showPassword}
+        autoCapitalize="none"
+        autoCorrect={false}
+        autoComplete="current-password"
+        textContentType="password"
+        returnKeyType="done"
+        onSubmitEditing={handleSignIn}
+        rightElement={
           <Pressable
-            style={({ pressed }) => [
-              styles.signInButton,
-              isLoading && styles.disabledButton,
-              pressed && !isLoading && { opacity: 0.2 },
-            ]}
-            onPress={handleSignIn}
-            disabled={isLoading}
+            style={({ pressed }) => [authStyles.eyeButton, pressed && styles.pressed]}
+            onPress={() => setShowPassword((visible) => !visible)}
             accessibilityRole="button"
-            accessibilityState={{ disabled: isLoading }}
+            accessibilityLabel={showPassword ? "Sembunyikan password" : "Tampilkan password"}
           >
-            <Text style={styles.signInButtonText}>
-              {isLoading ? "Masuk..." : "Masuk"}
-            </Text>
+            <Ionicons
+              name={showPassword ? "eye-off-outline" : "eye-outline"}
+              size={21}
+              color="#5F6D63"
+            />
           </Pressable>
+        }
+      />
 
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>
-              Belum memiliki akun?{" "}
-              <Text style={styles.linkText} onPress={handleSignUp}>
-                Daftar sekarang
-              </Text>
-            </Text>
-          </View>
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+      <View style={styles.sessionHint}>
+        <Ionicons name="phone-portrait-outline" size={17} color="#52705C" />
+        <Text style={styles.sessionHintText}>Sesi Anda akan tetap tersimpan di perangkat ini.</Text>
+      </View>
+
+      <Pressable
+        style={({ pressed }) => [
+          authStyles.primaryButton,
+          isLoading && authStyles.primaryButtonDisabled,
+          pressed && !isLoading && authStyles.primaryButtonPressed,
+        ]}
+        onPress={handleSignIn}
+        disabled={isLoading}
+        accessibilityRole="button"
+        accessibilityState={{ disabled: isLoading }}
+      >
+        {isLoading ? <ActivityIndicator color="#FFFFFF" /> : null}
+        <Text style={authStyles.primaryButtonText}>
+          {isLoading ? "Memeriksa akun..." : "Masuk"}
+        </Text>
+        {!isLoading ? <Ionicons name="arrow-forward" size={19} color="#FFFFFF" /> : null}
+      </Pressable>
+
+      <View style={authStyles.footer}>
+        <Text style={authStyles.footerText}>Belum punya akun? </Text>
+        <Pressable
+          style={({ pressed }) => [authStyles.footerLink, pressed && styles.pressed]}
+          onPress={() => router.replace("/auth/signup")}
+          accessibilityRole="link"
+        >
+          <Text style={authStyles.footerLinkText}>Daftar sekarang</Text>
+        </Pressable>
+      </View>
+    </AuthScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#fff",
+  cardHeading: {
+    marginBottom: 22,
   },
-  scrollContent: {
-    flexGrow: 1,
-    paddingHorizontal: 20,
+  cardTitle: {
+    color: "#17241C",
+    fontSize: 21,
+    lineHeight: 27,
+    fontWeight: "800",
   },
-  topBar: {
-    marginTop: 12,
-    marginBottom: 52,
-    alignItems: "flex-start",
+  cardSubtitle: {
+    color: "#66726A",
+    fontSize: 13,
+    lineHeight: 19,
+    marginTop: 5,
   },
-  form: {
-    flex: 1,
-  },
-  pageTitle: {
-    fontSize: 32,
-    fontWeight: "bold",
-    color: "#000",
-    marginBottom: 32,
-  },
-  inputGroup: {
-    marginBottom: 24,
-  },
-  errorMessage: {
-    backgroundColor: "#ffe8e6",
-    color: "#b3261e",
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 14,
-    color: "#000",
-    marginBottom: 8,
-    fontWeight: "500",
-  },
-  input: {
-    borderBottomWidth: 1,
-    borderBottomColor: "#ddd",
-    paddingVertical: 12,
-    fontSize: 16,
-    color: "#000",
-  },
-  passwordContainer: {
+  sessionHint: {
     flexDirection: "row",
     alignItems: "center",
-    borderBottomWidth: 1,
-    borderBottomColor: "#ddd",
+    gap: 8,
+    marginTop: -2,
+    marginBottom: 21,
   },
-  passwordInput: {
+  sessionHintText: {
     flex: 1,
-    paddingVertical: 12,
-    fontSize: 16,
-    color: "#000",
+    color: "#52705C",
+    fontSize: 12,
+    lineHeight: 18,
   },
-  eyeButton: {
-    padding: 4,
-  },
-  optionsRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 30,
-  },
-  rememberRow: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  checkbox: {
-    width: 18,
-    height: 18,
-    borderRadius: 4,
-    backgroundColor: "#dadadaff",
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 8,
-  },
-  rememberText: {
-    fontSize: 14,
-    color: "#000",
-  },
-  forgotText: {
-    fontSize: 14,
-    color: "#666",
-  },
-  signInButton: {
-    backgroundColor: "#4CAF50",
-    borderRadius: 8,
-    paddingVertical: 16,
-    alignItems: "center",
-    marginBottom: 20,
-  },
-  disabledButton: {
-    opacity: 0.6,
-  },
-  signInButtonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  footer: {
-    alignItems: "center",
-    marginBottom: 20,
-  },
-  footerText: {
-    fontSize: 14,
-    color: "#666",
-    textAlign: "center",
-  },
-  linkText: {
-    color: "#000",
-    fontWeight: "600",
+  pressed: {
+    opacity: 0.55,
   },
 });

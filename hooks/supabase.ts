@@ -1,5 +1,7 @@
 
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createClient } from "@supabase/supabase-js";
+import { AppState, Platform } from "react-native";
 
 export type LatLngInput = {
   latitude: number;
@@ -32,7 +34,24 @@ if (!supabaseUrl || !supabasePublishableKey) {
   );
 }
 
-export const supabase = createClient(supabaseUrl, supabasePublishableKey);
+export const supabase = createClient(supabaseUrl, supabasePublishableKey, {
+  auth: {
+    ...(Platform.OS === "web" ? {} : { storage: AsyncStorage }),
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: false,
+  },
+});
+
+if (Platform.OS !== "web") {
+  AppState.addEventListener("change", (state) => {
+    if (state === "active") {
+      supabase.auth.startAutoRefresh();
+    } else {
+      supabase.auth.stopAutoRefresh();
+    }
+  });
+}
 
 type SupabaseReadError = {
   code?: string;
@@ -122,6 +141,32 @@ export const authService = {
 
     if (error) throw error;
     return data;
+  },
+
+  async completeEmailRedirect(url: string) {
+    const hash = url.split("#")[1] ?? "";
+    const query = url.includes("?") ? url.split("?")[1]?.split("#")[0] ?? "" : "";
+    const params = new URLSearchParams([query, hash].filter(Boolean).join("&"));
+    const code = params.get("code");
+
+    if (code) {
+      const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+      if (error) throw error;
+      return data.session;
+    }
+
+    const accessToken = params.get("access_token");
+    const refreshToken = params.get("refresh_token");
+    if (accessToken && refreshToken) {
+      const { data, error } = await supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken,
+      });
+      if (error) throw error;
+      return data.session;
+    }
+
+    throw new Error("AUTH_REDIRECT_MISSING_CREDENTIALS");
   },
 
   async signOut() {

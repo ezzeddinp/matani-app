@@ -56,3 +56,37 @@ export const getSignUpErrorMessage = (error: unknown): string => {
 
   return "Akun belum dapat dibuat. Periksa data Anda, lalu coba lagi.";
 };
+
+export const getLoginErrorMessage = (error: unknown): string => {
+  const authError = readAuthError(error);
+  const code = typeof authError.code === "string" ? authError.code.toLowerCase() : "";
+  const name = typeof authError.name === "string" ? authError.name : "";
+  const status = typeof authError.status === "number" ? authError.status : 0;
+  const message =
+    typeof authError.message === "string" ? authError.message.toLowerCase() : "";
+
+  if (
+    code === "invalid_credentials" ||
+    message.includes("invalid login credentials") ||
+    message.includes("email not confirmed")
+  ) {
+    return message.includes("email not confirmed")
+      ? "Email belum diverifikasi. Buka tautan verifikasi yang kami kirim."
+      : "Email atau password salah.";
+  }
+
+  if (code.includes("rate_limit") || status === 429) {
+    return "Terlalu banyak percobaan masuk. Tunggu sebentar, lalu coba lagi.";
+  }
+
+  if (
+    name === "AuthRetryableFetchError" ||
+    status >= 500 ||
+    message.includes("network request failed") ||
+    message.includes("failed to fetch")
+  ) {
+    return "Layanan masuk sedang bermasalah. Periksa koneksi, lalu coba lagi.";
+  }
+
+  return "Akun belum dapat masuk. Periksa data Anda, lalu coba lagi.";
+};

@@ -3,7 +3,7 @@
 **Document type:** Product requirements document
 **Audience:** The developer, thesis advisor, reviewers, and AI agents working in this repo
 **Status:** Active
-**Updated:** 2026-09-07
+**Updated:** 2026-09-08
 **Canonical for:** Feature behavior, scope tags, and product invariants
 **Companion documents:** [`product-brief.md`](product-brief.md), [`project-architecture.md`](project-architecture.md), [`design-guidelines.md`](design-guidelines.md), [`research-protocol.md`](research-protocol.md), [`data-evaluation-plan.md`](data-evaluation-plan.md), [`implementation-plan.md`](implementation-plan.md)
 
@@ -69,13 +69,15 @@ Full positioning lives in [`product-brief.md`](product-brief.md) § 5; the opera
 
 ### PRD-01 · Authentication (sign-up / login) · [As-built]
 
-**Behavior.** Email/password auth through Supabase via `authService`. Login (`app/auth/login.tsx:50`) calls `authService.signIn({email,password})` and requires a returned `session.user` (`login.tsx:55`). Sign-up (`app/auth/signup.tsx`) collects username, email, password, and password confirmation, with client validation: email+password required, passwords must match, and an optional username must be 3–20 alphanumeric/underscore characters (CODE). On signup, `public.handle_new_user()` back-fills `public.users`; a username or phone number already owned by another profile is left unset on the new profile instead of rolling back the auth account (`supabase/migrations/20260907000100_auth_signup_profile_collision.sql`, CODE; DEC-35). The client authenticates with the Supabase anon/publishable key — client-safe **conditional on RLS** (EVID-020).
+**Behavior.** Email/password auth runs through Supabase via `authService`. Login validates the email locally, preserves the entered password exactly, maps provider failures to bounded Indonesian copy, and requires a returned `session.user` before routing to the tab group. Sign-up collects optional username/phone plus required email/password confirmation, normalizes Indonesian phone numbers to `+62`, validates before submission, and presents email-confirmation success separately from errors (`app/auth/login.tsx`, `app/auth/signup.tsx`, `utils/auth-error.ts`, CODE; DEC-36). Mobile sessions persist in AsyncStorage and refresh only while the app is active; `/auth/callback` completes code or token-based email verification redirects (`hooks/supabase.ts`, `app/auth/callback.tsx`, CODE; DEC-36). On signup, `public.handle_new_user()` back-fills `public.users`; a username or phone number already owned by another profile is left unset on the new profile instead of rolling back the auth account (`supabase/migrations/20260907000100_auth_signup_profile_collision.sql`, CODE; DEC-35). The client authenticates with the Supabase anon/publishable key — client-safe **conditional on RLS** (EVID-020).
 
 **Acceptance criteria.**
 - Invalid/empty credentials produce an inline error, never a session.
 - A username or phone number already owned by another profile is left unset on the new profile instead of rolling back the Auth account; the user can choose another value later (`supabase/migrations/20260907000100_auth_signup_profile_collision.sql`, CODE; DEC-35).
 - Provider/transport internals, URLs, tokens, and raw error objects are never rendered or logged by the sign-up screen; known failures map to bounded Indonesian copy (`utils/auth-error.ts`, CODE; DEC-35).
 - A successful login yields a Supabase session and routes into the tab group.
+- A confirmed email redirect creates a session through `/auth/callback` and routes into the tab group; a malformed/expired redirect fails with bounded copy and a route back to login.
+- Mobile sessions persist across app restarts; the interface does not expose a non-functional remember-me or password-reset control (DEC-36).
 - No password or token is logged or surfaced in a client-visible error.
 - A `PGRST303` future-issued JWT rejection on a field read triggers one bounded session refresh and one retry; it never loops indefinitely.
 

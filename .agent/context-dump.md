@@ -3,7 +3,7 @@
 **Document type:** Historical decision record
 **Audience:** The developer, thesis advisor, reviewers, and AI agents working in this repo
 **Status:** Active
-**Updated:** 2026-09-07
+**Updated:** 2026-09-08
 **Canonical for:** Project history, the hackathon→thesis pivot, superseded ideas, the decisions index (DEC-*), and the EN↔ID glossary
 **Companion documents:** [`evidence-register.md`](evidence-register.md), [`project-architecture.md`](project-architecture.md), [`research-protocol.md`](research-protocol.md), [`product-brief.md`](product-brief.md), [`implementation-plan.md`](implementation-plan.md)
 
@@ -218,6 +218,8 @@ elaborate them.
 | **DEC-34** | **Synchronize the latest user-confirmed thesis PDF, canonical repository records, and Notion against actual gate evidence.** Preserve the input PDF and create a separate dated revision; retain M1 acceptance and the distinction between a manually executed hosted success and failed device-deferred jobs. Close M0 before further live M2 execution; no approval, field result, credential rotation, or perfect-error-free completion may be inferred. | 2026-09-07 | The developer requested current cross-surface synchronization and sequential M0/M1/M2 completion, and confirmed `thesis fix (2).pdf` is the latest paper. | Active; external M0 controls, direct M2 device completion, and academic acceptance remain open |
 
 | **DEC-35** | **Optional username/phone collisions must not abort Supabase Auth signup.** Preserve uniqueness, create the auth account and required `public.users` row, leave an already-owned optional value unset for later correction, and show bounded Indonesian client errors without raw provider or transport details. | 2026-09-07 | The hosted trigger previously converted optional profile uniqueness collisions into an opaque Auth HTTP 500, while the sign-up screen rendered the retryable response object and URL directly. | Active |
+
+| **DEC-36** | **Repair repository-root backend deployment and make authentication a complete mobile flow.** Keep Express source ownership under `backend/` with a minimal root Vercel adapter; persist Supabase sessions through mobile storage; complete email-verification redirects; replace the two ad hoc auth forms with one branded, accessible component pattern; remove controls that imply unavailable remember/reset behavior. | 2026-09-08 | The connected Vercel build failed before deployment because it found no root entrypoint, while login/sign-up had raw errors, non-functional controls, no persistent mobile storage adapter, and no callback screen for the configured email redirect. | Active |
 
 ## 6. Superseded ideas / set-asides
 

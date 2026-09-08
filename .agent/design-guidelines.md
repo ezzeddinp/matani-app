@@ -3,7 +3,7 @@
 **Document type:** Design guidelines
 **Audience:** The developer, thesis advisor, reviewers, and AI agents working in this repo
 **Status:** Active
-**Updated:** 2026-09-07
+**Updated:** 2026-09-08
 **Canonical for:** Design tokens, the screen map, component patterns, and data-state presentation rules
 **Companion documents:** [`product-requirements.md`](product-requirements.md), [`product-brief.md`](product-brief.md), [`project-architecture.md`](project-architecture.md), [`context-dump.md`](context-dump.md)
 
@@ -148,8 +148,9 @@ Derived from `app/` file-based routing (`expo-router`). Ordered by user flow.
 | 1 | `app/splash.tsx` | Splash | Branded launch screen; routes onward via `useRouter` (`splash.tsx:13`). |
 | 2 | `app/onboarding.tsx` | Onboarding | Single welcome screen — "Selamat Datang di MATANI" + "Mulai Sekarang" CTA (`onboarding.tsx:23,48`). |
 | 3 | `app/auth/index.tsx` | Auth redirect | Redirects to `/auth/login` (`auth/index.tsx:3`). |
-| 4 | `app/auth/login.tsx` | Login | Supabase email/password sign-in. |
-| 5 | `app/auth/signup.tsx` | Sign-up | Supabase account creation with inline, bounded Indonesian error copy; raw provider/transport details are not displayed (`utils/auth-error.ts`, CODE; DEC-35). |
+| 4 | `app/auth/login.tsx` | Login | Branded Supabase email/password sign-in with focused fields, loading feedback, persistent-session copy, and bounded errors (`components/auth/auth-screen.tsx`, CODE; DEC-36). |
+| 5 | `app/auth/signup.tsx` | Sign-up | Branded account creation with clear optional fields, Indonesian phone normalization, a distinct email-confirmation success state, and bounded errors (`components/auth/auth-screen.tsx`, `utils/auth-error.ts`, CODE; DEC-35/36). |
+| 5a | `app/auth/callback.tsx` | Email verification | Focused verification progress/error state that completes the Supabase redirect and returns the user to login when recovery is needed (CODE; DEC-36). |
 | 6 | `app/(tabs)/index.tsx` | **Beranda** (Home) | Dashboard: latest raw observation, weather card, field carousel (`_layout.tsx:67-73`). |
 | 7 | `app/(tabs)/explore.tsx` | **Ladang** (Fields) | Map-based padi-field list + interactive polygon drawing; raw NDVI/NDMI state (`_layout.tsx:74-80`). |
 | 8 | `app/(tabs)/education.tsx` | **Edukasi** (Education) | Article list with filter/sort (`_layout.tsx:81-87`). |
@@ -192,6 +193,7 @@ unavailable and achievement cards are labeled preview-only (`app/(tabs)/profile.
 
 | Component | Role | Cite |
 |---|---|---|
+| `components/auth/auth-screen.tsx` | Shared authentication shell, focused icon field, safe error/success notice, and common action/footer styles. Uses the dark Matani green ramp, white elevated form card, 44 px minimum icon actions, and bounded Indonesian copy across login/sign-up. | `components/auth/auth-screen.tsx`, `app/auth/login.tsx`, `app/auth/signup.tsx` (CODE; DEC-36) |
 | `components/drawing-mode-indicator.tsx` | Floating banner during polygon drawing ("Mode Menggambar Aktif • N titik"), orange `#FF5722` | `drawing-mode-indicator.tsx:9-27` |
 | `components/empty-state-lahan.tsx` | Empty-fields onboarding: leaf icon, CTA, 3-step how-to | `empty-state-lahan.tsx:8-69` |
 | `components/haptic-tab.tsx` | Tab-bar button wrapper adding iOS haptic feedback on press | `haptic-tab.tsx:5-18` |

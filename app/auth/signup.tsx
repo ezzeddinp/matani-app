@@ -1,22 +1,43 @@
+import {
+  AuthField,
+  AuthNotice,
+  AuthScreen,
+  authStyles,
+} from "@/components/auth/auth-screen";
 import { authService } from "@/hooks/supabase";
 import { getSignUpErrorMessage } from "@/utils/auth-error";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   BackHandler,
-  ScrollView,
+  Pressable,
   StyleSheet,
   Text,
   TextInput,
-  Pressable,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const normalizeIndonesianPhone = (input: string) => {
+  let nationalNumber = input.replace(/\D/g, "");
+  if (nationalNumber.startsWith("62")) nationalNumber = nationalNumber.slice(2);
+  if (nationalNumber.startsWith("0")) nationalNumber = nationalNumber.slice(1);
+
+  return {
+    nationalNumber,
+    internationalNumber: nationalNumber ? `+62${nationalNumber}` : undefined,
+  };
+};
 
 export default function SignUpScreen() {
   const router = useRouter();
-
+  const emailRef = useRef<TextInput>(null);
+  const phoneRef = useRef<TextInput>(null);
+  const passwordRef = useRef<TextInput>(null);
+  const confirmPasswordRef = useRef<TextInput>(null);
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -25,91 +46,90 @@ export default function SignUpScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [accountCreated, setAccountCreated] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  const navigateToHome = useCallback(() => {
-    router.replace("/(tabs)");
-  }, [router]);
 
   useFocusEffect(
     useCallback(() => {
       const subscription = BackHandler.addEventListener(
         "hardwareBackPress",
-        () => true
+        () => true,
       );
       return () => subscription.remove();
-    }, [])
+    }, []),
   );
 
+  const clearError = () => {
+    if (errorMessage) setErrorMessage(null);
+  };
+
   const handleCreateAccount = async () => {
-    if (isLoading) return;
+    if (isLoading || accountCreated) return;
 
-    const trimmedEmail = email.trim().toLowerCase();
-    const trimmedPassword = password.trim();
-    const trimmedConfirm = confirmPassword.trim();
-    const trimmedUsername = username.trim();
-    const trimmedPhone = phoneNumber.trim();
+    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedUsername = username.trim();
+    const normalizedPhone = normalizeIndonesianPhone(phoneNumber);
 
-    if (!trimmedEmail || !trimmedPassword) {
-      setErrorMessage("Email dan password wajib diisi.");
+    if (!normalizedEmail || !password || !confirmPassword) {
+      setErrorMessage("Email, password, dan konfirmasi password wajib diisi.");
       return;
     }
 
-    if (trimmedPassword.length < 8) {
+    if (!EMAIL_PATTERN.test(normalizedEmail)) {
+      setErrorMessage("Format email belum benar.");
+      return;
+    }
+
+    if (password.length < 8) {
       setErrorMessage("Password minimal 8 karakter.");
       return;
     }
 
-    if (trimmedPassword !== trimmedConfirm) {
+    if (password !== confirmPassword) {
       setErrorMessage("Konfirmasi password tidak sesuai.");
       return;
     }
 
-    // Validate username if provided
-    if (trimmedUsername) {
-      if (trimmedUsername.length < 3 || trimmedUsername.length > 20) {
-        setErrorMessage("Username harus antara 3-20 karakter.");
+    if (normalizedUsername) {
+      if (normalizedUsername.length < 3 || normalizedUsername.length > 20) {
+        setErrorMessage("Username harus terdiri dari 3–20 karakter.");
         return;
       }
-      if (!/^[a-zA-Z0-9_]+$/.test(trimmedUsername)) {
-        setErrorMessage(
-          "Username hanya boleh berisi huruf, angka, dan underscore."
-        );
+      if (!/^[a-zA-Z0-9_]+$/.test(normalizedUsername)) {
+        setErrorMessage("Username hanya boleh berisi huruf, angka, dan underscore.");
         return;
       }
     }
 
-    // Validate phone number if provided
-    if (trimmedPhone) {
-      // Remove any non-digit characters
-      const digitsOnly = trimmedPhone.replace(/\D/g, "");
-      if (digitsOnly.length < 9) {
-        setErrorMessage("Nomor telepon minimal 9 digit.");
-        return;
-      }
+    if (
+      normalizedPhone.nationalNumber &&
+      (normalizedPhone.nationalNumber.length < 9 || normalizedPhone.nationalNumber.length > 13)
+    ) {
+      setErrorMessage("Nomor telepon harus terdiri dari 9–13 digit setelah +62.");
+      return;
     }
 
     try {
       setIsLoading(true);
       setErrorMessage(null);
 
-      const fallbackFullName = trimmedEmail.split("@")[0] || undefined;
       const data = await authService.signUp({
-        email: trimmedEmail,
-        password: trimmedPassword,
-        fullName: fallbackFullName,
-        username: trimmedUsername || undefined,
-        phoneNumber: trimmedPhone || undefined,
+        email: normalizedEmail,
+        password,
+        fullName: normalizedEmail.split("@")[0] || undefined,
+        username: normalizedUsername || undefined,
+        phoneNumber: normalizedPhone.internationalNumber,
       });
 
+      setPassword("");
+      setConfirmPassword("");
+
       if (!data.session) {
-        setErrorMessage(
-          "Akun berhasil dibuat. Silakan cek email Anda untuk verifikasi sebelum masuk."
-        );
+        setAccountCreated(true);
         return;
       }
 
-      navigateToHome();
+      router.replace("/(tabs)");
     } catch (error: unknown) {
       setErrorMessage(getSignUpErrorMessage(error));
     } finally {
@@ -117,245 +137,228 @@ export default function SignUpScreen() {
     }
   };
 
-  const handleLogIn = () => {
-    router.replace("/auth/login");
-  };
-
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.topBar} />
+    <AuthScreen
+      eyebrow="Mulai memantau"
+      title="Buat akun Matani"
+      subtitle="Simpan ladang padi dan ikuti observasi berbasis tanggal dari satu tempat."
+    >
+      <View style={styles.cardHeading}>
+        <Text style={styles.cardTitle}>{accountCreated ? "Cek email Anda" : "Daftar akun baru"}</Text>
+        <Text style={styles.cardSubtitle}>
+          {accountCreated
+            ? `Kami mengirim tautan verifikasi ke ${email.trim().toLowerCase()}.`
+            : "Username dan nomor telepon boleh dikosongkan."}
+        </Text>
+      </View>
 
-        <View style={styles.form}>
-          <Text style={styles.title}>Daftar</Text>
+      {accountCreated ? (
+        <>
+          <AuthNotice
+            tone="success"
+            message="Akun berhasil dibuat. Buka tautan verifikasi di email, lalu kembali untuk masuk."
+          />
+          <Pressable
+            style={({ pressed }) => [
+              authStyles.primaryButton,
+              pressed && authStyles.primaryButtonPressed,
+            ]}
+            onPress={() => router.replace("/auth/login")}
+            accessibilityRole="button"
+          >
+            <Text style={authStyles.primaryButtonText}>Ke halaman masuk</Text>
+            <Ionicons name="arrow-forward" size={19} color="#FFFFFF" />
+          </Pressable>
+        </>
+      ) : (
+        <>
+          {errorMessage ? <AuthNotice message={errorMessage} /> : null}
 
-          {errorMessage && (
-            <Text style={styles.errorMessage}>{errorMessage}</Text>
-          )}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Username</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Masukkan username"
-              value={username}
-              onChangeText={setUsername}
-              autoCapitalize="none"
-            />
-          </View>
+          <AuthField
+            icon="person-outline"
+            label="Username (opsional)"
+            placeholder="contoh: tani_muda"
+            value={username}
+            onChangeText={(value) => {
+              setUsername(value);
+              clearError();
+            }}
+            autoCapitalize="none"
+            autoCorrect={false}
+            autoComplete="username-new"
+            returnKeyType="next"
+            onSubmitEditing={() => emailRef.current?.focus()}
+          />
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Email</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="contoh@gmail.com"
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
-          </View>
+          <AuthField
+            ref={emailRef}
+            icon="mail-outline"
+            label="Email"
+            placeholder="nama@email.com"
+            value={email}
+            onChangeText={(value) => {
+              setEmail(value);
+              clearError();
+            }}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
+            autoComplete="email"
+            textContentType="emailAddress"
+            returnKeyType="next"
+            onSubmitEditing={() => phoneRef.current?.focus()}
+          />
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Nomor Telepon</Text>
-            <View style={styles.phoneContainer}>
-              <Text style={styles.phonePrefix}>+62</Text>
-              <TextInput
-                style={styles.phoneInput}
-                placeholder="812345678"
-                value={phoneNumber}
-                onChangeText={setPhoneNumber}
-                keyboardType="phone-pad"
-              />
-            </View>
-          </View>
+          <AuthField
+            ref={phoneRef}
+            icon="call-outline"
+            label="Nomor telepon (opsional)"
+            prefix="+62"
+            placeholder="812 3456 7890"
+            value={phoneNumber}
+            onChangeText={(value) => {
+              setPhoneNumber(value);
+              clearError();
+            }}
+            keyboardType="phone-pad"
+            autoComplete="tel"
+            textContentType="telephoneNumber"
+            returnKeyType="next"
+            onSubmitEditing={() => passwordRef.current?.focus()}
+          />
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Password</Text>
-            <View style={styles.passwordContainer}>
-              <TextInput
-                style={styles.passwordInput}
-                placeholder="Minimal 8 karakter"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry={!showPassword}
-              />
+          <AuthField
+            ref={passwordRef}
+            icon="lock-closed-outline"
+            label="Password"
+            placeholder="Minimal 8 karakter"
+            value={password}
+            onChangeText={(value) => {
+              setPassword(value);
+              clearError();
+            }}
+            secureTextEntry={!showPassword}
+            autoCapitalize="none"
+            autoCorrect={false}
+            autoComplete="new-password"
+            textContentType="newPassword"
+            returnKeyType="next"
+            onSubmitEditing={() => confirmPasswordRef.current?.focus()}
+            rightElement={
               <Pressable
-                style={({ pressed }) => [styles.eyeButton, pressed && { opacity: 0.2 }]}
-                onPress={() => setShowPassword(!showPassword)}
+                style={({ pressed }) => [authStyles.eyeButton, pressed && styles.pressed]}
+                onPress={() => setShowPassword((visible) => !visible)}
                 accessibilityRole="button"
                 accessibilityLabel={showPassword ? "Sembunyikan password" : "Tampilkan password"}
               >
                 <Ionicons
-                  name={showPassword ? "eye" : "eye-off"}
-                  size={20}
-                  color="#999"
+                  name={showPassword ? "eye-off-outline" : "eye-outline"}
+                  size={21}
+                  color="#5F6D63"
                 />
               </Pressable>
-            </View>
-          </View>
+            }
+          />
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Konfirmasi Password</Text>
-            <View style={styles.passwordContainer}>
-              <TextInput
-                style={styles.passwordInput}
-                placeholder="Ulangi password"
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                secureTextEntry={!showConfirmPassword}
-              />
+          <AuthField
+            ref={confirmPasswordRef}
+            icon="checkmark-circle-outline"
+            label="Konfirmasi password"
+            placeholder="Ulangi password"
+            value={confirmPassword}
+            onChangeText={(value) => {
+              setConfirmPassword(value);
+              clearError();
+            }}
+            secureTextEntry={!showConfirmPassword}
+            autoCapitalize="none"
+            autoCorrect={false}
+            autoComplete="new-password"
+            textContentType="newPassword"
+            returnKeyType="done"
+            onSubmitEditing={handleCreateAccount}
+            rightElement={
               <Pressable
-                style={({ pressed }) => [styles.eyeButton, pressed && { opacity: 0.2 }]}
-                onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                style={({ pressed }) => [authStyles.eyeButton, pressed && styles.pressed]}
+                onPress={() => setShowConfirmPassword((visible) => !visible)}
                 accessibilityRole="button"
-                accessibilityLabel={showConfirmPassword ? "Sembunyikan konfirmasi password" : "Tampilkan konfirmasi password"}
+                accessibilityLabel={
+                  showConfirmPassword
+                    ? "Sembunyikan konfirmasi password"
+                    : "Tampilkan konfirmasi password"
+                }
               >
                 <Ionicons
-                  name={showConfirmPassword ? "eye" : "eye-off"}
-                  size={20}
-                  color="#999"
+                  name={showConfirmPassword ? "eye-off-outline" : "eye-outline"}
+                  size={21}
+                  color="#5F6D63"
                 />
               </Pressable>
-            </View>
-          </View>
+            }
+          />
+
+          <Text style={styles.passwordHint}>
+            Gunakan minimal 8 karakter. Spasi di awal atau akhir dianggap bagian dari password.
+          </Text>
 
           <Pressable
             style={({ pressed }) => [
-              styles.createButton,
-              isLoading && styles.disabledButton,
-              pressed && !isLoading && { opacity: 0.2 },
+              authStyles.primaryButton,
+              isLoading && authStyles.primaryButtonDisabled,
+              pressed && !isLoading && authStyles.primaryButtonPressed,
             ]}
             onPress={handleCreateAccount}
             disabled={isLoading}
             accessibilityRole="button"
             accessibilityState={{ disabled: isLoading }}
           >
-            <Text style={styles.createButtonText}>
-              {isLoading ? "Mendaftarkan akun..." : "Daftar"}
+            {isLoading ? <ActivityIndicator color="#FFFFFF" /> : null}
+            <Text style={authStyles.primaryButtonText}>
+              {isLoading ? "Membuat akun..." : "Buat akun"}
             </Text>
+            {!isLoading ? <Ionicons name="arrow-forward" size={19} color="#FFFFFF" /> : null}
           </Pressable>
 
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>
-              Sudah punya akun?{" "}
-              <Text style={styles.linkText} onPress={handleLogIn}>
-                Masuk
-              </Text>
-            </Text>
+          <View style={authStyles.footer}>
+            <Text style={authStyles.footerText}>Sudah punya akun? </Text>
+            <Pressable
+              style={({ pressed }) => [authStyles.footerLink, pressed && styles.pressed]}
+              onPress={() => router.replace("/auth/login")}
+              accessibilityRole="link"
+            >
+              <Text style={authStyles.footerLinkText}>Masuk</Text>
+            </Pressable>
           </View>
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+        </>
+      )}
+    </AuthScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#fff",
+  cardHeading: {
+    marginBottom: 22,
   },
-  scrollContent: {
-    flexGrow: 1,
-    paddingHorizontal: 20,
+  cardTitle: {
+    color: "#17241C",
+    fontSize: 21,
+    lineHeight: 27,
+    fontWeight: "800",
   },
-  topBar: {
-    marginTop: 12,
-    marginBottom: 52,
-    alignItems: "flex-start",
+  cardSubtitle: {
+    color: "#66726A",
+    fontSize: 13,
+    lineHeight: 19,
+    marginTop: 5,
   },
-  title: {
-    fontSize: 32,
-    fontWeight: "bold",
-    color: "#000",
-    marginBottom: 32,
-  },
-  form: {
-    flex: 1,
-  },
-  inputGroup: {
-    marginBottom: 24,
-  },
-  errorMessage: {
-    backgroundColor: "#ffe8e6",
-    color: "#b3261e",
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
+  passwordHint: {
+    color: "#66726A",
+    fontSize: 12,
+    lineHeight: 18,
+    marginTop: -5,
     marginBottom: 20,
   },
-  label: {
-    fontSize: 14,
-    color: "#000",
-    marginBottom: 8,
-    fontWeight: "500",
-  },
-  input: {
-    borderBottomWidth: 1,
-    borderBottomColor: "#ddd",
-    paddingVertical: 12,
-    fontSize: 16,
-    color: "#000",
-  },
-  phoneContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderBottomWidth: 1,
-    borderBottomColor: "#ddd",
-  },
-  phonePrefix: {
-    fontSize: 16,
-    color: "#000",
-    paddingVertical: 12,
-    paddingRight: 8,
-    fontWeight: "500",
-  },
-  phoneInput: {
-    flex: 1,
-    paddingVertical: 12,
-    fontSize: 16,
-    color: "#000",
-  },
-  passwordContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderBottomWidth: 1,
-    borderBottomColor: "#ddd",
-  },
-  passwordInput: {
-    flex: 1,
-    paddingVertical: 12,
-    fontSize: 16,
-    color: "#000",
-  },
-  eyeButton: {
-    padding: 4,
-  },
-  createButton: {
-    backgroundColor: "#4CAF50",
-    borderRadius: 8,
-    paddingVertical: 16,
-    alignItems: "center",
-    marginTop: 20,
-    marginBottom: 20,
-  },
-  disabledButton: {
-    opacity: 0.6,
-  },
-  createButtonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  footer: {
-    alignItems: "center",
-    marginBottom: 20,
-  },
-  footerText: {
-    fontSize: 14,
-    color: "#666",
-  },
-  linkText: {
-    color: "#000",
-    fontWeight: "600",
+  pressed: {
+    opacity: 0.55,
   },
 });

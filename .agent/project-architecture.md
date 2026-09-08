@@ -3,7 +3,7 @@
 **Document type:** Architecture document
 **Audience:** The developer, thesis advisor, reviewers, and AI agents working in this repo
 **Status:** Active
-**Updated:** 2026-09-07
+**Updated:** 2026-09-08
 **Canonical for:** As-built and target architecture, **current measurement provenance (canonical wording — § 2)**, trust boundaries, provider decisions, Architecture Decision Records (ADRs), free-tier constraints, security risks, verification baseline, migration triggers
 **Companion documents:** [`evidence-register.md`](evidence-register.md), [`context-dump.md`](context-dump.md), [`data-evaluation-plan.md`](data-evaluation-plan.md), [`research-protocol.md`](research-protocol.md), [`product-requirements.md`](product-requirements.md), [`implementation-plan.md`](implementation-plan.md)
 
@@ -80,9 +80,11 @@ research measurements.
 ### 1.2 Backend (Express 5 / Node, colocated in `backend/`)
 
 Single Express app, `backend/index.js`, listening on **port 5001** locally. It mounts four
-protected provider/measurement routers through `backend/app.js`. The stable Vercel
-production alias is now publicly reachable and its protected route fails closed without
-a token (OBS-24); this reachability check does not prove hosted measurement persistence.
+protected provider/measurement routers through `backend/app.js`. Root `app.mjs` re-exports
+that same app for Vercel's repository-root entrypoint discovery, while root `vercel.json`
+installs and type-checks the independently managed backend package (CODE; DEC-36). The stable Vercel
+production alias is publicly reachable and its protected route fails closed without
+a token (OBS-24/34); this reachability check does not prove hosted measurement persistence.
 
 The backend dependency set is independently managed in `backend/package.json`:
 Express 5.2, TypeScript 7, Node types 26, and `module` / `moduleResolution` set to
@@ -125,6 +127,12 @@ The linked hosted legacy schema was reconciled through
 authenticates with the Supabase anon/publishable key
 (`EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY`), client-safe **conditional on RLS**
 (EVID-020).
+
+On mobile, Supabase Auth persists the session through AsyncStorage and starts/stops token
+auto-refresh with app foreground state. Email confirmation returns through
+`mataniapp://auth/callback`; the callback accepts either a PKCE code or access/refresh
+token pair and never logs or renders those credentials (`hooks/supabase.ts`,
+`app/auth/callback.tsx`, CODE; DEC-36).
 
 The auth-to-profile trigger remains the owner of initial `public.users` creation. Migration
 `20260907000100_auth_signup_profile_collision.sql` makes optional unique username/phone
@@ -552,6 +560,23 @@ Each ADR aligns to a `DEC-*` in [`context-dump.md`](context-dump.md) and carries
 - **Revisit trigger:** CDSE removes/changes required scene metadata, the same-response path
   cannot preserve per-index native grids and masking semantics, or measured workload
   triggers ADR-03.
+
+### ADR-16 · Repository-root Vercel adapter for the colocated Express backend
+- **Status:** Accepted and locally build-verified on 2026-09-08 (DEC-36).
+- **Context:** The connected Vercel project built the repository root and searched only
+  conventional root server entrypoints. The Express implementation and its deployment
+  configuration lived under `backend/`, so commit `38ac274` failed with `No entrypoint
+  found` before a server function was produced.
+- **Decision:** Keep backend ownership in `backend/`; expose it through a minimal root
+  `app.mjs`, install backend dependencies through root `vercel.json`, and make the backend
+  build a no-emit type-check because Vercel bundles the source entrypoint directly.
+- **Consequences:** Both repository-root and backend-local development resolve the same
+  Express app. The root adapter contains no route logic or credentials. Vercel CLI 59.11.7
+  completed linked preview/production builds; the deployed revision reached `READY`, the
+  public health route returned HTTP 200 JSON, and a protected route returned HTTP 401 JSON
+  without a token (OBS-34).
+- **Revisit trigger:** The project returns to a guaranteed `backend/` Root Directory or
+  moves to a workspace/build system with a single explicit deployment unit.
 
 ---
 
