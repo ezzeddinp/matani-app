@@ -42,6 +42,8 @@ const config: ExpoConfig = {
     "expo-router",
     "expo-font",
     "expo-web-browser",
+    "expo-image",
+    "expo-status-bar",
     [
       "expo-splash-screen",
       {
