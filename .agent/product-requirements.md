@@ -78,7 +78,7 @@ Full positioning lives in [`product-brief.md`](product-brief.md) § 5; the opera
 - A successful login yields a Supabase session and routes into the tab group.
 - A confirmed email redirect creates a session through `/auth/callback` and routes into the tab group; a malformed/expired redirect fails with bounded copy and a route back to login.
 - Mobile sessions persist across app restarts; the interface does not expose a non-functional remember-me or password-reset control (DEC-36).
-- On Android, focusing a sign-up field keeps the keyboard open: the shared field wrapper does not rerender from focus state, moving with the keyboard action does not blur between fields, and toggling password visibility restores focus (`app.config.ts`, `components/auth/auth-screen.tsx`, `app/auth/signup.tsx`, CODE; DEC-36).
+- On mobile, focusing a sign-up field keeps the keyboard open: the shared field wrapper does not rerender from focus state, moving with the keyboard action does not blur between fields, and toggling password visibility restores focus (`components/auth/auth-screen.tsx`, `app/auth/signup.tsx`, CODE; DEC-36).
 - No password or token is logged or surfaced in a client-visible error.
 - A `PGRST303` future-issued JWT rejection on a field read triggers one bounded session refresh and one retry; it never loops indefinitely.
 

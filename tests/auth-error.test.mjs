@@ -63,7 +63,7 @@ test("Vercel backend project exposes a directly detectable Express app", async (
   assert.equal(backendPackage.scripts.build, "tsc --noEmit");
 });
 
-test("auth fields keep Android keyboard focus stable", async () => {
+test("auth fields keep mobile keyboard focus stable", async () => {
   const authScreen = await readFile("components/auth/auth-screen.tsx", "utf8");
   const signup = await readFile("app/auth/signup.tsx", "utf8");
 
