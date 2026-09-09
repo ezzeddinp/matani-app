@@ -73,9 +73,46 @@ const resolveTimestamp = (record: ObservationRecord) => record.captured_at;
 
 const resolveState = (status: string | null): ObservationState => {
   const normalized = status?.trim().toLowerCase();
-  return normalized === "passed" || normalized === "rejected"
-    ? "measured"
-    : "unavailable";
+  return normalized === "passed" ? "measured" : "unavailable";
+};
+
+const QUALITY_STATUS_COPY: Record<
+  string,
+  { label: string; description: string }
+> = {
+  passed: {
+    label: "Data tersedia",
+    description: "Citra lolos pemeriksaan kualitas dan nilai indeks dapat ditampilkan.",
+  },
+  rejected: {
+    label: "Tidak lolos kualitas",
+    description: "Citra ditemukan, tetapi nilainya tidak ditampilkan karena pemeriksaan kualitas.",
+  },
+  unavailable: {
+    label: "Tidak tersedia",
+    description: "Tidak ada nilai yang dapat ditampilkan untuk tanggal ini.",
+  },
+};
+
+const REJECTION_REASON_COPY: Record<string, string> = {
+  "no-acquisition-in-window": "Tidak ada citra Sentinel-2 pada rentang pengamatan.",
+  "no-valid-pixels": "Tidak ada pixel lahan yang lolos penyaringan kualitas.",
+  "too-few-valid-pixels": "Pixel lahan yang dapat dihitung belum cukup untuk menghasilkan nilai.",
+  "source-identity-missing": "Identitas sumber citra belum lengkap.",
+  "source-identity-mismatch": "Identitas sumber citra tidak cocok dengan hasil pengukuran.",
+  "catalog-acquisition-date-invalid": "Tanggal pengambilan citra tidak valid.",
+  "process-catalog-response-invalid": "Daftar citra dari penyedia tidak dapat dibaca.",
+  "process-raster-statistics-invalid": "Hasil perhitungan raster tidak dapat divalidasi.",
+  "process-source-identity-invalid": "Identitas sumber hasil pengukuran tidak dapat divalidasi.",
+};
+
+const getQualityStatusCopy = (status: string) =>
+  QUALITY_STATUS_COPY[status.trim().toLowerCase()] ?? QUALITY_STATUS_COPY.unavailable;
+
+const formatRejectionReason = (reason: string | null) => {
+  if (!reason) return null;
+  return REJECTION_REASON_COPY[reason.trim().toLowerCase()] ??
+    "Nilai tidak ditampilkan karena hasil belum memenuhi kontrak kualitas Matani.";
 };
 
 const formatValue = (value: number | null) =>
@@ -418,7 +455,26 @@ export default function DetailLahanPage() {
           <View style={styles.heroCopy}>
             <Text style={styles.cropLabel}>PADI</Text>
             <Text style={styles.heroTitle}>{detail.name}</Text>
-            <Text style={styles.heroMeta}>{formatArea(detail.area_ha)}</Text>
+            <View style={styles.heroFooter}>
+              <Text style={styles.heroMeta}>{formatArea(detail.area_ha)}</Text>
+              <Pressable
+                style={({ pressed }) => [styles.openMapButton, pressed && { opacity: 0.78 }]}
+                onPress={() =>
+                  router.push({
+                    pathname: "/(tabs)/explore",
+                    params: {
+                      focusLahanId: detail.id,
+                      focusRequest: String(Date.now()),
+                    },
+                  })
+                }
+                accessibilityRole="button"
+                accessibilityLabel={`Lihat ${detail.name} di peta`}
+              >
+                <Ionicons name="navigate-outline" size={17} color="#FFFFFF" />
+                <Text style={styles.openMapButtonText}>Lihat di peta</Text>
+              </Pressable>
+            </View>
           </View>
         </ImageBackground>
 
@@ -499,6 +555,22 @@ export default function DetailLahanPage() {
         <View style={styles.section}>
           <Text style={styles.sectionEyebrow}>KRONOLOGI</Text>
           <Text style={styles.sectionTitle}>Observasi per tanggal</Text>
+          <View style={styles.timelineGuide}>
+            <View style={styles.timelineGuideIcon}>
+              <Ionicons name="information-circle-outline" size={20} color="#166534" />
+            </View>
+            <View style={styles.timelineGuideCopy}>
+              <Text style={styles.timelineGuideTitle}>Cara membaca kronologi</Text>
+              <Text style={styles.timelineGuideText}>
+                Satu kartu mewakili satu tanggal pengambilan citra. NDVI adalah indeks vegetasi dan NDMI adalah indeks kelembapan. Bandingkan indeks yang sama antar tanggal; angka ini bukan diagnosis kondisi padi.
+              </Text>
+              <View style={styles.timelineGuideHint}>
+                <Text style={styles.timelineGuideHintText}>
+                  Tanda -- berarti nilai sengaja tidak ditampilkan karena tidak tersedia atau tidak lolos kualitas.
+                </Text>
+              </View>
+            </View>
+          </View>
           {observations.length === 0 ? (
             <View style={styles.emptyTimeline}>
               <Ionicons
@@ -521,7 +593,7 @@ export default function DetailLahanPage() {
                     ? "Matani sedang mengambil raster Sentinel-2 dan menghitung pixel valid. Halaman ini memeriksa hasil secara otomatis."
                     : queuedWithoutAttempt
                     ? "Matani menjalankan pengukuran otomatis dan memeriksa hasilnya berkala."
-                    : `Batas lahan tersimpan, tetapi belum ada acquisition yang lolos kualitas${jobErrorCode ? ` (${jobErrorCode})` : ""}. Matani tidak membuat data pengganti.`)}
+                    : `Batas lahan tersimpan, tetapi belum ada citra yang lolos kualitas${jobErrorCode ? ` (${jobErrorCode})` : ""}. Matani tidak membuat data pengganti.`)}
               </Text>
               {!measurementIsProcessing && (
                 <Pressable
@@ -548,15 +620,18 @@ export default function DetailLahanPage() {
             observations
               .slice()
               .reverse()
-              .map((point) => (
-                <View key={point.id} style={styles.timelineRow}>
-                  <View
-                    style={[
-                      styles.timelineDot,
-                      point.state === "unavailable" && styles.timelineDotFixture,
-                    ]}
-                  />
-                  <View style={styles.timelineCopy}>
+              .map((point) => {
+                const qualityCopy = getQualityStatusCopy(point.qualityStatus);
+                const rejectionCopy = formatRejectionReason(point.rejectionReason);
+                return (
+                  <View key={point.id} style={styles.timelineRow}>
+                    <View
+                      style={[
+                        styles.timelineDot,
+                        point.state === "unavailable" && styles.timelineDotFixture,
+                      ]}
+                    />
+                    <View style={styles.timelineCopy}>
                     <View style={styles.timelineHeader}>
                       <Text style={styles.timelineDate}>{formatDate(point.timestamp)}</Text>
                       <Text
@@ -565,19 +640,34 @@ export default function DetailLahanPage() {
                           point.state === "unavailable" && styles.stateLabelFixture,
                         ]}
                       >
-                        {point.qualityStatus.toUpperCase()}
+                        {qualityCopy.label}
                       </Text>
                     </View>
+                    <Text style={styles.timelineStatusDescription}>{qualityCopy.description}</Text>
+                    <View style={styles.timelineMetricRow}>
+                      <View style={styles.timelineMetric}>
+                        <Text style={styles.timelineMetricLabel}>NDVI</Text>
+                        <Text style={styles.timelineMetricNdvi}>{formatValue(point.ndvi)}</Text>
+                      </View>
+                      <View style={styles.timelineMetricDivider} />
+                      <View style={styles.timelineMetric}>
+                        <Text style={styles.timelineMetricLabel}>NDMI</Text>
+                        <Text style={styles.timelineMetricNdmi}>{formatValue(point.ndmi)}</Text>
+                      </View>
+                    </View>
                     <Text style={styles.timelineValues}>
-                      NDVI {formatValue(point.ndvi)}   NDMI {formatValue(point.ndmi)}
+                      Pixel lahan yang dapat dihitung: NDVI {point.ndviValidPixelCount ?? "--"} · NDMI {point.ndmiValidPixelCount ?? "--"}
                     </Text>
-                    <Text style={styles.timelineValues}>
-                      Pixel valid: NDVI {point.ndviValidPixelCount ?? "--"} · NDMI {point.ndmiValidPixelCount ?? "--"}
-                      {point.rejectionReason ? ` · ${point.rejectionReason}` : ""}
-                    </Text>
+                    {rejectionCopy && (
+                      <View style={styles.rejectionPanel}>
+                        <Ionicons name="alert-circle-outline" size={16} color="#92400E" />
+                        <Text style={styles.rejectionText}>{rejectionCopy}</Text>
+                      </View>
+                    )}
+                    </View>
                   </View>
-                </View>
-              ))
+                );
+              })
           )}
         </View>
 
@@ -585,7 +675,7 @@ export default function DetailLahanPage() {
           <Ionicons name="shield-checkmark-outline" size={20} color="#92400E" />
           <Text style={styles.provenanceText}>
             {unavailableCount > 0
-              ? `${unavailableCount} acquisition ditolak/tidak tersedia dan tidak ditampilkan sebagai nilai.`
+              ? `${unavailableCount} citra ditolak/tidak tersedia dan tidak ditampilkan sebagai nilai.`
               : "Nilai pada halaman ini berasal dari measurement CDSE yang tersimpan dengan provenance sumber."}
           </Text>
         </View>
@@ -606,10 +696,13 @@ const styles = StyleSheet.create({
   hero: { height: 230, justifyContent: "space-between", padding: 18 },
   heroOverlay: { ...StyleSheet.absoluteFill, backgroundColor: "rgba(5, 30, 16, 0.48)" },
   iconButton: { width: 42, height: 42, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(15, 23, 42, 0.55)" },
-  heroCopy: { maxWidth: "90%" },
+  heroCopy: { maxWidth: "100%" },
   cropLabel: { color: "#BBF7D0", fontSize: 12, fontWeight: "800" },
   heroTitle: { color: "#FFFFFF", fontSize: 30, fontWeight: "800", marginTop: 5 },
-  heroMeta: { color: "#E2E8F0", fontSize: 14, marginTop: 6 },
+  heroFooter: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, marginTop: 10 },
+  heroMeta: { color: "#E2E8F0", fontSize: 14, flexShrink: 1 },
+  openMapButton: { minHeight: 42, paddingHorizontal: 14, borderRadius: 12, backgroundColor: "#166534", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, borderWidth: 1, borderColor: "rgba(255,255,255,0.35)" },
+  openMapButtonText: { color: "#FFFFFF", fontSize: 13, fontWeight: "800" },
   noticeBand: { flexDirection: "row", gap: 12, paddingHorizontal: 20, paddingVertical: 16, backgroundColor: "#E0F2FE", borderBottomWidth: 1, borderBottomColor: "#BAE6FD" },
   noticeCopy: { flex: 1 },
   noticeTitle: { color: "#075985", fontSize: 14, fontWeight: "800" },
@@ -618,20 +711,20 @@ const styles = StyleSheet.create({
   sectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end" },
   sectionEyebrow: { color: "#64748B", fontSize: 10, fontWeight: "800" },
   sectionTitle: { color: "#0F172A", fontSize: 20, fontWeight: "800", marginTop: 4 },
-  countBadge: { backgroundColor: "#DCFCE7", paddingHorizontal: 10, paddingVertical: 6 },
+  countBadge: { backgroundColor: "#DCFCE7", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10 },
   countBadgeText: { color: "#166534", fontSize: 12, fontWeight: "800" },
-  segmentedControl: { flexDirection: "row", backgroundColor: "#E2E8F0", marginTop: 18, padding: 3 },
+  segmentedControl: { flexDirection: "row", backgroundColor: "#E2E8F0", marginTop: 18, padding: 3, borderRadius: 12 },
   segmentButton: { flex: 1, height: 38, alignItems: "center", justifyContent: "center" },
-  segmentButtonActive: { backgroundColor: "#FFFFFF" },
+  segmentButtonActive: { backgroundColor: "#FFFFFF", borderRadius: 9 },
   segmentText: { color: "#64748B", fontSize: 13, fontWeight: "800" },
   segmentTextActive: { color: "#166534" },
-  chartFrame: { marginTop: 14, backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: "#E2E8F0", paddingTop: 8 },
+  chartFrame: { marginTop: 14, backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: "#E2E8F0", paddingTop: 8, borderRadius: 14, overflow: "hidden" },
   chartAxisRow: { flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 12, paddingBottom: 10 },
   chartAxisText: { color: "#64748B", fontSize: 10 },
   chartEmpty: { height: 210, alignItems: "center", justifyContent: "center", paddingHorizontal: 28, backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: "#E2E8F0", marginTop: 14 },
   chartEmptyTitle: { color: "#334155", fontSize: 14, fontWeight: "700", marginTop: 8 },
   chartEmptyText: { color: "#64748B", fontSize: 12, textAlign: "center", lineHeight: 18, marginTop: 4 },
-  metricRow: { flexDirection: "row", marginTop: 12, backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: "#E2E8F0", paddingVertical: 14 },
+  metricRow: { flexDirection: "row", marginTop: 12, backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: "#E2E8F0", paddingVertical: 14, borderRadius: 14 },
   metricBlock: { flex: 1, alignItems: "center" },
   metricDivider: { width: 1, backgroundColor: "#E2E8F0" },
   metricLabel: { color: "#64748B", fontSize: 10, fontWeight: "700" },
@@ -639,15 +732,31 @@ const styles = StyleSheet.create({
   emptyTimeline: { alignItems: "center", marginTop: 14, padding: 24, backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: "#E2E8F0" },
   emptyTimelineTitle: { color: "#334155", fontWeight: "700", marginTop: 8 },
   emptyTimelineText: { color: "#64748B", fontSize: 12, lineHeight: 18, textAlign: "center", marginTop: 5 },
-  timelineRow: { flexDirection: "row", gap: 12, paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: "#E2E8F0" },
+  timelineGuide: { flexDirection: "row", gap: 11, marginTop: 14, padding: 14, borderRadius: 14, borderWidth: 1, borderColor: "#BBF7D0", backgroundColor: "#F0FDF4" },
+  timelineGuideIcon: { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center", backgroundColor: "#DCFCE7" },
+  timelineGuideCopy: { flex: 1 },
+  timelineGuideTitle: { color: "#14532D", fontSize: 13, fontWeight: "800" },
+  timelineGuideText: { color: "#166534", fontSize: 12, lineHeight: 18, marginTop: 4 },
+  timelineGuideHint: { marginTop: 9, paddingTop: 8, borderTopWidth: 1, borderTopColor: "#BBF7D0" },
+  timelineGuideHintText: { color: "#475569", fontSize: 11, lineHeight: 16 },
+  timelineRow: { flexDirection: "row", gap: 12, marginTop: 12, padding: 15, borderRadius: 14, borderWidth: 1, borderColor: "#E2E8F0", backgroundColor: "#FFFFFF" },
   timelineDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: "#0284C7", marginTop: 5 },
   timelineDotFixture: { backgroundColor: "#F59E0B" },
   timelineCopy: { flex: 1 },
   timelineHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 8 },
   timelineDate: { color: "#0F172A", fontSize: 13, fontWeight: "700", flex: 1 },
-  timelineValues: { color: "#475569", fontSize: 13, marginTop: 5 },
-  stateLabel: { color: "#0369A1", backgroundColor: "#E0F2FE", fontSize: 9, fontWeight: "800", paddingHorizontal: 7, paddingVertical: 4 },
+  timelineStatusDescription: { color: "#64748B", fontSize: 11, lineHeight: 16, marginTop: 6 },
+  timelineMetricRow: { flexDirection: "row", alignItems: "center", marginTop: 12, padding: 10, borderRadius: 10, backgroundColor: "#F8FAFC" },
+  timelineMetric: { flex: 1 },
+  timelineMetricDivider: { width: 1, height: 34, marginHorizontal: 12, backgroundColor: "#CBD5E1" },
+  timelineMetricLabel: { color: "#64748B", fontSize: 9, fontWeight: "800", letterSpacing: 0.8 },
+  timelineMetricNdvi: { color: "#15803D", fontSize: 19, fontWeight: "800", marginTop: 2 },
+  timelineMetricNdmi: { color: "#0369A1", fontSize: 19, fontWeight: "800", marginTop: 2 },
+  timelineValues: { color: "#475569", fontSize: 11, lineHeight: 16, marginTop: 9 },
+  stateLabel: { color: "#0369A1", backgroundColor: "#E0F2FE", fontSize: 9, fontWeight: "800", paddingHorizontal: 8, paddingVertical: 5, borderRadius: 8 },
   stateLabelFixture: { color: "#92400E", backgroundColor: "#FEF3C7" },
+  rejectionPanel: { flexDirection: "row", alignItems: "flex-start", gap: 7, marginTop: 10, padding: 10, borderRadius: 10, backgroundColor: "#FFFBEB", borderWidth: 1, borderColor: "#FDE68A" },
+  rejectionText: { flex: 1, color: "#78350F", fontSize: 11, lineHeight: 16 },
   provenanceBand: { flexDirection: "row", gap: 10, marginHorizontal: 20, marginTop: 24, padding: 14, backgroundColor: "#FFFBEB", borderWidth: 1, borderColor: "#FDE68A" },
   provenanceText: { flex: 1, color: "#78350F", fontSize: 12, lineHeight: 18 },
 });

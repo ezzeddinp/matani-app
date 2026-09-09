@@ -54,6 +54,7 @@ interface SavedLahanCardProps {
   name: string;
   areaHa: number | null;
   ndviScore?: number | null;
+  ndmiScore?: number | null;
   capturedAt?: string | null;
   dataState?: "measured" | "unavailable";
   thumbnailUrl?: string | null;
@@ -105,6 +106,7 @@ type LahanHealthRecord = {
 
 type LahanHealthSummary = {
   ndviScore: number | null;
+  ndmiScore: number | null;
   capturedAt: string | null;
   dataState: "measured" | "unavailable";
 };
@@ -282,6 +284,7 @@ const LahanCard = ({
   name,
   areaHa,
   ndviScore,
+  ndmiScore,
   capturedAt,
   dataState,
   thumbnailUrl,
@@ -291,7 +294,8 @@ const LahanCard = ({
   onPress,
 }: SavedLahanCardProps) => {
   const ndviValue = parseOptionalNumber(ndviScore);
-  const hasObservation = ndviValue !== null;
+  const ndmiValue = parseOptionalNumber(ndmiScore);
+  const hasObservation = dataState === "measured" && ndviValue !== null;
   const statusLabel = hasObservation
     ? `Rekaman terukur${
         capturedAt ? ` · ${formatDisplayDate(capturedAt)}` : ""
@@ -319,12 +323,12 @@ const LahanCard = ({
         <View style={styles.fieldCard}>
           {/* Top Section with Category Image */}
           <ImageBackground
-            source={PADI_IMAGE}
+            source={thumbnailUrl ? { uri: thumbnailUrl } : PADI_IMAGE}
             style={styles.fieldCardTop}
             resizeMode="cover"
             imageStyle={{
-              borderTopLeftRadius: 11,
-              borderTopRightRadius: 11,
+              borderTopLeftRadius: 17,
+              borderTopRightRadius: 17,
             }}
           >
             <View style={styles.fieldCategoryBadge}>
@@ -343,17 +347,52 @@ const LahanCard = ({
 
           {/* Bottom Section - Info */}
           <View style={styles.fieldCardBottom}>
-            <Text style={[styles.fieldStatusLabel, { color: statusColor }]}>
-              {statusLabel}
-            </Text>
-            <Text style={styles.fieldNameLabel} numberOfLines={1}>
-              {name}
-            </Text>
+            <View style={styles.fieldCardTitleRow}>
+              <Text style={styles.fieldNameLabel} numberOfLines={1}>{name}</Text>
+              <View style={styles.fieldCardArrow}>
+                <Ionicons name="chevron-forward" size={16} color="#166534" />
+              </View>
+            </View>
+
+            <View style={styles.fieldMetaRow}>
+              <View style={styles.fieldMetaItem}>
+                <Ionicons name="resize-outline" size={13} color="#166534" />
+                <Text style={styles.fieldMetaText}>
+                  {areaHa === null ? "Luas --" : `${areaHa.toFixed(2)} ha`}
+                </Text>
+              </View>
+              <View style={styles.fieldMetaItem}>
+                <Ionicons name="leaf-outline" size={13} color="#166534" />
+                <Text style={styles.fieldMetaText}>
+                  {category?.toLowerCase() === "padi" ? "Padi" : "Scope lama"}
+                </Text>
+              </View>
+            </View>
+
+            <View style={[styles.fieldObservation, !hasObservation && styles.fieldObservationEmpty]}>
+              <Text style={[styles.fieldStatusLabel, { color: statusColor }]}>{statusLabel}</Text>
+              {hasObservation ? (
+                <View style={styles.fieldObservationValues}>
+                  <View style={styles.fieldObservationMetric}>
+                    <Text style={styles.fieldObservationLabel}>NDVI</Text>
+                    <Text style={styles.fieldObservationNdvi}>{formatNdviValue(ndviValue)}</Text>
+                  </View>
+                  <View style={styles.fieldObservationDivider} />
+                  <View style={styles.fieldObservationMetric}>
+                    <Text style={styles.fieldObservationLabel}>NDMI</Text>
+                    <Text style={styles.fieldObservationNdmi}>{formatNdviValue(ndmiValue)}</Text>
+                  </View>
+                </View>
+              ) : (
+                <Text style={styles.fieldObservationEmptyText}>
+                  Buka detail untuk melihat status pengukuran.
+                </Text>
+              )}
+            </View>
+
             <View style={styles.fieldCardFooter}>
-              <Text style={styles.fieldNoteLabel} numberOfLines={1}>
-                {displayNote}
-              </Text>
-              <Ionicons name="chevron-forward" size={12} color="#8f8f8f" />
+              <Ionicons name="document-text-outline" size={13} color="#64748B" />
+              <Text style={styles.fieldNoteLabel} numberOfLines={1}>{displayNote}</Text>
             </View>
           </View>
         </View>
@@ -752,6 +791,7 @@ export default function HomeScreen() {
             const capturedAt = record.captured_at ?? null;
             acc[id] = {
               ndviScore: capturedAt ? parsedScore : null,
+              ndmiScore: capturedAt ? parseOptionalNumber(record.ndmi_score) : null,
               capturedAt,
               dataState: getObservationState(record.status),
             };
@@ -1379,6 +1419,7 @@ export default function HomeScreen() {
                   name={item.name}
                   areaHa={item.areaHa}
                   ndviScore={lahanHealthMap[item.id]?.ndviScore ?? null}
+                  ndmiScore={lahanHealthMap[item.id]?.ndmiScore ?? null}
                   capturedAt={lahanHealthMap[item.id]?.capturedAt ?? null}
                   dataState={lahanHealthMap[item.id]?.dataState}
                   thumbnailUrl={item.thumbnailUrl}
@@ -1907,23 +1948,28 @@ const styles = StyleSheet.create({
     paddingRight: 4,
   },
   fieldCardContainer: {
-    marginRight: 14,
-    paddingHorizontal: 4,
+    marginRight: 12,
+    paddingBottom: 6,
   },
   fieldCard: {
-    width: 189,
-    backgroundColor: "#e5e5e5",
-    borderRadius: 13,
-    padding: 7,
+    width: Math.min(width - 48, 304),
+    backgroundColor: "#FFFFFF",
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#DDE7DF",
+    overflow: "hidden",
+    shadowColor: "#0A3D1F",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 3,
   },
   fieldCardTop: {
-    borderTopLeftRadius: 11,
-    borderTopRightRadius: 11,
-    height: 173,
+    height: 112,
     position: "relative",
     justifyContent: "space-between",
     flexDirection: "row",
-    padding: 11,
+    padding: 12,
   },
   fieldCategoryBadge: {
     backgroundColor: "rgba(255, 255, 255, 0.6)",
@@ -1963,38 +2009,72 @@ const styles = StyleSheet.create({
     fontSize: 10,
   },
   fieldCardBottom: {
-    backgroundColor: "#f5f5f5",
-    borderBottomLeftRadius: 11,
-    borderBottomRightRadius: 11,
-    paddingHorizontal: 11,
-    paddingVertical: 13,
+    backgroundColor: "#FFFFFF",
+    padding: 14,
   },
+  fieldCardTitleRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   fieldStatusLabel: {
     fontWeight: "bold",
-    fontSize: 9,
-    marginBottom: 4,
+    fontSize: 10,
+    letterSpacing: 0.4,
     textTransform: "uppercase",
   },
   fieldNameLabel: {
+    flex: 1,
     fontWeight: "bold",
-    color: "#000000",
-    fontSize: 16,
-    marginBottom: 5,
+    color: "#0F172A",
+    fontSize: 17,
+  },
+  fieldMetaRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 7,
+    marginTop: 10,
+  },
+  fieldMetaItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    borderRadius: 8,
+    backgroundColor: "#F0FDF4",
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+  },
+  fieldMetaText: { color: "#166534", fontSize: 11, fontWeight: "700" },
+  fieldObservation: {
+    marginTop: 11,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#BFDBFE",
+    backgroundColor: "#EFF6FF",
+    padding: 10,
+  },
+  fieldObservationEmpty: { borderColor: "#E2E8F0", backgroundColor: "#F8FAFC" },
+  fieldObservationValues: { flexDirection: "row", alignItems: "center", marginTop: 7 },
+  fieldObservationMetric: { flex: 1 },
+  fieldObservationDivider: { width: 1, height: 30, backgroundColor: "#BFDBFE", marginHorizontal: 12 },
+  fieldObservationLabel: { color: "#64748B", fontSize: 9, fontWeight: "800", letterSpacing: 0.7 },
+  fieldObservationNdvi: { color: "#15803D", fontSize: 18, fontWeight: "800", marginTop: 2 },
+  fieldObservationNdmi: { color: "#0369A1", fontSize: 18, fontWeight: "800", marginTop: 2 },
+  fieldObservationEmptyText: { color: "#64748B", fontSize: 11, lineHeight: 16, marginTop: 4 },
+  fieldCardArrow: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#F0FDF4",
   },
   fieldCardFooter: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    gap: 6,
+    marginTop: 11,
   },
   fieldNoteLabel: {
-    color: "#8f8f8f",
-    fontSize: 10,
+    color: "#64748B",
+    fontSize: 11,
     flex: 1,
-  },
-  fieldCardArrow: {
-    justifyContent: "center",
-    alignItems: "center",
-    marginLeft: 8,
   },
   fieldCardSoft: {
     flex: 1,

@@ -1,6 +1,6 @@
 # Matani
 
-**Updated:** 2026-09-07
+**Updated:** 2026-09-09
 
 _Mata tani_ — "the farmer's eye." Matani is a padi-only mobile decision support application structured by the thesis team's GROW workflow. Its evaluation backbone asks whether Sentinel-2 NDVI/NDMI monitoring can be used defensibly over Indonesian smallholder fields. The Expo / React Native app captures field polygons and presents dated raw index observations, weather context, notes, and explicit data states without classifying or diagnosing crop health.
 
@@ -29,8 +29,9 @@ The [canonical roadmap](.agent/implementation-plan.md) controls M0–M4 sequenci
 
 ## Stack
 
-- **Mobile** — Expo SDK 54 / React Native 0.81 / React 19.1 with Expo Router. Expo Go is
-  the default local-device workflow (DEC-22).
+- **Mobile** — Expo SDK 57 / React Native 0.86 / React 19.2 with Expo Router. An
+  app-specific Expo development client is the default map-capable device workflow
+  (DEC-43).
 - **Backend** — Express 5 (Node), colocated in [`backend/`](backend/), deployed on Vercel; the runtime and TypeScript entrypoints expose the same protected provider/measurement routes. Satellite, weather, and Gemini data calls use this boundary; mapping/place-search/display services remain client presentation integrations (ADR-10 / DEC-20).
 - **Data & auth** — Supabase: Auth, Postgres, PostGIS, Row Level Security.
 - **Maps** — Google Maps (`react-native-maps`) for polygon field drawing.
@@ -66,19 +67,31 @@ cd backend
 npm run dev
 ```
 
-Run the app:
+After the Matani development build has been installed on the device, run Metro:
 
 ```sh
 npm start
 ```
 
-`npm start` runs `expo start --go`; `npm run start:clear` does the same with a clean
-Metro cache. Android and iOS scripts also select Expo Go explicitly.
+`npm start` targets the development client; `npm run start:clear` does the same with a
+clean Metro cache. `npm run android` and `npm run ios` compile local native builds (iOS
+requires macOS/Xcode). On Windows, create the physical-iPhone build in EAS:
 
-Expo SDK 54 must match the Expo Go installed on the device. Android can install a
-matching historical Expo Go build, while a physical iPhone can install only the latest
-App Store Expo Go. If that iOS client no longer supports SDK 54, use an iOS simulator
-with the matching client or a development build (EVID-023).
+```sh
+# One-time per EAS environment: configure both Maps values securely in EAS.
+eas env:set development --name GOOGLE_MAPS_API_KEY_ANDROID --visibility sensitive
+eas env:set development --name GOOGLE_MAPS_API_KEY_IOS --visibility sensitive
+
+# Build, install the resulting Matani app on the registered iPhone, then run npm start.
+npm run build:development:ios
+```
+
+The generic Expo Go binary cannot receive this project's iOS Google Maps native library
+or build-time key. `npm run start:go` is retained only for limited non-map diagnostics;
+clearing Metro cannot change native code already installed on the phone
+(EVID-033/034). Local `.env` files are intentionally ignored and do not reach a remote
+EAS build, so the development EAS environment must also contain both Maps values
+(EVID-036/037).
 
 Run the fixture-only local checks:
 
@@ -99,7 +112,7 @@ npm run db:test
 npm run db:types
 ```
 
-**Note on Maps keys:** Android standalone builds inject `GOOGLE_MAPS_API_KEY_ANDROID` through `app.config.ts`; iOS uses its native map provider. The Android key is **client-visible in the shipped binary by design** — the control is Android app/API restriction, not secrecy.
+**Note on Maps keys:** Android and iOS native builds inject separate `GOOGLE_MAPS_API_KEY_ANDROID` / `GOOGLE_MAPS_API_KEY_IOS` values through `app.config.ts`. These keys are **client-visible in shipped binaries by design** — restrict each key to its platform application and Maps SDK API. Ladang has no Apple MapKit fallback. Google Maps on iOS therefore requires a custom native build containing the Google library and a valid iOS key (EVID-019/033; DEC-42).
 
 ## Documentation map
 

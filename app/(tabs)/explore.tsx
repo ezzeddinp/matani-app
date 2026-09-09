@@ -23,7 +23,7 @@ import { File, Paths } from "expo-file-system";
 import { Image as ExpoImage } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Location from "expo-location";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import * as Sharing from "expo-sharing";
 import React, {
   useCallback,
@@ -268,6 +268,16 @@ const isRateLimitError = (error: unknown) => {
 
 export default function ExploreScreen() {
   const router = useRouter();
+  const { focusLahanId, focusRequest } = useLocalSearchParams<{
+    focusLahanId?: string | string[];
+    focusRequest?: string | string[];
+  }>();
+  const requestedLahanId = Array.isArray(focusLahanId)
+    ? focusLahanId[0]
+    : focusLahanId;
+  const requestedFocusToken = Array.isArray(focusRequest)
+    ? focusRequest[0]
+    : focusRequest;
   const fallbackUserId = process.env.EXPO_PUBLIC_SUPABASE_DEFAULT_USER_ID;
   const [drawingMode, setDrawingMode] = useState(false);
   const [showSaveModal, setShowSaveModal] = useState(false);
@@ -321,10 +331,10 @@ export default function ExploreScreen() {
   const [scrollEnabled, setScrollEnabled] = useState(true);
   const mapRef = useRef<MapView>(null);
   const [baseMapType, setBaseMapType] = useState<"satellite" | "standard">("satellite");
-  const [mapHasLoaded, setMapHasLoaded] = useState(false);
-  const [mapLoadTimedOut, setMapLoadTimedOut] = useState(false);
-  const [mapRenderKey, setMapRenderKey] = useState(0);
+  const [mapIsReady, setMapIsReady] = useState(false);
+  const [focusedLahanId, setFocusedLahanId] = useState<string | null>(null);
   const currentRegionRef = useRef<Region | null>(null);
+  const handledFocusRequestRef = useRef<string | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
   const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mapScrollResetTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -343,12 +353,6 @@ export default function ExploreScreen() {
     }, 300);
     return () => clearInterval(interval);
   }, []);
-
-  useEffect(() => {
-    if (mapHasLoaded) return;
-    const timeout = setTimeout(() => setMapLoadTimedOut(true), 10_000);
-    return () => clearTimeout(timeout);
-  }, [baseMapType, mapHasLoaded, mapRenderKey]);
 
   const releaseScrollLock = useCallback(() => {
     setScrollEnabled((prev) => { if (prev) return prev; return true; });
@@ -517,7 +521,7 @@ export default function ExploreScreen() {
     }
   }, [fallbackUserId]);
 
-  const getCurrentLocation = useCallback(async () => {
+  const getCurrentLocation = useCallback(async (moveMap = true) => {
     try {
       let { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== "granted") {
@@ -534,8 +538,10 @@ export default function ExploreScreen() {
         longitudeDelta: clampDeltaValue(baseRegion?.longitudeDelta ?? 0.01),
       };
       setUserLocation(nextRegion);
-      currentRegionRef.current = nextRegion;
-      mapRef.current?.animateToRegion(nextRegion, 350);
+      if (moveMap) {
+        currentRegionRef.current = nextRegion;
+        mapRef.current?.animateToRegion(nextRegion, 350);
+      }
       const fallbackLabel = buildCoordinateLabel(location.coords.latitude, location.coords.longitude);
       const cacheKey = buildGeocodeCacheKey(location.coords.latitude, location.coords.longitude);
       const cachedLabel = geocodeCacheRef.current.get(cacheKey);
@@ -565,15 +571,40 @@ export default function ExploreScreen() {
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
-      void getCurrentLocation();
+      void getCurrentLocation(!requestedLahanId);
       void loadSavedLahan();
     }, 0);
     return () => clearTimeout(timeoutId);
-  }, [getCurrentLocation, loadSavedLahan]);
+  }, [getCurrentLocation, loadSavedLahan, requestedLahanId]);
   useEffect(() => {
     const timeoutId = setTimeout(() => void loadNotes(), 0);
     return () => clearTimeout(timeoutId);
   }, [loadNotes]);
+
+  useEffect(() => {
+    if (!requestedLahanId || !mapIsReady || savedLahan.length === 0) return;
+
+    const requestSignature = `${requestedLahanId}:${requestedFocusToken ?? "default"}`;
+    if (handledFocusRequestRef.current === requestSignature) return;
+
+    const target = savedLahan.find((item) => item.id === requestedLahanId);
+    if (!target || target.coordinates.length < 3) return;
+
+    handledFocusRequestRef.current = requestSignature;
+    setFocusedLahanId(target.id);
+    setDrawingMode(false);
+    setSearchMarker(null);
+    scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+
+    const focusTimer = setTimeout(() => {
+      mapRef.current?.fitToCoordinates(target.coordinates, {
+        edgePadding: { top: 96, right: 52, bottom: 96, left: 52 },
+        animated: true,
+      });
+    }, 250);
+
+    return () => clearTimeout(focusTimer);
+  }, [mapIsReady, requestedFocusToken, requestedLahanId, savedLahan]);
 
   useEffect(() => {
     return () => {
@@ -740,6 +771,7 @@ export default function ExploreScreen() {
     const coordinate = { latitude: result.latitude, longitude: result.longitude };
     setSearchQuery(result.label); setSearchResults([]); setShowSearchResults(false);
     setSearchMarker(coordinate); setLocationLabel(result.label);
+    setFocusedLahanId(null);
     clearActivePath(); setDrawingMode(false); setShowSaveModal(false);
     const nextRegion: Region = { latitude: coordinate.latitude, longitude: coordinate.longitude, latitudeDelta: 0.008, longitudeDelta: 0.008 };
     setUserLocation((prev) => ({ ...prev, latitude: coordinate.latitude, longitude: coordinate.longitude }));
@@ -781,8 +813,9 @@ export default function ExploreScreen() {
       longitudeDelta: clampDeltaValue(current.longitudeDelta ?? userLocation.longitudeDelta),
     };
     animateToRegion(nextRegion, 300);
+    setFocusedLahanId(null);
     setSearchMarker(null);
-    getCurrentLocation();
+    getCurrentLocation(true);
   }, [animateToRegion, getCurrentLocation, userLocation]);
 
   const handleMapTouchStart = useCallback(() => {
@@ -809,6 +842,7 @@ export default function ExploreScreen() {
 
   const startDrawing = () => {
     setDrawingMode(true); setShowSaveModal(false); setLahanName("");
+    setFocusedLahanId(null);
     setPendingPolygonSource("draw"); setImportedFileName(null); clearActivePath();
     Alert.alert("Mode Gambar Aktif", "Tap pada peta untuk menandai titik-titik polygon.");
   };
@@ -934,17 +968,8 @@ export default function ExploreScreen() {
     }
   }, []);
 
-  const retryBaseMap = useCallback(() => {
-    setMapHasLoaded(false);
-    setMapLoadTimedOut(false);
-    setMapRenderKey((current) => current + 1);
-  }, []);
-
   const switchBaseMap = useCallback(() => {
     setBaseMapType((current) => current === "satellite" ? "standard" : "satellite");
-    setMapHasLoaded(false);
-    setMapLoadTimedOut(false);
-    setMapRenderKey((current) => current + 1);
   }, []);
 
   const undoLastPoint = () => {
@@ -1501,7 +1526,6 @@ export default function ExploreScreen() {
             )}
 
             <MapView
-              key={`field-map-${mapRenderKey}`}
               ref={mapRef}
               style={styles.map}
               initialRegion={userLocation}
@@ -1511,12 +1535,12 @@ export default function ExploreScreen() {
               onTouchStart={handleMapTouchStart}
               onTouchEnd={handleMapTouchEnd}
               onTouchCancel={handleMapTouchEnd}
-              provider={Platform.OS === "android" ? PROVIDER_GOOGLE : undefined}
+              provider={PROVIDER_GOOGLE}
               mapType={baseMapType}
-              onMapLoaded={() => {
-                setMapHasLoaded(true);
-                setMapLoadTimedOut(false);
-              }}
+              onMapReady={() => setMapIsReady(true)}
+              loadingEnabled
+              loadingBackgroundColor="#E8F3E8"
+              loadingIndicatorColor="#166534"
               showsUserLocation
               showsMyLocationButton={false}
               showsCompass={false}
@@ -1563,10 +1587,23 @@ export default function ExploreScreen() {
                 const fillColor = paletteColor.fill;
                 return (
                   <React.Fragment key={`saved-${item.id}`}>
-                    <Polygon coordinates={item.coordinates} fillColor={fillColor} strokeColor={strokeColor} strokeWidth={3} tappable={false} />
+                    <Polygon
+                      coordinates={item.coordinates}
+                      fillColor={fillColor}
+                      strokeColor={strokeColor}
+                      strokeWidth={focusedLahanId === item.id ? 6 : 3}
+                      tappable={false}
+                      zIndex={focusedLahanId === item.id ? 4 : 1}
+                    />
                     {labelCoordinate && (
                       <Marker coordinate={labelCoordinate} anchor={{ x: 0.5, y: 0.5 }} tappable={false}>
-                        <View style={[styles.savedLahanLabel, { backgroundColor: strokeColor }]}>
+                        <View
+                          style={[
+                            styles.savedLahanLabel,
+                            { backgroundColor: strokeColor },
+                            focusedLahanId === item.id && styles.savedLahanLabelFocused,
+                          ]}
+                        >
                           <Text style={styles.savedLahanLabelText}>{item.name}</Text>
                           {typeof item.areaHa === "number" && Number.isFinite(item.areaHa) && (
                             <Text style={styles.savedLahanLabelSubtext}>{item.areaHa.toFixed(2)} ha</Text>
@@ -1593,38 +1630,6 @@ export default function ExploreScreen() {
                 </Marker>
               ))}
             </MapView>
-
-            {mapLoadTimedOut && (
-              <View style={styles.mapLoadErrorCard} accessibilityRole="alert">
-                <View style={styles.mapLoadErrorHeader}>
-                  <Ionicons name="map-outline" size={20} color="#92400E" />
-                  <Text style={styles.mapLoadErrorTitle}>Peta dasar belum termuat</Text>
-                </View>
-                <Text style={styles.mapLoadErrorText}>
-                  Periksa koneksi lalu coba lagi, atau ganti ke peta {baseMapType === "satellite" ? "standar" : "satelit"}.
-                </Text>
-                <View style={styles.mapLoadErrorActions}>
-                  <Pressable
-                    style={({ pressed }) => [styles.mapLoadRetryButton, pressed && { opacity: 0.75 }]}
-                    onPress={retryBaseMap}
-                    accessibilityRole="button"
-                  >
-                    <Ionicons name="refresh" size={15} color="#166534" />
-                    <Text style={styles.mapLoadRetryText}>Coba lagi</Text>
-                  </Pressable>
-                  <Pressable
-                    style={({ pressed }) => [styles.mapLoadSwitchButton, pressed && { opacity: 0.85 }]}
-                    onPress={switchBaseMap}
-                    accessibilityRole="button"
-                  >
-                    <Ionicons name="layers-outline" size={15} color="#FFFFFF" />
-                    <Text style={styles.mapLoadSwitchText}>
-                      Peta {baseMapType === "satellite" ? "standar" : "satelit"}
-                    </Text>
-                  </Pressable>
-                </View>
-              </View>
-            )}
 
             {drawingMode && (
               <DrawingModeIndicator
@@ -1893,17 +1898,21 @@ export default function ExploreScreen() {
             ) : (
               <>
                 {paginatedLahanCards.map((card) => (
-                  <Pressable
+                  <View
                     key={`lahan-card-${card.id}`}
-                    style={({ pressed }) => [styles.lahanCard, pressed && { opacity: 0.92 }]}
-                    onPress={() =>
-                      router.push({
-                        pathname: "/detail-lahan-page",
-                        params: { id: card.id },
-                      })
-                    }
-                    accessibilityRole="button"
+                    style={styles.lahanCard}
                   >
+                    <Pressable
+                      style={({ pressed }) => [styles.lahanCardMain, pressed && styles.lahanCardPressed]}
+                      onPress={() =>
+                        router.push({
+                          pathname: "/detail-lahan-page",
+                          params: { id: card.id },
+                        })
+                      }
+                      accessibilityRole="button"
+                      accessibilityLabel={`Buka detail ${card.name}`}
+                    >
                     <View style={styles.lahanCardRow}>
                       {/* Thumbnail */}
                       <View style={styles.lahanCardThumbnail}>
@@ -1994,6 +2003,7 @@ export default function ExploreScreen() {
                         )}
                       </View>
                     </View>
+                    </Pressable>
 
                     <View style={styles.lahanCardActions}>
                       <Pressable
@@ -2032,8 +2042,23 @@ export default function ExploreScreen() {
                         </Pressable>
                         </>
                       )}
+                      <View style={styles.lahanCardActionSpacer} />
+                      <Pressable
+                        style={({ pressed }) => [styles.lahanDetailButton, pressed && { opacity: 0.72 }]}
+                        onPress={() =>
+                          router.push({
+                            pathname: "/detail-lahan-page",
+                            params: { id: card.id },
+                          })
+                        }
+                        accessibilityRole="button"
+                        accessibilityLabel={`Lihat detail ${card.name}`}
+                      >
+                        <Text style={styles.lahanDetailButtonText}>Lihat detail</Text>
+                        <Ionicons name="arrow-forward" size={15} color="#FFFFFF" />
+                      </Pressable>
                     </View>
-                  </Pressable>
+                  </View>
                 ))}
               </>
             )}
@@ -2831,51 +2856,6 @@ const styles = StyleSheet.create({
     width: "100%",
     height: "100%",
   },
-  mapLoadErrorCard: {
-    position: "absolute",
-    left: 22,
-    right: 70,
-    top: "42%",
-    padding: 14,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "#FDE68A",
-    backgroundColor: "rgba(255,251,235,0.97)",
-    shadowColor: "#000000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.16,
-    shadowRadius: 10,
-    elevation: 8,
-    zIndex: 25,
-  },
-  mapLoadErrorHeader: { flexDirection: "row", alignItems: "center", gap: 8 },
-  mapLoadErrorTitle: { flex: 1, fontSize: 14, fontWeight: "800", color: "#78350F" },
-  mapLoadErrorText: { marginTop: 6, fontSize: 12, lineHeight: 17, color: "#92400E" },
-  mapLoadErrorActions: { flexDirection: "row", gap: 8, marginTop: 12 },
-  mapLoadRetryButton: {
-    flex: 1,
-    minHeight: 38,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#86EFAC",
-    backgroundColor: "#F0FDF4",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-  },
-  mapLoadRetryText: { fontSize: 12, fontWeight: "700", color: "#166534" },
-  mapLoadSwitchButton: {
-    flex: 1.25,
-    minHeight: 38,
-    borderRadius: 10,
-    backgroundColor: "#166534",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-  },
-  mapLoadSwitchText: { fontSize: 12, fontWeight: "700", color: "#FFFFFF" },
   searchContainer: {
     position: "absolute",
     top: 16,
@@ -3021,6 +3001,11 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     minWidth: 80,
     alignItems: "center",
+  },
+  savedLahanLabelFocused: {
+    borderWidth: 3,
+    borderColor: "#FFFFFF",
+    transform: [{ scale: 1.08 }],
   },
   savedLahanLabelText: { color: "#FFFFFF", fontWeight: "700", fontSize: 12 },
   savedLahanLabelSubtext: { color: "rgba(255,255,255,0.8)", fontSize: 10 },
@@ -3272,26 +3257,28 @@ const styles = StyleSheet.create({
 
   // ── LAHAN CARDS ──
   lahanCard: {
-    backgroundColor: "#FAFAFA",
-    borderRadius: 16,
-    marginBottom: 14,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 18,
+    marginBottom: 16,
     borderWidth: 1,
-    borderColor: "#F3F4F6",
+    borderColor: "#DDE7DF",
     shadowColor: "#0A3D1F",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.07,
+    shadowRadius: 12,
+    elevation: 2,
     overflow: "hidden",
   },
+  lahanCardMain: { backgroundColor: "#FFFFFF" },
+  lahanCardPressed: { backgroundColor: "#F7FBF8" },
   lahanCardRow: {
     flexDirection: "row",
     alignItems: "stretch",
   },
   lahanCardThumbnail: {
-    width: 110,
+    width: 104,
     alignSelf: "stretch",
-    minHeight: 170,
+    minHeight: 184,
   },
   lahanCardThumbnailImage: { borderRadius: 0 },
   lahanCardThumbnailOverlay: {
@@ -3315,17 +3302,17 @@ const styles = StyleSheet.create({
   },
   lahanCardContent: {
     flex: 1,
-    padding: 14,
+    padding: 13,
   },
   lahanCardHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 10,
+    marginBottom: 8,
   },
   lahanCardTitle: {
     flex: 1,
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: "800",
     color: "#0D1B12",
     letterSpacing: -0.3,
@@ -3334,14 +3321,14 @@ const styles = StyleSheet.create({
   lahanCardInfoRow: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 6,
-    marginBottom: 10,
+    gap: 5,
+    marginBottom: 9,
   },
   lahanCardInfoItem: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#F0FDF4",
-    paddingHorizontal: 8,
+    paddingHorizontal: 7,
     paddingVertical: 4,
     borderRadius: 6,
     gap: 4,
@@ -3352,14 +3339,17 @@ const styles = StyleSheet.create({
     color: "#166534",
   },
   lahanCardNdviContainer: {
-    borderRadius: 10,
+    borderRadius: 12,
     padding: 10,
     borderWidth: 1,
+    borderColor: "#BFDBFE",
+    backgroundColor: "#EFF6FF",
     marginBottom: 8,
   },
   lahanCardNdviHeader: {
     flexDirection: "row",
     alignItems: "center",
+    flexWrap: "wrap",
     gap: 6,
     marginBottom: 4,
   },
@@ -3382,10 +3372,11 @@ const styles = StyleSheet.create({
   lahanCardNdviValueRow: {
     flexDirection: "row",
     alignItems: "center",
+    flexWrap: "wrap",
     gap: 8,
   },
   lahanCardNdviValue: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: "800",
     letterSpacing: -0.5,
   },
@@ -3419,7 +3410,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    marginTop: 2,
+    marginTop: 1,
   },
   lahanCardLocationText: {
     fontSize: 11,
@@ -3429,7 +3420,8 @@ const styles = StyleSheet.create({
   },
   lahanCardActions: {
     flexDirection: "row",
-    justifyContent: "flex-end",
+    alignItems: "center",
+    flexWrap: "wrap",
     paddingHorizontal: 14,
     paddingBottom: 12,
     paddingTop: 8,
@@ -3454,6 +3446,17 @@ const styles = StyleSheet.create({
   },
   lahanActionButtonText: { fontSize: 12, color: "#166534", fontWeight: "600" },
   lahanActionButtonDeleteText: { color: "#DC2626" },
+  lahanDetailButton: {
+    minHeight: 36,
+    paddingHorizontal: 13,
+    borderRadius: 9,
+    backgroundColor: "#166534",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+  },
+  lahanDetailButtonText: { color: "#FFFFFF", fontSize: 12, fontWeight: "800" },
   editToggleButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -3966,6 +3969,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
   },
+  lahanCardActionSpacer: { flex: 1 },
   geoJsonFormatText: { flex: 1, fontSize: 11, lineHeight: 16, color: "#166534", fontWeight: "600" },
   geoJsonCodeScroll: {
     maxHeight: height * 0.43,

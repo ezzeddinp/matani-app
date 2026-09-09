@@ -7,6 +7,7 @@ const configuredMapKey = (value?: string) => {
 };
 
 const androidGoogleMapsApiKey = configuredMapKey(process.env.GOOGLE_MAPS_API_KEY_ANDROID);
+const iosGoogleMapsApiKey = configuredMapKey(process.env.GOOGLE_MAPS_API_KEY_IOS);
 
 const plugins: ExpoConfig["plugins"] = [
   "expo-router",
@@ -29,11 +30,12 @@ const plugins: ExpoConfig["plugins"] = [
   ],
 ];
 
-if (androidGoogleMapsApiKey) {
+if (androidGoogleMapsApiKey || iosGoogleMapsApiKey) {
   plugins.push([
     "react-native-maps",
     {
-      androidGoogleMapsApiKey,
+      ...(androidGoogleMapsApiKey ? { androidGoogleMapsApiKey } : {}),
+      ...(iosGoogleMapsApiKey ? { iosGoogleMapsApiKey } : {}),
     },
   ]);
 }
@@ -49,6 +51,9 @@ const config: ExpoConfig = {
   ios: {
     bundleIdentifier: "com.matani.app",
     supportsTablet: true,
+    infoPlist: {
+      ITSAppUsesNonExemptEncryption: false,
+    },
     runtimeVersion: {
       policy: "appVersion",
     },

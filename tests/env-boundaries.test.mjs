@@ -34,3 +34,19 @@ test("missing credentials remain visible rather than implying hosted readiness",
   assert.equal(result.unsafe, false);
   assert.ok(result.findings.includes("backend Supabase admin key class: missing"));
 });
+
+test("map key audit reports Android and iOS configuration without printing keys", () => {
+  const androidKey = "fixture-android-map-key";
+  const iosKey = "fixture-ios-map-key";
+  const result = auditEnvBoundaries(
+    {
+      GOOGLE_MAPS_API_KEY_ANDROID: androidKey,
+      GOOGLE_MAPS_API_KEY_IOS: iosKey,
+    },
+    {},
+  );
+
+  assert.ok(result.findings.some((line) => line.includes("Android=true, iOS=true")));
+  assert.ok(!JSON.stringify(result).includes(androidKey));
+  assert.ok(!JSON.stringify(result).includes(iosKey));
+});

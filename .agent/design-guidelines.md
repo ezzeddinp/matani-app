@@ -3,7 +3,7 @@
 **Document type:** Design guidelines
 **Audience:** The developer, thesis advisor, reviewers, and AI agents working in this repo
 **Status:** Active
-**Updated:** 2026-09-08
+**Updated:** 2026-09-09
 **Canonical for:** Design tokens, the screen map, component patterns, and data-state presentation rules
 **Companion documents:** [`product-requirements.md`](product-requirements.md), [`product-brief.md`](product-brief.md), [`project-architecture.md`](project-architecture.md), [`context-dump.md`](context-dump.md)
 
@@ -152,7 +152,7 @@ Derived from `app/` file-based routing (`expo-router`). Ordered by user flow.
 | 5 | `app/auth/signup.tsx` | Sign-up | Branded account creation with clear optional fields, Indonesian phone normalization, a distinct email-confirmation success state, and bounded errors (`components/auth/auth-screen.tsx`, `utils/auth-error.ts`, CODE; DEC-35/36). |
 | 5a | `app/auth/callback.tsx` | Email verification | Focused verification progress/error state that completes the Supabase redirect and returns the user to login when recovery is needed (CODE; DEC-36). |
 | 6 | `app/(tabs)/index.tsx` | **Beranda** (Home) | Dashboard: latest raw observation, weather card, field carousel (`_layout.tsx:67-73`). |
-| 7 | `app/(tabs)/explore.tsx` | **Ladang** (Fields) | Map-based padi-field list with interactive drawing, reviewed GeoJSON import/export, exact-coordinate preview, and recoverable base-map loading; raw NDVI/NDMI state (`utils/geojson-import.ts`, CODE; DEC-38/39). |
+| 7 | `app/(tabs)/explore.tsx` | **Ladang** (Fields) | Google Maps-only padi-field list on Android/iOS, interactive drawing, reviewed GeoJSON import/export, exact-coordinate preview, detail-to-polygon focus, and non-blocking native map loading; raw NDVI/NDMI state (`utils/geojson-import.ts`, CODE; DEC-38/39/40/42). |
 | 8 | `app/(tabs)/education.tsx` | **Edukasi** (Education) | Article list with filter/sort (`_layout.tsx:81-87`). |
 | 9 | `app/(tabs)/weather.tsx` | **Cuaca** (Weather) | Current conditions, metric grid, risk alert (`_layout.tsx:88-94`). |
 | 10 | `app/(tabs)/profile.tsx` | **Profil** (Profile) | Account and saved-field facts, sign-out, explicit unavailable notification/metric states, and preview-only achievements (`_layout.tsx:95-101`; DEC-20). |
@@ -174,7 +174,7 @@ These rules are **normative guidance**, inherited from [`../AGENTS.md`](../AGENT
 | **prototype** | Partially-wired, non-provenance-safe values must be **visibly marked as not measured** — never rendered identically to a measured value. |
 | **fixture** | Test data must always be **labeled as test data** and never presented as live/measured. |
 
-**Current presentation (as-built, 2026-08-21).** Ladang and Beranda show raw latest values with explicit fixture/prototype state or unavailable. Provider failure never creates a substitute. Field detail reads dated stored rows, offers an NDVI/NDMI segmented chart and chronology, and renders an honest empty timeline. It contains no severity, pest, disease, stress, harvest, yield, or recommendation output (DEC-24). M2 still owns reason-bearing quality rejection and provenance-complete measured history.
+**Current presentation (as-built, 2026-09-09).** Ladang and Beranda cards use a white, rounded, green-bordered hierarchy: identity and field metadata first, dated raw NDVI/NDMI availability second, and explicit detail/management actions last. Provider failure never creates a substitute. Field detail reads dated stored rows, offers an NDVI/NDMI segmented chart, explains how to read one observation per date and `--`, translates known quality/rejection codes into bounded Indonesian copy, and renders an honest empty timeline. It contains no severity, pest, disease, stress, harvest, yield, or recommendation output (DEC-24/40). M2 still owns provenance-complete measured history.
 
 The Profile and Notifications surfaces also follow the unavailable/preview rule after the
 same-day cross-check: no functional-looking alert switches, activity counters, NDVI
@@ -197,12 +197,12 @@ unavailable and achievement cards are labeled preview-only (`app/(tabs)/profile.
 | `components/drawing-mode-indicator.tsx` | Floating banner during polygon drawing ("Mode Menggambar Aktif • N titik"), orange `#FF5722` | `drawing-mode-indicator.tsx:9-27` |
 | `components/empty-state-lahan.tsx` | Empty-fields onboarding: leaf icon, CTA, 3-step how-to | `empty-state-lahan.tsx:8-69` |
 | `components/haptic-tab.tsx` | Tab-bar button wrapper adding iOS haptic feedback on press | `haptic-tab.tsx:5-18` |
-| NDVI/NDMI time-series chart | Rendered inline via `react-native-svg` (`Polyline`/`Circle`), with a stable view box and segmented index control. The chronology exposes acquisition date, quality, rejection reason, and separate NDVI/NDMI valid-pixel counts. Empty details initialize once per visit; queued/processing jobs poll without blanking metadata. `Coba lagi` provides manual recovery; failed/empty states never invent values. | `app/detail-lahan-page.tsx`, `utils/measurement-start.ts` (CODE; DEC-37) |
+| NDVI/NDMI time-series chart | Rendered inline via `react-native-svg` (`Polyline`/`Circle`), with a stable view box and segmented index control. The chronology uses one rounded card per acquisition date, plain-language quality/rejection copy, separate NDVI/NDMI values and valid-pixel counts, and an explicit `--` explanation. Empty details initialize once per visit; queued/processing jobs poll without blanking metadata. `Coba lagi` provides manual recovery; failed/empty states never invent values. | `app/detail-lahan-page.tsx`, `utils/measurement-start.ts` (CODE; DEC-37/40) |
 | Weather-icon mapping | `utils/weather-icons.ts` maps provider codes → 12 custom PNGs in `assets/weather-icons/` | `weather-icons.ts:18-32,43-68` |
 
 The weather-icon set is a real design asset: 12 PNGs (`Icon=Sunny.png`, `Icon=Cloudy.png`, `Icon=Rainy.png`, `…Thunderstorm`, `…Snowfall`, `…Night`, etc.), keyed by `WeatherIconKey` with a `default` → Cloudy fallback. `mapWmoWeatherCodeToIconKey` maps the Open-Meteo WMO code contract to these provider-agnostic assets (DEC-07; ADR-04).
 
-The Ladang map keeps pan/drag enabled in normal browsing. In drawing mode, location search is hidden and the drawing status plus Undo, Redo, Batal, and Simpan controls are top-anchored inside the map so the completion path remains reachable on short mobile viewports. A persistent layers control switches between satellite and standard base maps. A timed load-failure card explains the blank-map state and provides retry and base-map fallback actions (`app/(tabs)/explore.tsx`, CODE; DEC-39).
+The Ladang map keeps pan/drag enabled in normal browsing. In drawing mode, location search is hidden and the drawing status plus Undo, Redo, Batal, and Simpan controls are top-anchored inside the map so the completion path remains reachable on short mobile viewports. A persistent layers control switches between satellite and standard Google base maps. Android and iOS both select `PROVIDER_GOOGLE`; there is no Apple provider fallback. Native loading feedback is non-blocking; there is no timer-derived overlay. The field-detail CTA routes back to Ladang, fits the selected owner-visible polygon, and uses a thicker outline plus bordered label to show focus (`app/(tabs)/explore.tsx`, `app/detail-lahan-page.tsx`, CODE; DEC-40/42).
 
 GeoJSON import is a secondary outlined action beneath the primary drawing CTA. Its helper copy states the single-Polygon, WGS84, and 1 MB constraints before the native picker opens. During reading it exposes a busy state; successful parsing opens the existing save sheet with filename, point count, area estimate, editable name, and a fitted map preview. Validation errors use specific Indonesian recovery copy and retain no pending geometry. The save sheet offers exact GeoJSON preview plus an enabled-by-default post-save export. Every saved-field card exposes the same GeoJSON action. The preview sheet shows a format-status banner, selectable monospaced text, coordinate-order guidance, and separate copy/file-export actions (`app/(tabs)/explore.tsx`, `utils/geojson-import.ts`, CODE; DEC-38/39).
 

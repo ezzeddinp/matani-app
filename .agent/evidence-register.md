@@ -3,7 +3,24 @@
 **Document type:** Evidence register
 **Audience:** The developer, thesis advisor, reviewers, and AI agents working in this repo
 **Status:** Active
-**Updated:** 2026-09-08
+**Updated:** 2026-09-09
+
+**OBS-38 (2026-09-09, iOS map-build diagnosis):** The developer supplied a physical-iPhone
+screenshot showing Ladang's dark-green map-container background with controls but no map
+tiles after adding local Android/iOS Maps values and clearing/restarting Metro. The local
+credential audit detected both values without printing them. Repository inspection found
+that the device scripts still targeted Expo Go and that the linked EAS project's
+`development` environment contained no variables. `expo-dev-client` was then installed,
+the default scripts were changed to target a native development client, and the EAS build
+profiles were bound to named environments. With the developer's explicit authorization,
+both Maps values were uploaded as sensitive EAS `development` variables. EAS CLI 23.2.0
+loaded both variables and reached Apple signing, then stopped because internal iOS
+distribution requires the developer's direct Apple Developer login. Lint, TypeScript,
+the sanitized environment audit, and 34/34 root tests pass. No completed iOS build or
+post-fix physical-device tile rendering is claimed.
+Sources: developer-supplied screenshot/report; CODE in `package.json`, `eas.json`,
+`app.config.ts`, and `app/(tabs)/explore.tsx`; read-only EAS project/environment inspection;
+local verification commands on the checked date.
 
 **OBS-37 (2026-09-08, scoped production diagnosis):** Vercel logs for the stable backend
 show token acquisition followed by three Catalog HTTP 200 responses with `text/html`
@@ -71,6 +88,11 @@ This register is the single canonical home for externally sourced facts. Read it
 | EVID-030 | Current-format Supabase publishable/secret keys are API keys, not JWTs; Data API calls send them in the `apikey` header, while a signed-in user's JWT belongs in `Authorization: Bearer`. Legacy JWT `service_role` keys remain a compatibility path. | Supabase Documentation, "Understanding API keys," known limitations; "Authorization headers" (`https://supabase.com/docs/guides/getting-started/api-keys`; `https://supabase.com/docs/guides/functions/auth-headers`). | 2026-08-30 | Header-contract claim. Matani's backend admin adapter omits a bearer header for `sb_secret_*` and retains it only for a legacy service-role JWT. Do not infer that an opaque secret key is a user identity token. |
 | EVID-031 | Vercel's `waitUntil(promise)` keeps an asynchronous task alive after the HTTP response is sent, but the task remains bounded by the same function invocation timeout. | Vercel Documentation, "@vercel/functions API Reference," `waitUntil` section (`https://vercel.com/docs/functions/functions-api-reference/vercel-functions-package`). | 2026-08-31 | Runtime-lifecycle capability only. It permits returning an accepted response before I/O completes; it is not a durable external queue, does not survive the function timeout, and does not by itself prove a hosted job completed. |
 | EVID-032 | Vercel documents `maxDuration` as the maximum function-processing duration and supports configuring it per function in `vercel.json`; under Fluid Compute the documented Hobby default and maximum are 300 seconds, while non-Fluid limits are lower. | Vercel Documentation, "Configuring Maximum Duration for Vercel Functions" (`https://vercel.com/docs/functions/configuring-functions/duration`), checked 2026-08-31. | 2026-08-31 | **Perishable deployment setting.** The effective limit depends on plan and Fluid Compute state. A configured value does not prove the deployment accepted or used it; verify the deployed function settings/runtime logs. |
+| EVID-033 | `react-native-maps` supports Google Maps rather than MapKit on iOS only when an iOS Maps SDK key and the Google Maps native library are included in the build; its Expo config plugin accepts separate `iosGoogleMapsApiKey` and `androidGoogleMapsApiKey` values. | Official `react-native-maps` installation documentation, sections “Expo” and “iOS — Enabling Google Maps” (`https://github.com/react-native-maps/react-native-maps/blob/master/docs/installation.md`). | 2026-09-09 | Build-configuration claim only. Permits “Google Maps on iOS requires a platform key and rebuilt native client.” It does not prove that a particular key is valid/restricted, that a native build completed, or that tiles loaded on a physical device. |
+| EVID-034 | An Expo development build is an app-specific client that can include native libraries and native configuration unavailable to the generic Expo Go binary. | Expo Documentation, “Introduction to development builds,” introduction and install sections (`https://docs.expo.dev/develop/development-builds/introduction/`). | 2026-09-09 | Development-workflow claim only. It permits requiring a development build for app-specific native Maps configuration; it does not prove a particular build completed or rendered tiles. |
+| EVID-035 | EAS Build compiles in Expo's cloud and supports creating an iOS development build from a non-macOS host. | Expo Documentation, “Introduction to development builds,” build-method comparison (`https://docs.expo.dev/develop/development-builds/introduction/`). | 2026-09-09 | Host-capability claim only. Device registration, signing credentials, account access, build quota, installation, and runtime verification remain separate gates. |
+| EVID-036 | Local `.env` files excluded from version control are not available to remote EAS Build jobs. | Expo Documentation, “Environment variables in EAS,” “Why use EAS Environment variables” (`https://docs.expo.dev/eas/environment-variables/`). | 2026-09-09 | Remote-build configuration claim only. It does not authorize copying credentials to EAS or committing `.env`; values must be configured through an approved secure workflow. |
+| EVID-037 | An EAS build profile selects a named EAS environment with its `environment` field, making variables assigned to that environment available during the build. | Expo Documentation, “Environment variables in EAS,” quick-start step 3 (`https://docs.expo.dev/eas/environment-variables/`). | 2026-09-09 | Configuration-selection claim only. It does not prove required variables exist in that environment or that their values and platform restrictions are valid. |
 
 ## 4 · Indonesian smallholder agriculture
 

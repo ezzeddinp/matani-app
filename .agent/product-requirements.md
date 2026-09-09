@@ -3,7 +3,7 @@
 **Document type:** Product requirements document
 **Audience:** The developer, thesis advisor, reviewers, and AI agents working in this repo
 **Status:** Active
-**Updated:** 2026-09-08
+**Updated:** 2026-09-09
 **Canonical for:** Feature behavior, scope tags, and product invariants
 **Companion documents:** [`product-brief.md`](product-brief.md), [`project-architecture.md`](project-architecture.md), [`design-guidelines.md`](design-guidelines.md), [`research-protocol.md`](research-protocol.md), [`data-evaluation-plan.md`](data-evaluation-plan.md), [`implementation-plan.md`](implementation-plan.md)
 
@@ -110,9 +110,10 @@ enforced separately by RLS.
 ### PRD-05 · Home dashboard — latest observation cards · [As-built]
 
 **Behavior.** Home field cards read the newest owner-visible
-`measurement_observations` row. A quality-passing row shows its raw NDVI value and true
-acquisition date; rejected/unavailable/no-row states show no fabricated number. No
-severity or health classification is computed.
+`measurement_observations` row. A quality-passing row shows its raw NDVI/NDMI values,
+true acquisition date, field area, crop scope, and latest note; rejected/unavailable/no-row
+states show no fabricated number. The card is one clear detail target and does not derive
+a severity or health classification.
 
 **Acceptance criteria.**
 - A field with a dated persisted row shows its latest raw NDVI value and data state.
@@ -126,7 +127,7 @@ M2 migration, server-only worker configuration, and authenticated device gates p
 
 ### PRD-06 · Field management — map, polygon drawing, search, geocode · [As-built]
 
-**Behavior.** The ladang tab (`app/(tabs)/explore.tsx`) renders a native `react-native-maps` surface (`MapView`/`Polygon`/`Marker`) using Google Maps on Android and the platform map on iOS. The user can draw a field polygon or import one `.geojson`/`.json` file through the native document picker (DEC-38/39). Import accepts one WGS84 Polygon only, validates structure, coordinate range, vertex count, holes, degeneracy, and self-intersection locally, fits the map to the preview, and routes the reviewed geometry through the same PostGIS save and automatic measurement path. Any saved or pending field can be previewed and exported as a one-feature WGS84 GeoJSON `FeatureCollection`, with longitude-latitude ordering and a closed exterior ring (`utils/geojson-import.ts`, CODE). Place search queries **OpenStreetMap Nominatim**, not a paid geocoder. Reverse geocoding uses on-device `expo-location`, with a cache and rate-limit fallback rather than a fabricated place name (CODE).
+**Behavior.** The ladang tab (`app/(tabs)/explore.tsx`) renders a native `react-native-maps` surface (`MapView`/`Polygon`/`Marker`) with Google Maps as the only Android/iOS provider; there is no Apple MapKit fallback (DEC-40/42; ADR-18). The user can draw a field polygon or import one `.geojson`/`.json` file through the native document picker (DEC-38/39). Import accepts one WGS84 Polygon only, validates structure, coordinate range, vertex count, holes, degeneracy, and self-intersection locally, fits the map to the preview, and routes the reviewed geometry through the same PostGIS save and automatic measurement path. Any saved or pending field can be previewed and exported as a one-feature WGS84 GeoJSON `FeatureCollection`, with longitude-latitude ordering and a closed exterior ring (`utils/geojson-import.ts`, CODE). Place search queries **OpenStreetMap Nominatim**, not a paid geocoder. Reverse geocoding uses on-device `expo-location`, with a cache and rate-limit fallback rather than a fabricated place name (CODE).
 
 **Acceptance criteria.**
 - A drawn polygon of ≥3 vertices can be persisted (`explore.tsx:582` filters <3-vertex geometries).
@@ -134,14 +135,19 @@ M2 migration, server-only worker configuration, and authenticated device gates p
 - Import review exposes source filename, vertex count, estimated area, editable field name, and the map preview before save; cancel clears the pending geometry.
 - Empty `FeatureCollection` input identifies that no polygon feature was saved instead of reporting an ambiguous one-polygon error.
 - GeoJSON preview exposes the exact text, filename, coordinate-order guidance, copy action, and native file-share action. Saving a newly drawn field offers export by default; every saved field retains a GeoJSON action.
-- If the satellite base map does not report loaded within ten seconds, the map shows recovery actions for retry and standard/satellite switching instead of leaving an unexplained blank surface.
+- Map readiness uses the provider's native loading presentation and never places a timer-based warning card over field controls; the standard/satellite layer switch remains available.
+- Google Maps on iOS requires a valid restricted iOS key and a native client containing the Google Maps library; provider fallback is not allowed.
+- The supported physical-iPhone workflow uses the Matani development/production binary,
+  not Expo Go; changing a native Maps key or config requires rebuilding that binary
+  (DEC-43; EVID-033/034).
+- A detail-to-map action opens Ladang, fits the map to the selected owner-visible polygon, and emphasizes that boundary.
 - Outside drawing mode, the map accepts direct pan/drag and zoom gestures without handing the gesture to the surrounding page scroll.
 - During drawing, place search is hidden and the Undo, Redo, Batal, and Simpan actions stay top-anchored inside the visible map area.
 - Place search returns location suggestions or an empty state; it never blocks field creation.
 - Reverse-geocode rate limiting degrades to a coordinate label, never to a fabricated place name.
 
-**Current-fidelity note.** Android Google Maps SDK keys are client-visible by design; the control
-is per-platform + per-API key restriction, not secrecy (EVID-019;
+**Current-fidelity note.** Android and iOS Google Maps SDK keys are client-visible by design; the control
+is per-platform + per-API key restriction, not secrecy (EVID-019/033;
 [`project-architecture.md`](project-architecture.md) § 5.3). The M0 backend bounds the
 current bbox prototype. Exact-polygon vertex/area/self-intersection validation applies to
 the M2 measurement request, which is implemented locally
@@ -174,6 +180,7 @@ is no synthetic fallback or diagnosis.
 - A field shows a `measured` value only when a provenance-complete observation exists; otherwise it shows an honest `unavailable` state (INV-01/02/06).
 - The displayed date is the acquisition date (INV-05).
 - Valid-pixel/quality state is visible (INV-04).
+- The primary card content opens field detail; GeoJSON and management actions remain separate touch targets with explicit labels.
 
 **Current-fidelity note.** Local code satisfies the request/read/recovery contract and
 tests; one hosted observation is verified, while direct deployed deferred completion and
@@ -218,7 +225,10 @@ the mobile surface remains non-blocking when the summary is unavailable
 **Behavior.** The field-detail screen reads saved metadata, persisted
 `measurement_observations`, and the latest durable job. It polls while queued/processing,
 plots only quality-passing values, and lists acquisition date, quality status, rejection
-reason, and separate NDVI/NDMI valid-pixel counts. Opening an empty detail automatically
+reason, and separate NDVI/NDMI valid-pixel counts. A reading guide explains one-card-per-date,
+the index names, the meaning of `--`, and the no-diagnosis boundary; known backend quality
+codes are translated into bounded Indonesian recovery copy. A direct action opens and
+focuses the corresponding polygon in Ladang. Opening an empty detail automatically
 requests one idempotent job per visit, including queued/failed jobs and processing leases
 older than ten minutes. Active processing and completed unavailable results do not start
 another request. `Coba lagi` provides manual recovery (DEC-37; `utils/measurement-start.ts`, CODE). A
@@ -231,8 +241,9 @@ pass; direct deployed deferred completion and authenticated device readback rema
 (OBS-28/29).
 
 **Acceptance criteria.** Plot only stored passing values with true acquisition dates; do
-not interpolate gaps; surface quality and per-index counts; show honest empty/query/job
-error states without hiding a loaded field; derive no diagnosis or condition class.
+not interpolate gaps; surface quality and per-index counts in plain-language chronology
+cards; show honest empty/query/job error states without hiding a loaded field; focus only
+an owner-visible polygon from the detail action; derive no diagnosis or condition class.
 
 ### PRD-12 · Weather · [As-built]
 

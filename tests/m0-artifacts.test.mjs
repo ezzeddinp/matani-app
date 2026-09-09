@@ -89,6 +89,42 @@ test("field map remains pannable and keeps drawing actions at the top", async ()
   assert.match(explore, /drawingControlsOverlay:\s*\{[\s\S]*?top:\s*76,/);
 });
 
+test("field map uses Google Maps without an Apple provider fallback and supports detail focus", async () => {
+  const [appConfig, explore, detail] = await Promise.all([
+    readFile("app.config.ts", "utf8"),
+    readFile("app/(tabs)/explore.tsx", "utf8"),
+    readFile("app/detail-lahan-page.tsx", "utf8"),
+  ]);
+
+  assert.match(appConfig, /GOOGLE_MAPS_API_KEY_ANDROID/);
+  assert.match(appConfig, /GOOGLE_MAPS_API_KEY_IOS/);
+  assert.match(explore, /provider=\{PROVIDER_GOOGLE\}/);
+  assert.doesNotMatch(explore, /nativeMapProvider|iosGoogleMapsConfigured/);
+  assert.match(explore, /fitToCoordinates\(target\.coordinates/);
+  assert.match(explore, /focusedLahanId === item\.id/);
+  assert.doesNotMatch(explore, /mapLoadTimedOut|Peta dasar belum termuat/);
+  assert.match(detail, /Lihat di peta/);
+  assert.match(detail, /focusLahanId: detail\.id/);
+  assert.match(detail, /Cara membaca kronologi/);
+});
+
+test("map-capable device workflow targets a native development client", async () => {
+  const [packageJson, easJson] = await Promise.all([
+    readFile("package.json", "utf8").then(JSON.parse),
+    readFile("eas.json", "utf8").then(JSON.parse),
+  ]);
+
+  assert.match(packageJson.dependencies["expo-dev-client"], /^~57\./);
+  assert.equal(packageJson.scripts.start, "expo start --dev-client");
+  assert.equal(packageJson.scripts["start:clear"], "expo start --dev-client --clear");
+  assert.equal(packageJson.scripts.android, "expo run:android");
+  assert.equal(packageJson.scripts.ios, "expo run:ios");
+  assert.match(packageJson.scripts["build:development:ios"], /eas-cli@23\.2\.0 build.*ios.*development/);
+  assert.equal(easJson.build.development.developmentClient, true);
+  assert.equal(easJson.build.development.environment, "development");
+  assert.equal(easJson.build.production.environment, "production");
+});
+
 test("mobile provider calls reject protected HTML and recover stale sessions", async () => {
   const backendClient = await readFile("utils/backend-api.ts", "utf8");
   const config = await readFile("hooks/config.ts", "utf8");

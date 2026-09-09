@@ -101,15 +101,25 @@ export function auditEnvBoundaries(client, server) {
     !androidMapKey.startsWith("your-") &&
     !androidMapKey.includes("replace"),
   );
+  const iosMapKey = client.GOOGLE_MAPS_API_KEY_IOS?.trim();
+  const iosMapKeyConfigured = Boolean(
+    iosMapKey &&
+    !iosMapKey.startsWith("your-") &&
+    !iosMapKey.includes("replace"),
+  );
   findings.push(
-    `Android Google Maps key configured: ${androidMapKeyConfigured}; Android app/API restrictions require console verification. iOS uses the native provider.`
+    `Google Maps keys configured: Android=${androidMapKeyConfigured}, iOS=${iosMapKeyConfigured}; per-platform app/API restrictions require console verification.`
   );
 
   return { unsafe, findings };
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
-  const result = auditEnvBoundaries(await readEnv(".env"), await readEnv("backend/.env"));
+  const client = {
+    ...(await readEnv(".env")),
+    ...(await readEnv(".env.local")),
+  };
+  const result = auditEnvBoundaries(client, await readEnv("backend/.env"));
   for (const finding of result.findings) console.log(finding);
   if (result.unsafe) {
     console.error("Environment boundary audit failed.");
