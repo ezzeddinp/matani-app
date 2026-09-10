@@ -3,7 +3,7 @@
 **Document type:** Architecture document
 **Audience:** The developer, thesis advisor, reviewers, and AI agents working in this repo
 **Status:** Active
-**Updated:** 2026-09-09
+**Updated:** 2026-09-10
 **Canonical for:** As-built and target architecture, **current measurement provenance (canonical wording — § 2)**, trust boundaries, provider decisions, Architecture Decision Records (ADRs), free-tier constraints, security risks, verification baseline, migration triggers
 **Companion documents:** [`evidence-register.md`](evidence-register.md), [`context-dump.md`](context-dump.md), [`data-evaluation-plan.md`](data-evaluation-plan.md), [`research-protocol.md`](research-protocol.md), [`product-requirements.md`](product-requirements.md), [`implementation-plan.md`](implementation-plan.md)
 
@@ -39,7 +39,8 @@ built, and why**. Read it this way:
 Matani is a four-part system: an Expo mobile app, a colocated Express backend, Supabase
 for identity and persistence, and external services. Satellite, weather, and Gemini
 data calls pass through the backend (`backend/index.js:23-25`; DEC-20). The client still
-contacts presentation-only services directly: Google Maps through the native SDK,
+contacts presentation-only services directly: Google Maps through its native SDK or the
+Maps JavaScript API inside the iOS Expo Go WebView,
 OpenStreetMap Nominatim for place search (`app/(tabs)/explore.tsx:755-778`), and remote
 avatar/display-image hosts. Those presentation integrations do not create or label
 research measurements.
@@ -53,20 +54,21 @@ research measurements.
   (`app.config.ts:59-62`).
 - React 19.2 and the Expo SDK 57 package matrix are pinned through `package.json` /
   `package-lock.json` after upstream commit `da0463e` (CODE; ADR-13 amendment).
-  `expo-dev-client` is installed; the default start scripts target the app-specific
-  development client, while `start:go` remains a limited diagnostic path that cannot
-  qualify the Google-only iOS map (CODE; DEC-43; EVID-034).
-- `react-native-maps` renders the interactive polygon field-drawing surface with
-  `PROVIDER_GOOGLE` on Android and iOS; there is no MapKit fallback (DEC-42). Separate
-  configured Android/iOS keys are injected at build time through the config plugin;
-  placeholder values are discarded. Keys in a compiled native client remain
-  **client-visible in the shipped binary** (see § 5.3). Native map loading feedback is non-blocking, the
-  satellite/standard switch remains available, and detail navigation can fit the map to
-  one owner-visible field polygon. The local key audit reports both platform values
-  configured, and both are synchronized as sensitive variables in the EAS `development`
-  environment. Apple Developer signing, a completed iOS Google build, and physical-device
-  provider verification remain pending
-  (CODE; DEC-40/42/43; ADR-18; EVID-036/037).
+  `expo-dev-client` is installed as the optional app-specific native path. The default
+  start scripts target Expo Go again; `start:dev-client` selects the custom client when
+  it is installed (CODE; DEC-44; EVID-034/038).
+- Ladang never selects Apple MapKit. `react-native-maps` renders the native field surface
+  with `PROVIDER_GOOGLE` on Android and app-specific iOS builds. In iOS Expo Go, where the
+  installed Google placeholder otherwise renders no tiles, `react-native-webview` hosts
+  the Google Maps JavaScript API and bridges drawing, saved polygons, markers, layer
+  changes, region events, and camera commands (`app/(tabs)/explore.tsx`,
+  `components/google-maps-webview.tsx`, CODE; DEC-42/44). Separate Android/iOS keys feed
+  the native config plugin; a dedicated Web key feeds only the browser route. All are
+  client-visible and require matching application + API restrictions (EVID-019/040).
+  Loading remains non-blocking, the satellite/standard switch remains available, and
+  detail navigation can fit the map to one owner-visible polygon. Local source, audit,
+  and bundle checks pass; physical-iPhone tile and interaction verification remains open
+  (OBS-40).
 - When configured, `EXPO_PUBLIC_API_URL` is the authoritative backend origin. Manifest/LAN
   candidates are constructed only when no public URL is configured, so a production
   response cannot be hidden by a later local-network timeout (DEC-33; OBS-27).
@@ -540,8 +542,9 @@ Each ADR aligns to a `DEC-*` in [`context-dump.md`](context-dump.md) and carries
   and an offline 1,807-module iOS export; device compatibility remains unverified
   (`package.json`, `app/_layout.tsx`, `app/detail-lahan-page.tsx`, `app/onboarding.tsx`,
   `app/splash.tsx`, CODE; scoped local build observation, 2026-09-08).
-- **Status:** Historical. Its SDK matrix was replaced by the 2026-09-08 as-built amendment;
-  its Expo-Go-default workflow was superseded by DEC-43 on 2026-09-09.
+- **Status:** Historical for the SDK matrix. The Expo-Go-default workflow was first
+  superseded by DEC-43 on 2026-09-09 and restored for the current SDK 57 implementation
+  by DEC-44 on 2026-09-10.
 - **Context:** The thesis team's installed device clients could not open the prior SDK 57
   project. SDK packages must move as one compatibility matrix, not as a single `expo`
   version edit.
@@ -557,6 +560,10 @@ Each ADR aligns to a `DEC-*` in [`context-dump.md`](context-dump.md) and carries
 - **Revisit outcome (2026-09-09, DEC-43):** The Google-only iOS map requires app-specific
   native configuration, so the native-module trigger fired. `expo-dev-client` and a
   development build are now the default map-capable workflow (EVID-033/034).
+- **Revisit outcome (2026-09-10, DEC-44):** The developer confirmed Expo Go as the active
+  physical-iPhone workflow. The default scripts target Expo Go, where a bundled WebView
+  supplies a separate Google Maps JavaScript API route; `expo-dev-client` remains the
+  optional native qualification path (EVID-038/039; OBS-40).
 
 ### ADR-14 · Padi-only, observation-first time-series product surface
 - **Status:** Accepted and implemented on 2026-08-21 (DEC-24); advisor acceptance of the
@@ -637,10 +644,9 @@ Each ADR aligns to a `DEC-*` in [`context-dump.md`](context-dump.md) and carries
   multi-feature/multipolygon imports, or needs direct browser workspace integration.
 
 ### ADR-18 · Google Maps on both native platforms; no timer overlay
-- **Status:** Accepted and locally verified by lint, TypeScript, tests, and Android/iOS
-  JavaScript bundle export on 2026-09-09. The environment audit reports both local Maps
-  keys configured without printing them; native build and physical-device interaction
-  remain pending (DEC-40/42/43).
+- **Status:** Accepted and amended for iOS Expo Go on 2026-09-10. Local lint, TypeScript,
+  34/34 tests, environment audit, and iOS JavaScript bundle export pass; live tiles and
+  interaction on the physical iPhone remain pending (DEC-40/42/44; OBS-40).
 - **Context:** The ten-second `onMapLoaded` timer could surface a blocking failure card
   when map readiness was merely delayed or the callback was inconsistent. The developer
   also requires the same Google Maps provider on Android and iOS and a direct field-detail
@@ -667,11 +673,20 @@ Each ADR aligns to a `DEC-*` in [`context-dump.md`](context-dump.md) and carries
   EAS environment workflow before building. Both values are now synchronized to
   `development`; the current build reached Apple signing and awaits the developer's direct
   Apple Developer authentication (OBS-38).
-- **Consequences:** iOS now requires a custom native development/production build with
-  `GOOGLE_MAPS_API_KEY_IOS` (EVID-033); an Expo Go iOS session cannot establish this build-specific
-  Google Maps configuration. False-positive timeout cards no longer obstruct drawing or
-  browsing. The focus route does not accept arbitrary geometry and cannot reveal a field
-  absent from the signed-in user's field list.
+- **Amendment (2026-09-10, DEC-44):** Restore Expo Go as the default Metro workflow while
+  retaining Google Maps exclusively. On iOS Expo Go, use `react-native-webview` 13.16.1
+  to load the Maps JavaScript API from a stable HTTPS base origin with a dedicated Web
+  key, then bridge map state and field interactions to React Native. Android and
+  app-specific iOS builds keep native `PROVIDER_GOOGLE`; no path selects MapKit
+  (EVID-038/039/040). Keep the development client as `start:dev-client` for native
+  qualification.
+- **Consequences:** Native iOS Google Maps still requires a custom build and
+  `GOOGLE_MAPS_API_KEY_IOS` (EVID-033), but iOS Expo Go now has a Google-only browser
+  implementation instead of the empty native placeholder. The Web route requires the
+  Maps JavaScript API, a dedicated authorized-origin key, and network access. Actual
+  configuration failures replace the map with bounded guidance; the removed timer card
+  does not return. The focus route cannot reveal a field absent from the signed-in user's
+  field list.
 - **Revisit trigger:** Google Maps is replaced, a reliable native tile-error callback is
   adopted, or the app gains an explicit offline-map mode.
 
@@ -733,8 +748,9 @@ schema parity by destructive recreation.
 As of **2026-07-23**, `.env` and `backend/.env` are **untracked** (git-ignored) and only
 the `*.env.example` templates are committed, listing **only variables the code actually
 consumes** (`.env.example`, `backend/.env.example`). `app.config.ts` injects the Google
-Maps keys into the native build (`app.config.ts`, CODE); these are **client-visible by
-design** — the control is **key restriction, not secrecy** (EVID-019, and the Expo rule
+Maps keys into the native build and exposes the dedicated Web key to the Expo Go bundle
+(`app.config.ts`, CODE); these are **client-visible by design** — the control is **key
+restriction, not secrecy** (EVID-019/040, and the Expo rule
 that build-inlined values are readable in the bundle, EVID-018). The Supabase anon key is
 **client-safe conditional on RLS being correct on every exposed table** (EVID-020) — which
 makes § 5.2 load-bearing.
@@ -749,7 +765,7 @@ makes § 5.2 load-bearing.
 | Sentinel Hub `client_secret` (`SENTINEL_CLIENT_SECRET`) | Server-side secret | **Rotate** (and reissue as a CDSE OAuth client under ADR-02) | New CDSE OAuth client configured and verified 2026-07-29 (OBS-11); revocation of any historical commercial credential still requires platform-side confirmation |
 | Gemini key (`GOOGLE_GENERATIVE_AI_API_KEY`) | Server-side secret | **Rotate** | Local backend key present on 2026-09-07 (OBS-32); historical revocation/rotation still requires platform-side confirmation |
 | Historical AccuWeather key (`ACCUWEATHER_API_KEY`) | No longer consumed after ADR-04 implementation | **Revoke** if it ever existed or was exposed | Variable removed from the runtime and env example; platform-side revocation remains unverified |
-| Google Maps keys (iOS/Android) | Client-visible by design | **Restrict per-platform** (Android package + SHA-1 / iOS bundle ID) **and per-API**, then **monitor** usage (EVID-019) | Developer action — pending |
+| Google Maps keys (Android/iOS/Web) | Client-visible by design | **Restrict per application** (Android package + SHA-1 / iOS bundle ID / authorized HTTPS referrer) **and per API**, then **monitor** usage (EVID-019/040) | Local variables detected without values; Google Cloud restriction and usage verification pending |
 | Supabase client key | Publishable/anon | Safe in Expo only with RLS correct (EVID-020, § 5.2) | Local class verified publishable; hosted RLS re-audit required after M2 migration |
 | Supabase backend admin key | Current `sb_secret_*` preferred; legacy `service_role` fallback | Configure only in backend hosting; never in Expo/client env (EVID-029) | Client-env placement found and corrected to backend-only on 2026-09-07 (OBS-32); earlier hosted configuration demonstrated by OBS-28, without proving current device repeatability |
 
@@ -773,6 +789,20 @@ checked date and must be rechecked before any decision that depends on them.
 ---
 
 ## 7 · Verification baseline
+
+**Expo Go Google Maps route verification (2026-09-10; OBS-40).** The iOS Expo Go path now
+uses the bundled WebView and Google Maps JavaScript API instead of the native Google
+placeholder. The bridge, three-key configuration boundary, default Expo Go scripts,
+lint, TypeScript, 34/34 tests, and iOS bundle export pass locally. This is not a claim
+that Google accepted the configured Web key or served tiles: physical-iPhone rendering,
+gestures, drawing, and detail-focus behavior remain the final runtime gate.
+
+**Current iPhone map qualification (2026-09-10; OBS-39).** The failing session is confirmed
+to use Expo Go, and the linked project has no iOS build records. The installed library's
+native placeholder explains the blank container when Google SDK pods are missing.
+Configuration and JavaScript checks do not close this issue: signing, installing a
+Google-enabled Matani binary, and observing actual tiles and camera/drawing interaction
+on the physical iPhone are still required. See OBS-38 for the signing blocker.
 
 **iOS Google Maps development-build verification (2026-09-09; OBS-38).** The code and
 build profiles now select an app-specific development client, both platform values are

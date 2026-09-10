@@ -8,6 +8,7 @@ const configuredMapKey = (value?: string) => {
 
 const androidGoogleMapsApiKey = configuredMapKey(process.env.GOOGLE_MAPS_API_KEY_ANDROID);
 const iosGoogleMapsApiKey = configuredMapKey(process.env.GOOGLE_MAPS_API_KEY_IOS);
+const webGoogleMapsApiKey = configuredMapKey(process.env.GOOGLE_MAPS_API_KEY_WEB);
 
 const plugins: ExpoConfig["plugins"] = [
   "expo-router",
@@ -80,6 +81,7 @@ const config: ExpoConfig = {
   },
   extra: {
     router: {},
+    googleMapsWebApiKey: webGoogleMapsApiKey,
     eas: {
       projectId: "8412a993-1dcd-42cd-a433-ece093519147",
     },

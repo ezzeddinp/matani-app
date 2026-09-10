@@ -3,7 +3,7 @@
 **Document type:** Design guidelines
 **Audience:** The developer, thesis advisor, reviewers, and AI agents working in this repo
 **Status:** Active
-**Updated:** 2026-09-09
+**Updated:** 2026-09-10
 **Canonical for:** Design tokens, the screen map, component patterns, and data-state presentation rules
 **Companion documents:** [`product-requirements.md`](product-requirements.md), [`product-brief.md`](product-brief.md), [`project-architecture.md`](project-architecture.md), [`context-dump.md`](context-dump.md)
 
@@ -152,7 +152,7 @@ Derived from `app/` file-based routing (`expo-router`). Ordered by user flow.
 | 5 | `app/auth/signup.tsx` | Sign-up | Branded account creation with clear optional fields, Indonesian phone normalization, a distinct email-confirmation success state, and bounded errors (`components/auth/auth-screen.tsx`, `utils/auth-error.ts`, CODE; DEC-35/36). |
 | 5a | `app/auth/callback.tsx` | Email verification | Focused verification progress/error state that completes the Supabase redirect and returns the user to login when recovery is needed (CODE; DEC-36). |
 | 6 | `app/(tabs)/index.tsx` | **Beranda** (Home) | Dashboard: latest raw observation, weather card, field carousel (`_layout.tsx:67-73`). |
-| 7 | `app/(tabs)/explore.tsx` | **Ladang** (Fields) | Google Maps-only padi-field list on Android/iOS, interactive drawing, reviewed GeoJSON import/export, exact-coordinate preview, detail-to-polygon focus, and non-blocking native map loading; raw NDVI/NDMI state (`utils/geojson-import.ts`, CODE; DEC-38/39/40/42). |
+| 7 | `app/(tabs)/explore.tsx` | **Ladang** (Fields) | Google Maps-only padi-field list on Android/iOS: native Google surface in app-specific builds and Google Maps WebView in iOS Expo Go, with interactive drawing, reviewed GeoJSON import/export, exact-coordinate preview, detail-to-polygon focus, and a bounded provider error only after a real failure; raw NDVI/NDMI state (`components/google-maps-webview.tsx`, `utils/geojson-import.ts`, CODE; DEC-38/39/40/42/44). |
 | 8 | `app/(tabs)/education.tsx` | **Edukasi** (Education) | Article list with filter/sort (`_layout.tsx:81-87`). |
 | 9 | `app/(tabs)/weather.tsx` | **Cuaca** (Weather) | Current conditions, metric grid, risk alert (`_layout.tsx:88-94`). |
 | 10 | `app/(tabs)/profile.tsx` | **Profil** (Profile) | Account and saved-field facts, sign-out, explicit unavailable notification/metric states, and preview-only achievements (`_layout.tsx:95-101`; DEC-20). |

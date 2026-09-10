@@ -1,6 +1,6 @@
 # Matani
 
-**Updated:** 2026-09-09
+**Updated:** 2026-09-10
 
 _Mata tani_ — "the farmer's eye." Matani is a padi-only mobile decision support application structured by the thesis team's GROW workflow. Its evaluation backbone asks whether Sentinel-2 NDVI/NDMI monitoring can be used defensibly over Indonesian smallholder fields. The Expo / React Native app captures field polygons and presents dated raw index observations, weather context, notes, and explicit data states without classifying or diagnosing crop health.
 
@@ -29,12 +29,13 @@ The [canonical roadmap](.agent/implementation-plan.md) controls M0–M4 sequenci
 
 ## Stack
 
-- **Mobile** — Expo SDK 57 / React Native 0.86 / React 19.2 with Expo Router. An
-  app-specific Expo development client is the default map-capable device workflow
-  (DEC-43).
+- **Mobile** — Expo SDK 57 / React Native 0.86 / React 19.2 with Expo Router. Expo Go is
+  the default device workflow; an app-specific development client remains available for
+  native qualification (DEC-44).
 - **Backend** — Express 5 (Node), colocated in [`backend/`](backend/), deployed on Vercel; the runtime and TypeScript entrypoints expose the same protected provider/measurement routes. Satellite, weather, and Gemini data calls use this boundary; mapping/place-search/display services remain client presentation integrations (ADR-10 / DEC-20).
 - **Data & auth** — Supabase: Auth, Postgres, PostGIS, Row Level Security.
-- **Maps** — Google Maps (`react-native-maps`) for polygon field drawing.
+- **Maps** — Google Maps only: native `react-native-maps` on Android/app-specific iOS
+  builds and Maps JavaScript API through `react-native-webview` in iOS Expo Go.
 - **Satellite** — Sentinel-2 L2A via CDSE Catalog and native-grid Process API measurement requests; Statistical API remains research/legacy code (CODE: `backend/measurement/`; ADR-15).
 - **Weather** — Open-Meteo through the protected backend, with WMO weather-code mapping.
 - **AI data summary** — optional, env-configured Google Gemini summary, disabled by default and constrained to descriptive output.
@@ -67,31 +68,34 @@ cd backend
 npm run dev
 ```
 
-After the Matani development build has been installed on the device, run Metro:
+Start Metro for Expo Go and scan the QR code:
 
 ```sh
 npm start
 ```
 
-`npm start` targets the development client; `npm run start:clear` does the same with a
-clean Metro cache. `npm run android` and `npm run ios` compile local native builds (iOS
-requires macOS/Xcode). On Windows, create the physical-iPhone build in EAS:
+`npm start` targets Expo Go; `npm run start:clear` does the same with a clean Metro cache.
+On iPhone Expo Go, Ladang uses the Google Maps JavaScript API through the bundled WebView,
+so `.env` must contain `GOOGLE_MAPS_API_KEY_WEB`. `npm run android` and `npm run ios`
+compile local native builds (iOS requires macOS/Xcode). The optional native-development
+client can be served with `npm run start:dev-client`; on Windows its iPhone binary is
+created in EAS:
 
 ```sh
 # One-time per EAS environment: configure both Maps values securely in EAS.
 eas env:set development --name GOOGLE_MAPS_API_KEY_ANDROID --visibility sensitive
 eas env:set development --name GOOGLE_MAPS_API_KEY_IOS --visibility sensitive
 
-# Build, install the resulting Matani app on the registered iPhone, then run npm start.
+# Build and install the resulting Matani app on the registered iPhone.
 npm run build:development:ios
 ```
 
-The generic Expo Go binary cannot receive this project's iOS Google Maps native library
-or build-time key. `npm run start:go` is retained only for limited non-map diagnostics;
-clearing Metro cannot change native code already installed on the phone
-(EVID-033/034). Local `.env` files are intentionally ignored and do not reach a remote
-EAS build, so the development EAS environment must also contain both Maps values
-(EVID-036/037).
+The generic Expo Go binary cannot receive this project's iOS Google Maps native library,
+so Matani does not render its empty native Google placeholder there. It selects the
+Google Maps Web route instead; no path selects Apple MapKit (DEC-42/44; EVID-033/038/039).
+Local `.env` files are intentionally ignored and do not reach remote EAS builds, so the
+development EAS environment must still contain both native Maps values when that optional
+client is built (EVID-036/037).
 
 Run the fixture-only local checks:
 
@@ -112,7 +116,13 @@ npm run db:test
 npm run db:types
 ```
 
-**Note on Maps keys:** Android and iOS native builds inject separate `GOOGLE_MAPS_API_KEY_ANDROID` / `GOOGLE_MAPS_API_KEY_IOS` values through `app.config.ts`. These keys are **client-visible in shipped binaries by design** — restrict each key to its platform application and Maps SDK API. Ladang has no Apple MapKit fallback. Google Maps on iOS therefore requires a custom native build containing the Google library and a valid iOS key (EVID-019/033; DEC-42).
+**Note on Maps keys:** Native builds inject separate `GOOGLE_MAPS_API_KEY_ANDROID` and
+`GOOGLE_MAPS_API_KEY_IOS` values. iOS Expo Go reads the separate
+`GOOGLE_MAPS_API_KEY_WEB` value for the Maps JavaScript API using the HTTPS base origin
+`https://matani-app-b26l.vercel.app`. These keys are **client-visible by design**: apply
+the matching Android, iOS, or authorized-referrer application restriction plus the
+specific Maps API restriction, then monitor usage. Do not reuse the Android-restricted
+key as the Web key. Ladang has no Apple MapKit fallback (EVID-019/033/040; DEC-42/44).
 
 ## Documentation map
 

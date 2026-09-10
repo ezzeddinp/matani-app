@@ -3,7 +3,7 @@
 **Document type:** Product requirements document
 **Audience:** The developer, thesis advisor, reviewers, and AI agents working in this repo
 **Status:** Active
-**Updated:** 2026-09-09
+**Updated:** 2026-09-10
 **Canonical for:** Feature behavior, scope tags, and product invariants
 **Companion documents:** [`product-brief.md`](product-brief.md), [`project-architecture.md`](project-architecture.md), [`design-guidelines.md`](design-guidelines.md), [`research-protocol.md`](research-protocol.md), [`data-evaluation-plan.md`](data-evaluation-plan.md), [`implementation-plan.md`](implementation-plan.md)
 
@@ -127,7 +127,7 @@ M2 migration, server-only worker configuration, and authenticated device gates p
 
 ### PRD-06 · Field management — map, polygon drawing, search, geocode · [As-built]
 
-**Behavior.** The ladang tab (`app/(tabs)/explore.tsx`) renders a native `react-native-maps` surface (`MapView`/`Polygon`/`Marker`) with Google Maps as the only Android/iOS provider; there is no Apple MapKit fallback (DEC-40/42; ADR-18). The user can draw a field polygon or import one `.geojson`/`.json` file through the native document picker (DEC-38/39). Import accepts one WGS84 Polygon only, validates structure, coordinate range, vertex count, holes, degeneracy, and self-intersection locally, fits the map to the preview, and routes the reviewed geometry through the same PostGIS save and automatic measurement path. Any saved or pending field can be previewed and exported as a one-feature WGS84 GeoJSON `FeatureCollection`, with longitude-latitude ordering and a closed exterior ring (`utils/geojson-import.ts`, CODE). Place search queries **OpenStreetMap Nominatim**, not a paid geocoder. Reverse geocoding uses on-device `expo-location`, with a cache and rate-limit fallback rather than a fabricated place name (CODE).
+**Behavior.** The ladang tab (`app/(tabs)/explore.tsx`) uses Google Maps as its only map provider and never selects Apple MapKit (DEC-40/42/44; ADR-18). Android and app-specific iOS builds render the native `react-native-maps` surface (`MapView`/`Polygon`/`Marker`) with `PROVIDER_GOOGLE`; iOS Expo Go renders the Google Maps JavaScript API through `react-native-webview`, preserving the camera, layer, marker, polygon, drawing, and detail-focus interactions (`components/google-maps-webview.tsx`, CODE). The user can draw a field polygon or import one `.geojson`/`.json` file through the native document picker (DEC-38/39). Import accepts one WGS84 Polygon only, validates structure, coordinate range, vertex count, holes, degeneracy, and self-intersection locally, fits the map to the preview, and routes the reviewed geometry through the same PostGIS save and automatic measurement path. Any saved or pending field can be previewed and exported as a one-feature WGS84 GeoJSON `FeatureCollection`, with longitude-latitude ordering and a closed exterior ring (`utils/geojson-import.ts`, CODE). Place search queries **OpenStreetMap Nominatim**, not a paid geocoder. Reverse geocoding uses on-device `expo-location`, with a cache and rate-limit fallback rather than a fabricated place name (CODE).
 
 **Acceptance criteria.**
 - A drawn polygon of ≥3 vertices can be persisted (`explore.tsx:582` filters <3-vertex geometries).
@@ -136,18 +136,16 @@ M2 migration, server-only worker configuration, and authenticated device gates p
 - Empty `FeatureCollection` input identifies that no polygon feature was saved instead of reporting an ambiguous one-polygon error.
 - GeoJSON preview exposes the exact text, filename, coordinate-order guidance, copy action, and native file-share action. Saving a newly drawn field offers export by default; every saved field retains a GeoJSON action.
 - Map readiness uses the provider's native loading presentation and never places a timer-based warning card over field controls; the standard/satellite layer switch remains available.
-- Google Maps on iOS requires a valid restricted iOS key and a native client containing the Google Maps library; provider fallback is not allowed.
-- The supported physical-iPhone workflow uses the Matani development/production binary,
-  not Expo Go; changing a native Maps key or config requires rebuilding that binary
-  (DEC-43; EVID-033/034).
+- Google Maps on an app-specific iOS build requires a valid restricted iOS key and the Google Maps native library; provider fallback is not allowed.
+- iOS Expo Go uses a dedicated Maps JavaScript API Web key and stable HTTPS base origin. A missing/rejected key exposes a bounded configuration error instead of the native blank-container placeholder (DEC-44; EVID-038/039/040).
 - A detail-to-map action opens Ladang, fits the map to the selected owner-visible polygon, and emphasizes that boundary.
 - Outside drawing mode, the map accepts direct pan/drag and zoom gestures without handing the gesture to the surrounding page scroll.
 - During drawing, place search is hidden and the Undo, Redo, Batal, and Simpan actions stay top-anchored inside the visible map area.
 - Place search returns location suggestions or an empty state; it never blocks field creation.
 - Reverse-geocode rate limiting degrades to a coordinate label, never to a fabricated place name.
 
-**Current-fidelity note.** Android and iOS Google Maps SDK keys are client-visible by design; the control
-is per-platform + per-API key restriction, not secrecy (EVID-019/033;
+**Current-fidelity note.** Android, iOS, and Web Google Maps keys are client-visible by design; the control
+is per-application + per-API key restriction, not secrecy (EVID-019/033/040;
 [`project-architecture.md`](project-architecture.md) § 5.3). The M0 backend bounds the
 current bbox prototype. Exact-polygon vertex/area/self-intersection validation applies to
 the M2 measurement request, which is implemented locally

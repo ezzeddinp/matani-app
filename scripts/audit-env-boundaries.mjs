@@ -107,8 +107,24 @@ export function auditEnvBoundaries(client, server) {
     !iosMapKey.startsWith("your-") &&
     !iosMapKey.includes("replace"),
   );
+  const webMapKey = client.GOOGLE_MAPS_API_KEY_WEB?.trim();
+  const webMapKeyConfigured = Boolean(
+    webMapKey &&
+    !webMapKey.startsWith("your-") &&
+    !webMapKey.includes("replace"),
+  );
   findings.push(
-    `Google Maps keys configured: Android=${androidMapKeyConfigured}, iOS=${iosMapKeyConfigured}; per-platform app/API restrictions require console verification.`
+    `Google Maps keys configured: Android=${androidMapKeyConfigured}, iOS=${iosMapKeyConfigured}, Web=${webMapKeyConfigured}; per-platform app/API restrictions require console verification.`
+  );
+  const configuredMapKeys = [
+    androidMapKeyConfigured ? androidMapKey : null,
+    iosMapKeyConfigured ? iosMapKey : null,
+    webMapKeyConfigured ? webMapKey : null,
+  ].filter(Boolean);
+  const mapKeysAreDistinct =
+    new Set(configuredMapKeys).size === configuredMapKeys.length;
+  findings.push(
+    `Google Maps key scope separation: distinct=${mapKeysAreDistinct}; Android, iOS, and Web restrictions require separate keys.`
   );
 
   return { unsafe, findings };

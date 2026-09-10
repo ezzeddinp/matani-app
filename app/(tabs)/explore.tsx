@@ -1,4 +1,8 @@
 import { DrawingModeIndicator } from "@/components/drawing-mode-indicator";
+import {
+  FieldMapHandle,
+  GoogleMapsWebView,
+} from "@/components/google-maps-webview";
 import { ThemedView } from "@/components/themed-view";
 import { formatNdviValue } from "@/constants/ndvi";
 import { API_BASE_CANDIDATES } from "@/hooks/config";
@@ -18,6 +22,7 @@ import {
 } from "@/utils/geojson-import";
 import { Ionicons } from "@expo/vector-icons";
 import * as Clipboard from "expo-clipboard";
+import Constants, { ExecutionEnvironment } from "expo-constants";
 import * as DocumentPicker from "expo-document-picker";
 import { File, Paths } from "expo-file-system";
 import { Image as ExpoImage } from "expo-image";
@@ -268,6 +273,12 @@ const isRateLimitError = (error: unknown) => {
 
 export default function ExploreScreen() {
   const router = useRouter();
+  const usesExpoGoGoogleWebMap =
+    Platform.OS === "ios" &&
+    Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
+  const configuredWebMapKey = Constants.expoConfig?.extra?.googleMapsWebApiKey;
+  const googleMapsWebApiKey =
+    typeof configuredWebMapKey === "string" ? configuredWebMapKey : undefined;
   const { focusLahanId, focusRequest } = useLocalSearchParams<{
     focusLahanId?: string | string[];
     focusRequest?: string | string[];
@@ -329,7 +340,7 @@ export default function ExploreScreen() {
   const [selectedNoteLahanId, setSelectedNoteLahanId] = useState<string | null>(null);
   const [isLahanPickerVisible, setIsLahanPickerVisible] = useState(false);
   const [scrollEnabled, setScrollEnabled] = useState(true);
-  const mapRef = useRef<MapView>(null);
+  const mapRef = useRef<FieldMapHandle>(null);
   const [baseMapType, setBaseMapType] = useState<"satellite" | "standard">("satellite");
   const [mapIsReady, setMapIsReady] = useState(false);
   const [focusedLahanId, setFocusedLahanId] = useState<string | null>(null);
@@ -726,10 +737,9 @@ export default function ExploreScreen() {
     return () => { isCancelled = true; };
   }, [isGeocodeRateLimited, lahanLocationLabels, markGeocodeRateLimited, savedLahan]);
 
-  const handleMapPress = (event: MapPressEvent) => {
+  const handleMapPressCoordinate = (rawCoordinate: LatLng) => {
     if (showSearchResults) { setShowSearchResults(false); Keyboard.dismiss(); }
     if (!drawingMode) return;
-    const rawCoordinate = event.nativeEvent.coordinate;
     const lat = Number(rawCoordinate.latitude);
     const lon = Number(rawCoordinate.longitude);
     if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
@@ -746,6 +756,10 @@ export default function ExploreScreen() {
     };
     setCurrentVertices((prev) => [...prev, vertex]);
     setRedoVertices([]);
+  };
+
+  const handleMapPress = (event: MapPressEvent) => {
+    handleMapPressCoordinate(event.nativeEvent.coordinate);
   };
 
   const clearActivePath = useCallback(() => {
@@ -1525,8 +1539,42 @@ export default function ExploreScreen() {
               </View>
             )}
 
+            {usesExpoGoGoogleWebMap ? (
+              <GoogleMapsWebView
+                ref={mapRef}
+                apiKey={googleMapsWebApiKey}
+                initialRegion={userLocation}
+                mapType={baseMapType}
+                drawingMode={drawingMode}
+                activePath={activePath}
+                previewPath={previewPath}
+                pendingPolygon={pendingPolygon}
+                searchMarker={searchMarker}
+                userLocation={userLocation}
+                savedFields={savedLahan
+                  .filter((item) => item.coordinates.length >= 3)
+                  .map((item) => {
+                    const paletteColor = getLahanColor(item.id);
+                    return {
+                      id: item.id,
+                      name: item.name,
+                      areaHa: item.areaHa,
+                      coordinates: item.coordinates,
+                      strokeColor: paletteColor.stroke,
+                      fillColor: paletteColor.fill,
+                      focused: focusedLahanId === item.id,
+                    };
+                  })}
+                onPressCoordinate={handleMapPressCoordinate}
+                onRegionChangeComplete={(region) => { currentRegionRef.current = region; }}
+                onPanDrag={handleMapPanDrag}
+                onTouchStart={handleMapTouchStart}
+                onTouchEnd={handleMapTouchEnd}
+                onMapReady={() => setMapIsReady(true)}
+              />
+            ) : (
             <MapView
-              ref={mapRef}
+              ref={mapRef as React.RefObject<MapView | null>}
               style={styles.map}
               initialRegion={userLocation}
               onPress={handleMapPress}
@@ -1630,6 +1678,7 @@ export default function ExploreScreen() {
                 </Marker>
               ))}
             </MapView>
+            )}
 
             {drawingMode && (
               <DrawingModeIndicator

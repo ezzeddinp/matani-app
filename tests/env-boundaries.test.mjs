@@ -35,18 +35,33 @@ test("missing credentials remain visible rather than implying hosted readiness",
   assert.ok(result.findings.includes("backend Supabase admin key class: missing"));
 });
 
-test("map key audit reports Android and iOS configuration without printing keys", () => {
+test("map key audit reports Android, iOS, and Web configuration without printing keys", () => {
   const androidKey = "fixture-android-map-key";
   const iosKey = "fixture-ios-map-key";
+  const webKey = "fixture-web-map-key";
   const result = auditEnvBoundaries(
     {
       GOOGLE_MAPS_API_KEY_ANDROID: androidKey,
       GOOGLE_MAPS_API_KEY_IOS: iosKey,
+      GOOGLE_MAPS_API_KEY_WEB: webKey,
     },
     {},
   );
 
-  assert.ok(result.findings.some((line) => line.includes("Android=true, iOS=true")));
+  assert.ok(result.findings.some((line) => line.includes("Android=true, iOS=true, Web=true")));
+  assert.ok(result.findings.some((line) => line.includes("scope separation: distinct=true")));
   assert.ok(!JSON.stringify(result).includes(androidKey));
   assert.ok(!JSON.stringify(result).includes(iosKey));
+  assert.ok(!JSON.stringify(result).includes(webKey));
+
+  const reusedResult = auditEnvBoundaries(
+    {
+      GOOGLE_MAPS_API_KEY_ANDROID: androidKey,
+      GOOGLE_MAPS_API_KEY_IOS: iosKey,
+      GOOGLE_MAPS_API_KEY_WEB: androidKey,
+    },
+    {},
+  );
+  assert.ok(reusedResult.findings.some((line) => line.includes("scope separation: distinct=false")));
+  assert.ok(!JSON.stringify(reusedResult).includes(androidKey));
 });

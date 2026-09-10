@@ -90,15 +90,19 @@ test("field map remains pannable and keeps drawing actions at the top", async ()
 });
 
 test("field map uses Google Maps without an Apple provider fallback and supports detail focus", async () => {
-  const [appConfig, explore, detail] = await Promise.all([
+  const [appConfig, explore, detail, webMap] = await Promise.all([
     readFile("app.config.ts", "utf8"),
     readFile("app/(tabs)/explore.tsx", "utf8"),
     readFile("app/detail-lahan-page.tsx", "utf8"),
+    readFile("components/google-maps-webview.tsx", "utf8"),
   ]);
 
   assert.match(appConfig, /GOOGLE_MAPS_API_KEY_ANDROID/);
   assert.match(appConfig, /GOOGLE_MAPS_API_KEY_IOS/);
+  assert.match(appConfig, /GOOGLE_MAPS_API_KEY_WEB/);
   assert.match(explore, /provider=\{PROVIDER_GOOGLE\}/);
+  assert.match(explore, /ExecutionEnvironment\.StoreClient/);
+  assert.match(explore, /<GoogleMapsWebView/);
   assert.doesNotMatch(explore, /nativeMapProvider|iosGoogleMapsConfigured/);
   assert.match(explore, /fitToCoordinates\(target\.coordinates/);
   assert.match(explore, /focusedLahanId === item\.id/);
@@ -106,17 +110,23 @@ test("field map uses Google Maps without an Apple provider fallback and supports
   assert.match(detail, /Lihat di peta/);
   assert.match(detail, /focusLahanId: detail\.id/);
   assert.match(detail, /Cara membaca kronologi/);
+  assert.match(webMap, /maps\.googleapis\.com\/maps\/api\/js/);
+  assert.match(webMap, /onPressCoordinate/);
+  assert.match(webMap, /fitToCoordinates/);
+  assert.match(webMap, /google\.maps\.Polygon/);
 });
 
-test("map-capable device workflow targets a native development client", async () => {
+test("map workflow supports Expo Go WebView and native development clients", async () => {
   const [packageJson, easJson] = await Promise.all([
     readFile("package.json", "utf8").then(JSON.parse),
     readFile("eas.json", "utf8").then(JSON.parse),
   ]);
 
   assert.match(packageJson.dependencies["expo-dev-client"], /^~57\./);
-  assert.equal(packageJson.scripts.start, "expo start --dev-client");
-  assert.equal(packageJson.scripts["start:clear"], "expo start --dev-client --clear");
+  assert.match(packageJson.dependencies["react-native-webview"], /^13\./);
+  assert.equal(packageJson.scripts.start, "expo start --go");
+  assert.equal(packageJson.scripts["start:clear"], "expo start --go --clear");
+  assert.equal(packageJson.scripts["start:dev-client"], "expo start --dev-client");
   assert.equal(packageJson.scripts.android, "expo run:android");
   assert.equal(packageJson.scripts.ios, "expo run:ios");
   assert.match(packageJson.scripts["build:development:ios"], /eas-cli@23\.2\.0 build.*ios.*development/);

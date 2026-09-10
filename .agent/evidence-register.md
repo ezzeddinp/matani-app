@@ -3,7 +3,36 @@
 **Document type:** Evidence register
 **Audience:** The developer, thesis advisor, reviewers, and AI agents working in this repo
 **Status:** Active
-**Updated:** 2026-09-09
+**Updated:** 2026-09-10
+
+**OBS-40 (2026-09-10, Expo Go Google Maps route implemented locally):** Matani now
+detects the iOS Expo Go execution environment and renders the Google Maps JavaScript API
+through `react-native-webview` 13.16.1; Android and app-specific iOS clients retain the
+native `react-native-maps` `PROVIDER_GOOGLE` path. The bridge covers map readiness,
+map-type changes, pan/region events, point drawing, saved/pending polygons, markers,
+camera animation, and coordinate fitting. The environment audit reports Android, iOS,
+and Web key variables present without printing their values. Root lint, TypeScript, all
+34 root tests, and an iOS Expo export pass. These checks prove configuration, source, and
+bundle integration only; Google Cloud restrictions, live tile delivery, gestures, and
+polygon interaction remain unverified on the developer's physical iPhone. Sources:
+`app/(tabs)/explore.tsx`, `components/google-maps-webview.tsx`, `app.config.ts`,
+`scripts/audit-env-boundaries.mjs`, local fixture-only commands on the checked date.
+No live map or satellite provider was queried during automated verification.
+
+**OBS-39 (2026-09-10, confirmed runtime and missing iOS build):** The developer confirmed
+that the failing iPhone session uses Expo Go via QR. The local Metro log identifies the
+device application as `host.exp.Exponent`. A read-only EAS CLI 23.2.0 query for this
+project's three latest iOS builds returned an empty array. Inspection of the installed
+`react-native-maps` 1.27.2 source found that
+`ios/AirMaps/FabricPlaceholders/PlaceHolderGoogleMapView.mm` compiles an empty Google
+view and no-op camera commands when `HAVE_GOOGLE_MAPS == 0`; the podspec selects that
+condition when Google Maps pods are absent. This explains why an unsupported binary
+can show only Matani's container without reporting a tile-loading error. It does not
+validate Google Cloud key restrictions or prove a future signed build will load tiles.
+Native iPhone installation remains blocked on the signing workflow recorded in OBS-38.
+Sources: developer runtime confirmation; local `.expo/dev/logs/start.log`; installed
+library source and podspec; `eas build:list --platform ios --limit 3 --non-interactive
+--json` on the checked date. No live map or satellite provider was queried.
 
 **OBS-38 (2026-09-09, iOS map-build diagnosis):** The developer supplied a physical-iPhone
 screenshot showing Ladang's dark-green map-container background with controls but no map
@@ -93,6 +122,9 @@ This register is the single canonical home for externally sourced facts. Read it
 | EVID-035 | EAS Build compiles in Expo's cloud and supports creating an iOS development build from a non-macOS host. | Expo Documentation, “Introduction to development builds,” build-method comparison (`https://docs.expo.dev/develop/development-builds/introduction/`). | 2026-09-09 | Host-capability claim only. Device registration, signing credentials, account access, build quota, installation, and runtime verification remain separate gates. |
 | EVID-036 | Local `.env` files excluded from version control are not available to remote EAS Build jobs. | Expo Documentation, “Environment variables in EAS,” “Why use EAS Environment variables” (`https://docs.expo.dev/eas/environment-variables/`). | 2026-09-09 | Remote-build configuration claim only. It does not authorize copying credentials to EAS or committing `.env`; values must be configured through an approved secure workflow. |
 | EVID-037 | An EAS build profile selects a named EAS environment with its `environment` field, making variables assigned to that environment available during the build. | Expo Documentation, “Environment variables in EAS,” quick-start step 3 (`https://docs.expo.dev/eas/environment-variables/`). | 2026-09-09 | Configuration-selection claim only. It does not prove required variables exist in that environment or that their values and platform restrictions are valid. |
+| EVID-038 | Expo SDK 57 documents `react-native-webview` 13.16.1 as included in Expo Go. | Expo Documentation, “React Native WebView,” bundled-version and installation sections (`https://docs.expo.dev/versions/latest/sdk/webview/`). | 2026-09-10 | Runtime-availability claim only. It permits an Expo Go route that renders web content; it does not prove Google Maps loaded, a key was accepted, or field interactions worked on a physical device. |
+| EVID-039 | The Google Maps JavaScript API browser-support policy includes the current and previous major iOS versions and the corresponding Safari/WebKit `WKWebView`. | Google Maps Platform Documentation, “Browser support,” mobile browser and WebView sections (`https://developers.google.com/maps/documentation/javascript/browsersupport`). | 2026-09-10 | Compatibility-policy claim only. Actual support still depends on the device OS/WebKit version, network access, API configuration, and an accepted Maps JavaScript API key. |
+| EVID-040 | Google recommends both application and API restrictions for Maps keys. For website usage, the application restriction is an authorized website/referrer; its guidance also warns that locally served or opaque WebView contexts may omit the `Referer`, making restriction unreliable. | Google Maps Platform Documentation, “API security best practices,” application/API restriction and website-restriction guidance (`https://developers.google.com/maps/api-security-best-practices`). | 2026-09-10 | Security guidance, not proof of this app's console settings. Matani uses a dedicated Web key, a stable HTTPS base origin, and a Maps JavaScript API restriction; the developer must verify the matching authorized referrer and monitor rejected/unauthorized usage in Google Cloud. Do not reuse an Android-restricted key for this browser route. |
 
 ## 4 · Indonesian smallholder agriculture
 
