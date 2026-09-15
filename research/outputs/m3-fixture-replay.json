@@ -1,0 +1,44 @@
+{
+  "data_state": "fixture",
+  "network_called": false,
+  "scope": "Production worker.process and quality function; in-memory claim/persistence and simulated provider",
+  "excluded": [
+    "database locking/RLS",
+    "provider arithmetic",
+    "route transport",
+    "rendered UI",
+    "physical device",
+    "agronomic accuracy"
+  ],
+  "source_sha256": {
+    "backend/measurement/worker.js": "7f56d3ff64b6f495ec502866dbdc77c004303b1613e2ff427246b1968accd462",
+    "backend/measurement/statistics.js": "9e607a44fa9ed035985c8e2a5cf69adbaddba2ec8253303b413f754a16ce619f",
+    "research/scripts/run-m3-replay.mjs": "afcf10c487fded9ea148c4c54172e5663aeb062d596af2aec87df00c51a0031b"
+  },
+  "checks": [
+    {
+      "scenario": "passed-payload-preservation-and-completed-reuse",
+      "passed": true
+    },
+    {
+      "scenario": "rejected-payload-preservation-and-completed-reuse",
+      "passed": true
+    },
+    {
+      "scenario": "unavailable-payload-preservation-and-completed-reuse",
+      "passed": true
+    },
+    {
+      "scenario": "delayed-completion-and-inflight-reuse",
+      "passed": true
+    },
+    {
+      "scenario": "simulated-timeout-and-successful-retry",
+      "passed": true
+    },
+    {
+      "scenario": "production-9-3-floor-boundaries",
+      "passed": true
+    }
+  ]
+}

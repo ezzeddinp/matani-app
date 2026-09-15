@@ -3,7 +3,7 @@
 **Document type:** Architecture document
 **Audience:** The developer, thesis advisor, reviewers, and AI agents working in this repo
 **Status:** Active
-**Updated:** 2026-09-10
+**Updated:** 2026-09-15
 **Canonical for:** As-built and target architecture, **current measurement provenance (canonical wording — § 2)**, trust boundaries, provider decisions, Architecture Decision Records (ADRs), free-tier constraints, security risks, verification baseline, migration triggers
 **Companion documents:** [`evidence-register.md`](evidence-register.md), [`context-dump.md`](context-dump.md), [`data-evaluation-plan.md`](data-evaluation-plan.md), [`research-protocol.md`](research-protocol.md), [`product-requirements.md`](product-requirements.md), [`implementation-plan.md`](implementation-plan.md)
 
@@ -426,6 +426,10 @@ Each ADR aligns to a `DEC-*` in [`context-dump.md`](context-dump.md) and carries
   ceiling. The executor bump prevents reuse of exhausted `v1` jobs. This amendment is
   fixture-verified and deployed as `dpl_GsDPR8f2c8TwkDHxHXRAKR9etTC4`; it does not yet
   claim hosted measurement success because no post-deployment request has completed.
+- **Research execution amendment (2026-09-15; DEC-51):** The Phase 3 research-only
+  collector reuses the installed `node-fetch` transport after two failed global-fetch
+  attempts. Its archived requests, source/grid audit and recovery history stay separate
+  from production jobs. Production provider behavior and cache identity are unchanged.
 - **Consequences:** Decouples satellite cost from screen rendering; enables quota
   accounting, idempotency, and honest `unavailable` states.
 - **Revisit trigger:** Acquisition volume or latency requirements outgrow the chosen job

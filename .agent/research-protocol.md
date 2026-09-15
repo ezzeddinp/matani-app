@@ -3,7 +3,7 @@
 **Document type:** Research protocol
 **Audience:** The developer, thesis advisor, reviewers, and AI agents working in this repo
 **Status:** Active — RQ1/RQ3 and M1 scope approved (DEC-29/30); validation remains open
-**Updated:** 2026-09-07
+**Updated:** 2026-09-15
 **Canonical for:** Research questions, hypotheses, methodology, and validity of the Sentinel-2 NDVI/NDMI monitoring evaluation, and the thesis paper's system-evaluation track (§ 16)
 **Companion documents:** [`evidence-register.md`](evidence-register.md), [`data-evaluation-plan.md`](data-evaluation-plan.md), [`project-architecture.md`](project-architecture.md), [`implementation-plan.md`](implementation-plan.md), [`product-requirements.md`](product-requirements.md)
 
@@ -361,3 +361,253 @@ from **measurement evaluation** (are its values defensible? §§ 1–15).
 5. **Known limitations** — no field-level ground truth (biomass, soil moisture sensors, yield records) in the prototype evaluation; the system is evaluated for technical correctness, API reliability, and usability, not predictive agronomic accuracy. This restates the paper's own limitation honestly; any stronger claim requires §§ 5, 12.
 
 The mapping of this track onto milestones (which tests run at M0/M2/M3) lives in [`implementation-plan.md`](implementation-plan.md).
+
+## 17 · Proposed participant-free evaluation amendment
+
+**Status: proposed for advisor review; not academic approval (DEC-45, 2026-09-10).**
+This section is the canonical proposal. Existing advisor-approved RQ1/RQ3 wording and
+prior HYP-05/UAT acceptance requirements above remain visible; the proposal does not
+silently retire them or declare M3 complete.
+
+- Retain the one-field retrospective RQ1/RQ3 evaluation. Use existing records; no new
+  farmer recruitment, field collection, live satellite run, or paid acquisition is part
+  of this preparation (DEC-45).
+- Use controlled technical evaluation for the delivery artifact, informed by EVID-047/048.
+  Test quality/date/provenance preservation and failure recovery. Report the actual
+  production boundaries exercised and all simulated dependencies. Do not infer farmer
+  comprehension, decision quality, usability or agronomic accuracy.
+- Propose deferring HYP-05 agronomic validation. Pixel-floor sensitivity, if supported
+  by saved data, describes policy effects only; it cannot validate flooding-state
+  fidelity. Water-mask comparisons remain excluded without underlying data (DEC-45).
+- Report per-index pixel-floor sufficiency separately from stored joint quality.
+  Count unique returned M1 acquisition intervals, not assumed individual satellite
+  overpasses. M2 source-specific measurements remain a separate dataset; historical
+  M1 data retains its prototype provenance qualification (engineering interface in
+  data-evaluation-plan.md, section 8).
+- Include zero-observation months and missing pixels explicitly. Compute seasonal
+  gaps only inside contiguous season blocks; report whole-window gaps and leading/
+  trailing observation-free periods separately. No gap filling (DEC-45).
+- Initial outputs are descriptive. The current CI requirement in section 12 is an open
+  advisor decision for this one-field case: do not use a one-field cluster bootstrap or
+  naive independent-pixel intervals. Resolve the target estimand, temporal dependence,
+  and whether descriptive reporting suffices before any inferential claims.
+- Historical results were already inspected before this amendment. Describe new
+  analysis as retrospective/exploratory; do not label new criteria preregistered.
+  Any HYP-01 formal verdict requires agreed operational criteria. Until then report
+  descriptive observations and leave the hypothesis adjudication pending.
+
+**Proposed acceptance (DEC-45):** recoverable identified snapshot; reproducible scoped
+RQ1/RQ3 results; discrepancies against historical records explained; offline technical
+checks passed with proof boundaries; limitations and literature comparison complete;
+advisor decision recorded. An unrecovered input blocks measured-result reproduction,
+not preparation of an explicitly incomplete advisor packet.
+
+
+## 18 · Proposed public-secondary-data replacement (DEC-46)
+
+**Status: preparation authorized; advisor approval pending.** This alternative supplements
+§17 because the approved private-field inputs remain unrecovered (OBS-41/43). It does
+not change the approved wording or consent requirements in §§1–16.
+
+- **Analysis unit:** one publicly mapped sawah polygon, provisionally OBS-46's FID 297
+  in Teluknaga. It is not established as an individual farm parcel. Describe the case
+  as a mapped-area monitoring study; do not infer smallholder ownership or field size.
+- **Selection:** retain the documented source-ID ordering and all five screened units
+  before inspecting satellite outcomes (OBS-46). Do not replace a poorly observed unit
+  merely to improve availability. This bounded sample is not representative.
+- **Period:** propose calendar 2019 to align with the source label. Exact mapping dates
+  and monthly rice cultivation remain unknown (OBS-46); title-year alignment does not
+  establish temporal ground truth. Report calendar months without assumed seasons or
+  phenological stages. A period change requires a recorded rationale before acquisition.
+- **Replacement RQ1 proposal:** what separate NDVI, NDMI and joint usable-interval
+  availability, monthly counts and observation gaps does this mapped area support
+  during the documented period under the specified processing policy?
+- **Replacement RQ3 proposal:** how do separate valid-pixel counts and exploratory
+  9/3 policy floors constrain delivered observations for this geometry? No universal
+  minimum field size, validated threshold or agronomic accuracy claim follows.
+- **Source use:** record publisher, original identifiers, raw geometry, CRS, query,
+  retrieval date, hashes, source-label limitations and an established reuse basis.
+  Public-source documentation does not imply farmer consent; do not populate private
+  declarations with invented verification. Institutional treatment of secondary data
+  remains an advisor decision. Preserve source data separately from app user records.
+- **Processing:** OBS-47 prepares only an offline Statistical interval pilot. Inspect
+  raw responses, interval boundaries and provenance before selecting the final study
+  route. Preserve missing values and exclude duplicates/conflicts from inflated counts.
+  Do not identify an aggregated interval as one verified satellite acquisition or
+  silently merge it with M2 Process records. Existing private-input validation remains.
+- **Acceptance:** reuse and unit/date limitations explicitly resolved or accepted within
+  revised academic claims; compatible input contract and bounded execution checked;
+  real snapshot preserved; descriptive results reproduced; technical replay reported
+  separately; actual advisor decision recorded. No new interviews, field collection or
+  participant UAT are proposed. §17's uncertainty and claim limitations still apply.
+
+
+**September 14 source-selection update (DEC-47):** The developer removed the Teluknaga-first
+screening constraint. The FID 297 / calendar 2019 case above remains a historical
+proposal, not a fixed replacement site. Compare documented Indonesian padi sources
+before proposing a final unit and compatible period; source quality takes precedence
+over locality. Preserve approved scope history and obtain advisor review of the final
+case amendment. No country change, sampling change or new academic approval is inferred.
+
+
+**Proposed fixed-block option (DEC-47 preparation; OBS-54):** A three-candidate shortlist
+now exists using 6 × 6 source-cell rectangles in the documented Open-SEA convenience
+pool. These units are analysis blocks, not farmer parcels. The size and all-positive
+rice-label eligibility are engineering choices with explicit selection bias; no
+universal minimum-area claim follows. This option changes the geometry basis of RQ3
+and needs advisor review before being called the accepted method. Proposed calendar
+2021 is conditional on a map generated from 2020–2021 inputs. The
+[candidate-selection record](../docs/m3-candidate-selection-2026-09-14.md) owns exact
+ordering, coordinates and reproducibility details; previous approved wording remains.
+
+
+**Pending-review technical comparison (preparation under DEC-45/47):** Propose comparing
+complete-pair delivery with independent per-index delivery on identical frozen records
+and identical per-index quality rules. Measure the magnitude and timing of withheld
+passing observations; extra single-index values alone are a mathematical consequence,
+not a novelty result. Unknown decisions remain unevaluable, not rejected quality.
+The [comparison worksheet](../docs/m3-delivery-comparison-proposal.md) specifies counts,
+checks and historical-adapter incompatibility. OBS-57 verifies synthetic counting only.
+This proposal does not approve production changes or settle the thesis contribution.
+
+
+## 19 — Advisor-supported direction and pre-acquisition specification
+
+**Updated: 2026-09-15. Basis: DEC-48.** This section supersedes the blanket
+advisor-response-pending status of §§17-18 for the overall direction and participant-free
+evaluation. Earlier proposals remain historical; exact site/sample and acquisition
+settings are not automatically approved by the advisor's message.
+
+**Primary contribution framing:** evaluate the complete-pair versus independent-index
+delivery policy, with observation availability and pixel sufficiency as supporting
+measurements. Establish differentiation through the literature; neither extra singleton
+values nor advisor support proves novelty. No usability, farmer-benefit, crop-health
+accuracy or general superiority claim is permitted.
+
+**Buffer response:** compare the original analysis geometry (0 m) against a 10 m inward
+buffer in a metric local CRS as the initial engineering specification, not an
+advisor-selected or validated purity distance. Freeze exact geometries and hashes before
+satellite acquisition. Apply both delivery policies to each geometry, yielding a paired
+2 geometry × 2 policy comparison with identical dates, source products and quality rules.
+An empty/invalid buffer is an explicit ineligible geometry, not zero usable observations;
+retain its exclusion and do not silently replace the site. Report area loss, source/valid
+pixel counts and availability changes. Buffering a fixed raster block removes its edges,
+which may not coincide with real padi boundaries. It cannot establish pure rice pixels or
+remove source-classification error. Do not optimize buffer size using favorable outcomes.
+
+**Time unit and denominator:** proposed calendar 2021 is 365 UTC days, from
+2021-01-01 inclusive to 2022-01-01 exclusive. Freeze the final period before acquisition.
+Use daily intervals or records that can be assigned to exact UTC acquisition days;
+coarser aggregated intervals cannot support these daily metrics. No interpolation or
+carrying an older value forward as a new observation. Deduplicate exact source identities;
+conflicting duplicates must be resolved before analysis. A complete pair must come from
+the same compatible record/source, not NDVI and NDMI from different acquisitions that
+happen to share a day. Count each qualifying day only once for each metric.
+
+**Prespecified metrics, for each geometry and delivery policy:**
+- Any-index day coverage = 100 × days with at least one delivered passing index / all
+  calendar days in the frozen period.
+- Complete-pair day coverage = 100 × days with a delivered compatible passing pair /
+  the same calendar-day denominator.
+- Separate NDVI and NDMI day coverage use that same denominator.
+- Report policy differences in percentage points within each geometry, then the change
+  in those differences between original and buffered geometry. Complete-pair coverage
+  must be identical across policies when input quality decisions are identical.
+- Mean, median and longest gap use differences between consecutive distinct qualifying
+  UTC dates, separately for any-index, NDVI, NDMI and complete-pair delivery. Fewer than
+  two dates yields NA, never zero. Report leading/trailing absence separately; with no
+  qualifying dates report the full observation-free period once. These are observation
+  gaps, not processing latency or how long a user waits after opening the app.
+
+**Failures and missingness:** report calendar days, attempted requests, returned requests,
+fully evaluated days, known no-observation days and unresolved days separately. A failed
+request is not evidence of cloud rejection or satellite absence. Verified available days
+remain a known lower bound while any relevant source/day is unresolved; optionally show
+an identification bound by adding unresolved days that could change that metric's daily
+status, capped at the calendar-day total. These are missing-data bounds, not confidence
+intervals. Report evaluable-day fractions as secondary results with their own denominator;
+do not silently substitute them for calendar coverage. Do not label provisional coverage
+as a complete empirical result until unresolved processing is reconciled.
+
+**Execution:** freeze the site/sample, quality criteria, source identity, daily processing
+settings and geometry pair in a dated manifest before requesting satellite data. This is
+prospective specification of the replacement experiment, not retrospective preregistration
+of earlier exploratory work. The existing Statistics-only request proposal and synthetic
+Boolean checker do not yet implement this full contract. No new live acquisition or
+production behavior change is implied by recording this feedback.
+
+
+**Paired-source preparation constraint (OBS-60):** The first Process template uses a
+strict single-source match across both indices and geometry variants. Multiple-source
+or mismatching responses are unresolved paired comparisons, not satellite absence.
+Report this eligibility limitation. Grid alignment must be verified before attributing
+geometry differences solely to buffering. The analysis preparation document records the
+implementation checkpoint; this does not change the final study sample or quality floors.
+
+
+## 20 — Phase 1 frozen specification
+
+**Basis: DEC-49; prior advisor conditions DEC-48.** Freeze one primary analysis block,
+`open-sea-2021-tile-42-r5566-c5626`, in Krangkeng, Indramayu, for 2021-01-01 through
+2022-01-01 exclusive (365 UTC days). This is a purposive one-block case, not a sample of
+Indonesian farms. Do not pool the alternative candidates or replace unfavorable outcomes.
+Retain the map's selection dependence and unverified crop-truth limitations.
+
+**Grid and buffer design:** supersede the four independently clipped requests of OBS-60.
+Request one common bbox raster per index, then apply both polygons locally. Snap the
+original envelope outward to 20 m multiples in the local metric CRS; request 10 m NDVI
+and 20 m NDMI grids over that same extent. Include cells whose centres are covered by
+the polygon, including its boundary. Do not use all-touched or area-weighted membership.
+Thus buffered samples are subsets of original samples within each index. A selected
+cell may still mix land covers; no pure-rice or native-Sentinel-grid alignment claim.
+EVID-063 supports avoiding bbox-plus-geometry requests. OBS-62 records geometric counts.
+
+**Quality specification:** reuse the production evalscript formulas, SCL exclusions
+[0,1,3,8,9,10], nearest resampling and harmonized L2A processing. NDVI uses B08/B04 at
+10 m; NDMI uses B08/B11 on the 20 m output grid. Retain SCL water class 6 without
+claiming agronomic validation. Per geometry/index, count only centre-selected pixels
+with source presence, passing mask, finite value and nonzero denominator. Passing
+requires at least 9 valid NDVI pixels or 3 valid NDMI pixels respectively. These remain
+provisional technical floors. No extra cloud-cover cut, adaptive floor or post-result
+threshold tuning. Missing metadata, invalid counts or malformed rasters are processing
+failures, not quality rejection. Summary statistics must use the same selected pixels.
+
+**Source and inventory specification:** enumerate all catalogue pages for the original
+case and frozen period with no cloud-percentage filter; retain raw items and query
+provenance. Build distinct UTC-day inventory and retain item identities/reprocessed
+versions. Process each inventoried day using the common-bbox pair. Accept paired
+source identity only when one scene/product/path, service version and valid acquisition
+instant match across NDVI and NDMI; derive both geometry variants from those rasters.
+Ambiguous multiple-source days or mismatches remain unresolved, never no-acquisition.
+Complete catalogue with no item permits a known no-acquisition day; incomplete inventory
+does not. This defines a strict source-eligible case analysis, not complete sensitivity
+to every possible scene combination. No best-cloud-day selection. Pilot uses the first
+chronological inventoried day; inability to resolve it is reported before any expansion.
+
+**Comparison and interpretation:** retain §19's daily metrics and missing-data accounting.
+Joint delivery requires both per-index decisions; independent delivery retains each
+passing observation, without inventing its companion or carrying observations forward.
+Both policies receive identical inputs. A pair-compatibility failure precludes complete
+pairs but does not erase independently verified data from descriptive single-index
+accounting; flag that day as unresolved for paired analysis. Report paired comparisons
+on matched inputs and retain calendar-day bounds for unresolved days. A zero difference
+is valid. No significance testing, confidence intervals, causal farmer-benefit inference,
+new-algorithm claim or assertion of universal novelty.
+
+**Phase 2 acceptance:** actual returned TIFFs must match declared EPSG, dimensions,
+north-up affine and planned pixel scale/origin within 1e-6 m before applying masks.
+Unexpected scale, rotation, shape, masks or source metadata stop the analysis for that
+response. Preserve originals; record any contract amendment before reprocessing. Freeze
+execution budgets and account allowance in Phase 2; no live acquisition is authorized
+by the specification alone. The manifest owns exact grids, masks, hashes and templates;
+this protocol owns methodology. This is prospective specification after source-map
+exploration, not registered preregistration.
+
+**Contribution statement:** Matani evaluates the observable information withheld by
+complete-pair delivery compared with independent delivery of quality-passing NDVI/NDMI,
+using a reproducible single-case dataset, common-grid buffer sensitivity and controlled
+technical delivery checks. Existing availability, reconstruction and DSS work motivate
+the question; literature review has not established that this is the first such policy.
+The baseline is an explicit design alternative, not a claimed reproduction of another
+published system. Literature limitations do not prevent specifying the experiment but
+must remain visible in the paper's novelty wording.

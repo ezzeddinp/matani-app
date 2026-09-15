@@ -3,7 +3,7 @@
 **Document type:** Historical decision record
 **Audience:** The developer, thesis advisor, reviewers, and AI agents working in this repo
 **Status:** Active
-**Updated:** 2026-09-10
+**Updated:** 2026-09-15
 
 **Canonical for:** Project history, the hackathon→thesis pivot, superseded ideas, the decisions index (DEC-*), and the EN↔ID glossary
 **Companion documents:** [`evidence-register.md`](evidence-register.md), [`project-architecture.md`](project-architecture.md), [`research-protocol.md`](research-protocol.md), [`product-brief.md`](product-brief.md), [`implementation-plan.md`](implementation-plan.md)
@@ -286,3 +286,118 @@ elaborate them.
 | **NDVI** | Normalized Difference Vegetation Index — Sentinel-2 vegetation index. |
 | **NDMI** | Normalized Difference Moisture Index — Sentinel-2 moisture index. |
 | **GROW** | Gathering, Recognizing, Offering, Warning — the thesis paper's application-specific decision-support workflow (DEC-14). A paper-defined framing, not an external methodology. |
+
+## Research preparation decision (2026-09-10)
+
+| ID | Decision | Date | Basis | Status |
+|---|---|---|---|---|
+| **DEC-45** | Prepare a measurement-led hybrid thesis and AGERS submission using existing Teluknaga records and controlled offline technical evaluation. Work on analysis and writing together; pause unrelated M4 cleanup. Prepare the advisor packet before the earliest September 15-19 meeting. The developer reports no mandatory participant UAT. Propose deferring agronomic HYP-05 validation and making no usability claims. | 2026-09-10 | Explicit developer selection and instruction to implement the AGERS preparation plan. The statement that M0-M2 are fine authorizes this bounded preparation, not invented gate evidence. | Engineering preparation authorized; methodology amendment and final academic acceptance await advisor review. |
+
+The [execution plan](../plans/016-agers-research-preparation.md) owns tasks and dates.
+The [research protocol](research-protocol.md#17--proposed-participant-free-evaluation-amendment) owns the proposed method; EVID-041-046 own conference facts. DEC-34's evidence-honesty constraints remain intact; DEC-45 permits offline M3 preparation while historical gate records stay dated.
+
+
+### DEC-46 — Replacement-study preparation (2026-09-10)
+
+The developer authorized preparation of a replacement secondary-data study after original geometry recovery failed, with Teluknaga first. Public-source screening, a proposed case/window, reproducibility manifest and bounded request plan are in scope. Magelang is a fallback candidate only, not a selected location. Academic changes remain advisor-review proposals. No new approval or original 32/86 evidence is inferred. The execution details live in [the replacement preparation plan](../docs/m3-replacement-study-plan-2026-09-10.md).
+
+
+### DEC-47 — Source quality before location (2026-09-14)
+
+| ID | Decision | Date | Basis | Status |
+|---|---|---|---|---|
+| **DEC-47** | Remove the Teluknaga-first constraint from replacement-source screening. Prioritize traceable rice labels, documented year, explicit reuse terms and meaningful geometry. | 2026-09-14 | The developer explicitly prefers defensible data over forcing Teluknaga. | Screening authorized; no replacement location selected or advisor approval inferred. |
+
+This supersedes only DEC-46's geographic search priority. Retain the Indonesian padi
+scope while comparing sources; a move outside Indonesia would be a further scope
+proposal. Preserve Teluknaga screening artifacts and their limitations. Do not rank
+sites by favorable satellite availability outcomes. The proposed method remains owned
+by research protocol §18; the replacement preparation plan owns execution.
+
+
+### DEC-48 — Advisor feedback reported by the developer (2026-09-15)
+
+The developer supplied the advisor's message supporting the focus, accepting no
+interviews/UAT within the stated scope, and supporting AGERS as the target. Conditions:
+compare inward-buffered and original geometry; foreground the complete-pair versus
+independent-index display policy as the proposed contribution; define comparison metrics
+before acquisition; restrict conclusions to data availability, without farmer-benefit
+claims. This is reported advisor feedback, not conference acceptance or a determination
+that novelty has been established. Exact site, sample, buffer distance and processing
+contract were not specified by the advisor. Earlier pending-review records remain history;
+research protocol §19 owns the current methodological response.
+
+
+### DEC-49 — Phase 1 specification choices (2026-09-15)
+
+Under the developer's request to complete Phase 1 and DEC-48's advisor feedback, the
+assistant specifies one primary mapped block (saved tile 42 candidate, Krangkeng,
+Indramayu) and calendar 2021. The choice follows the existing first-candidate order,
+not satellite outcomes. The other two remain documented alternatives, not automatic
+substitutes or additional sites. Use original/10 m inward-buffer masks on common
+rasters. These are implementation/method specifications made during authorized planning,
+not a claim that the advisor selected the exact site or buffer distance. Changes require
+a dated amendment before dependent acquisition. Protocol §20 owns the frozen method.
+
+
+### DEC-50 — Bounded Phase 2 execution (2026-09-15)
+
+The developer explicitly requested Phase 2 after the Phase 1 specification. Executed
+one bounded live pilot: cap 1 authentication, 4 catalogue and 2 Process requests, no
+retries and sequential execution. OBS-63/64 own actual outcomes. The instruction and
+successful pilot do not authorize automatic full-year raster expansion or submission.
+Account allowance remains a separate unresolved input for scaling collection.
+
+### DEC-51 — Bounded Phase 3 collection (2026-09-15)
+
+The developer requested completion of Phase 3, supplied the account-quota dashboard
+(OBS-65), then explicitly instructed continuation. Collect the remaining 70 catalogue
+dates using the frozen DEC-49 specification and existing Phase 2 catalogue/pilot.
+Operational bounds: 140 new Process attempts, up to 10 authentication attempts,
+sequential execution, no automatic Process retries and no new catalogue requests.
+Stop before further requests when reported processing consumption reaches 10 units
+or consumption is unknown. This is a response-based stopping threshold, not a hard
+provider-side PU limit; the last response may cross it. Preserve attempts across restarts.
+No purchase, subscription change, production database write or manuscript submission
+is included. Phase 3 may retain honestly unresolved records; no replacement dates or
+post-outcome quality changes are authorized.
+
+DEC-51 operational recovery amendment (2026-09-15): collection stopped after the
+February 15 NDVI attempt timed out without a saved response. Preserve it as unresolved
+and do not retry it. Under the developer's Phase 3 completion request, resume the remaining
+requests with the original 140-attempt cap unchanged. The 10-unit stopping threshold
+therefore applies to reported consumption, plus one explicitly unknown timeout charge;
+no exact total-use or hard 10-unit-total claim is permitted. Any additional unknown charge
+stops collection again. Preserve the initial code/contract and the dated recovery record
+alongside the amended executor. This changes execution recovery, not scientific settings.
+
+DEC-51 second operational recovery amendment (2026-09-15): the February 20 NDVI
+attempt also failed without a saved response. Retain both interrupted indices and keep
+the 140-attempt cap unchanged. Use the already-installed production `node-fetch`
+transport for remaining authentication/Process requests. The reported-unit threshold
+now excludes two explicitly unknown charges; any additional unknown charge stops again.
+Preserve both earlier executor versions and the first recovery record. No scientific
+setting, source selection or quality criterion changes.
+
+### DEC-52 — Recover the two interrupted NDVI downloads (2026-09-15)
+
+The developer explicitly requested retries before proceeding to Phase 4 after discussing
+possible connectivity failures. Authorize one additional attempt for each interrupted NDVI
+request (February 15 and February 20), capped at two new Process requests and one
+authentication attempt. Preserve identical request bodies, accept either passing or
+quality-rejected observations, and verify compatibility with the already-saved NDMI.
+Keep the original failures and first frozen dataset intact; freeze any recovered results
+as a new revision linked to the original. This supersedes DEC-51's no-retry restriction
+only for these two downloads. The exact cause of the original transport failures remains
+unconfirmed; neither bad Wi-Fi nor absent satellite observations has been established.
+
+### DEC-53 — Expand and format the full paper (2026-09-15)
+
+The developer explicitly approved Phase 7: use `thesis fix-2.pdf` as the benchmark
+for depth, section coverage and reference usage; target 6,000–7,000 pre-reference
+words and approximately 35–45 relevant references; audit all 38 previous entries;
+retain the frozen Krangkeng results; and deliver Markdown, editable DOCX and PDF
+using the existing A4 conference template. Reuse author information provisionally
+and flag it for thesis-team verification. Preserve original source files and defer
+expansion of the separate chapter-based thesis. This authorizes the full-length
+review draft, not submission, venue page-limit approval or academic acceptance.

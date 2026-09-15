@@ -1,5 +1,30 @@
 # Matani research workspace
 
+**Updated:** 2026-09-10
+
+## M3 offline evaluation (DEC-45)
+
+Start with [plan 016](../plans/016-agers-research-preparation.md), the
+[dataset inventory](../docs/m3-dataset-inventory-2026-09-10.md), and the
+[advisor proposal](../docs/m3-advisor-proposal-2026-09-14.md).
+The method is proposed for advisor review, not a completed M3 gate.
+
+```sh
+python3 research/scripts/run_m3_evaluation.py --input research/fixtures/m3-m1-report.json --output-dir /tmp/matani-m3-example
+node research/scripts/run-m3-replay.mjs /tmp/matani-m3-replay.json
+npm run test:research
+```
+
+Use new output paths: both runners refuse overwrites. Outputs in
+`research/outputs/m3-fixture-evaluation/` and `m3-fixture-replay.json` are
+explicitly synthetic technical demonstrations (OBS-42), not Teluknaga results.
+The snapshot manifest hashes both the artifacts and analysis source files.
+Non-fixture input is restricted to the M1 prototype report shape and outputs under
+ignored `research/private/`. No M2 export compatibility or live-provider access is implied.
+See data-evaluation-plan.md section 10 for the canonical engineering contract.
+
+## Existing M1 tools
+
 This workspace implements the M1 retrospective-feasibility interface. Ordinary
 development and CI never call CDSE; live acquisition is always explicit (ADR-09).
 

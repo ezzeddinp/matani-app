@@ -1,0 +1,79 @@
+{
+  "updated": "2026-09-15",
+  "status": "full-length-review-draft-complete; author-advisor-venue-review-pending",
+  "decision": "DEC-53",
+  "observation": "OBS-73",
+  "source_snapshot_sha256": "41ab605fb814ea07b29db3b4bccf953dcad3bd9c0bb59f170f81e0ec31cdbdc1",
+  "counts": {
+    "words_excluding_title_authors_references": 6287,
+    "references": 36,
+    "old_references_screened": 38,
+    "pages": 8,
+    "tables": 7,
+    "equations": 4,
+    "figures": 1
+  },
+  "files_sha256": {
+    "docs/manuscripts/phase6-paper.md": "b9b8d036e2839f6182ba7d297235ea4af6c75c46b9552935c12f051c63f5c9dc",
+    "docs/manuscripts/phase6-review.md": "4aac20e99d0ef8aca494b087e895da9fb49647da2e217250fb6d7f9d35ec6ee7",
+    "docs/manuscripts/phase6-thesis-chapters.md": "57ae2abda35b431be6b3185234028c553c93f8c0daff8b55ab962236f07b35b4",
+    "docs/manuscripts/phase6-manifest.json": "f86b7073abcd7b4597fdc5a2c056a282d4da7bc20780041a7c575276b68c2a8f",
+    "docs/manuscripts/phase7-paper.docx": "8f33585a6adf8641028ec7e085d52fc1eb7ca82463f8189f666f8884dcb18699",
+    "docs/manuscripts/phase7-reference-audit.md": "acc5318b5c0b0f76fe23ffd1b951ded3528368ac5c56427c7a89da3c7e4f46f4",
+    "docs/manuscripts/phase7-reference-audit.json": "c74352e55b4e378c3d00ee36b1c0f35792c8dbae19fd3fc7d84d7dfdaaecc48b",
+    "docs/manuscripts/phase7-timeline.png": "4f70624d7de6fe7afacafd6998db003a1f56248f9e742dadfb8db53066544d2f",
+    "docs/manuscripts/phase7-timeline.pdf": "d8ed0f15ffc2371fdc3f0b160ce7f1be0ec0afbd5c0f144c4bc9729f64ac54b8",
+    "docs/manuscripts/check-phase7.py": "0179e4c6d388fc9cdc76926747d978966c48456fe89131cb2f8d3ec7c31f4944",
+    "output/pdf/matani-phase7-paper.pdf": "8d9bb33a6c468138ef356ca8de9a8c0ec545982ac27f1165e9808e9647303cdf",
+    "docs/manuscripts/phase7-paper-standard.docx": "b36d30181b0dde66426b33274d604c031d9a5f719812369f6e72a62dad923fbb"
+  },
+  "source_files_sha256": {
+    "/Users/billy/Downloads/thesis fix-2.pdf": "05e06c26840ad5446817deb9bca2a1d331df61b9d4f68db8f1e9577be33e116a",
+    "/Users/billy/Downloads/conference-template-a4.docx": "57e2125b0a04860e103fd634c2b5fd19a7ea571fa59ac577bd97afc73ad99482"
+  },
+  "render_review": {
+    "pages_inspected": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8
+    ],
+    "result": "passed",
+    "checks": [
+      "overflow",
+      "column order",
+      "table readability",
+      "figure placement",
+      "reference formatting"
+    ]
+  },
+  "template_fidelity": {
+    "method": "Strict OOXML package patch; unchanged parts byte-identical; all original named styles preserved; semantic Title alias added",
+    "intentional_changes": [
+      "body content and tables",
+      "three-author row; unused author/helper sections removed",
+      "example copyright footer removed",
+      "figure relationship and PNG",
+      "core title metadata",
+      "semantic Title style alias"
+    ]
+  },
+  "limitations": [
+    "Targeted source audit; full-text access varies and is recorded per reference",
+    "Provisional author and title information requires thesis-team verification",
+    "No venue page-limit or submission approval",
+    "Separate chapter thesis unchanged",
+    "No new agronomic, usability, native-device or live database validation"
+  ],
+  "standard_docx_copy": {
+    "file": "docs/manuscripts/phase7-paper-standard.docx",
+    "format": "Transitional Office Open XML",
+    "validation": "OBS 2026-09-15: all document text unchanged; seven tables and one figure retained; all eight rendered pages inspected; title sanitizer passed without changes",
+    "google_docs_import": "Not yet tested; provided for retrying import",
+    "original": "phase7-paper.docx preserved"
+  }
+}

@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { observationChartX } from "@/utils/observation-chart";
 import { shouldStartMeasurement } from "@/utils/measurement-start";
 import {
   ActivityIndicator,
@@ -12,7 +13,7 @@ import {
   Pressable,
   View,
 } from "react-native";
-import Svg, { Circle, G, Line, Polyline, Text as SvgText } from "react-native-svg";
+import Svg, { Circle, G, Line, Text as SvgText } from "react-native-svg";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { lahanService, supabase, type LahanDetail } from "@/hooks/supabase";
@@ -162,16 +163,11 @@ function ObservationChart({
   const span = Math.max(maxValue - minValue, 0.1);
   const chartInnerWidth = CHART_WIDTH - CHART_PADDING * 2;
   const chartInnerHeight = CHART_HEIGHT - CHART_PADDING * 2;
-  const coordinates = validPoints.map((point, index) => ({
+  const coordinates = validPoints.map((point) => ({
     ...point,
-    x:
-      CHART_PADDING +
-      (validPoints.length === 1
-        ? chartInnerWidth / 2
-        : (index / (validPoints.length - 1)) * chartInnerWidth),
+    x: observationChartX(point.timestamp, validPoints[0].timestamp, validPoints[validPoints.length - 1].timestamp, CHART_PADDING, chartInnerWidth),
     y: CHART_PADDING + ((maxValue - point.value) / span) * chartInnerHeight,
   }));
-  const linePoints = coordinates.map((point) => `${point.x},${point.y}`).join(" ");
 
   return (
     <View style={styles.chartFrame}>
@@ -200,16 +196,6 @@ function ObservationChart({
             </G>
           );
         })}
-        {coordinates.length > 1 && (
-          <Polyline
-            points={linePoints}
-            fill="none"
-            stroke={indexKey === "ndvi" ? "#15803D" : "#0369A1"}
-            strokeWidth={3}
-            strokeLinejoin="round"
-            strokeLinecap="round"
-          />
-        )}
         {coordinates.map((point) => (
           <Circle
             key={point.id}

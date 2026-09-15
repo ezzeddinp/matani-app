@@ -4,7 +4,7 @@
 **Audience:** The developer, thesis advisor, reviewers, and AI agents working in this repo
 **Status:** Active — M2 implemented and verified locally; one scoped manual hosted
 measurement is verified, while repeatable Vercel-deferred completion remains open
-**Updated:** 2026-09-08
+**Updated:** 2026-09-15
 
 **DEC-37 amendment:** Empty field details may initialize one idempotent measurement job
 per visit; polling reads stored observations. This changes the request trigger only,
@@ -359,3 +359,95 @@ observation view as a quality-passing `measured` row (OBS-28). Formal M2 PASS st
 a direct authenticated smoke through the deployed deferred route, physical-device readback,
 and the remaining milestone evidence. The single row must not be generalized beyond that
 field, acquisition, and execution.
+
+## 10 · Offline M3 snapshot interface (DEC-45)
+
+**CODE (2026-09-10):** `research/src/matani_rs/evaluation.py` and
+`research/scripts/run_m3_evaluation.py` consume the existing M1 report shape produced by
+`research/lib/m1-study-report.mjs`. This adds an analysis adapter, not a provider or
+production measurement change. The adapter accepts only complete, labeled M1
+fixture/prototype reports with the existing provisional 9/3 policy, study identity,
+processing versions, field references, observation intervals and season calendar.
+
+The output directory contains exact input bytes (`source.json`), a normalized
+`snapshot.json`, a descriptive `report.json`, `monthly.csv`, `report.md`, and a SHA-256
+`manifest.json`. Existing directories are refused to prevent accidental replacement.
+Non-fixture exports are restricted to ignored `research/private/`. Fixture outputs
+must remain labeled in their manifest and accompanying report. A checksum verifies
+identity, not scientific truth, and source declarations are not independently verified.
+
+Exact duplicate field-interval records are counted once; conflicting duplicates and
+overlapping intervals fail for manual adjudication. Missing counts stay null; invalid
+counts, windows, season mismatches and unsupported policies fail. Per-index outputs
+are explicitly floor-sufficiency counts, never replacements for stored quality.
+The methodology and inference limits live in research-protocol.md section 17.
+
+M2 Process records are deliberately rejected by this adapter. No compatible M2
+research export was recovered or implemented; adding one requires its own explicit
+source-identity mapping. The separate replay consumes labeled synthetic M2-shaped
+payloads at the existing production worker boundary, with fake provider/admin
+implementations (`research/scripts/run-m3-replay.mjs`, CODE). It does not write to
+Supabase or prove UI rendering, database isolation, or provider correctness.
+
+**Legacy recovery extension (CODE; OBS-43):** `research/scripts/audit-legacy-m1.py` audits the earlier no-study-contract report separately. It reports nonzero-both-index intervals and whole-window gaps without applying provisional floors or inventing season labels. Source bytes, derived audit and source/analysis hashes stay under ignored private outputs. It does not feed the approved M1 adapter or production pipeline.
+
+
+## Research-only Phase 1 snapshot interface
+
+DEC-49 / protocol §20 specifies two common-bbox Process rasters, with both original and
+buffered centre masks applied locally. This supersedes the four-request research template
+for subsequent work; production APIs and persisted measurement semantics are unchanged.
+`research/scripts/freeze-phase1.py` produces `phase1-frozen-manifest.json` under ignored
+replacement-study artifacts, with CRS, bbox, affine transforms, dimensions, Boolean
+row-major masks, input/code hashes, quality settings and offline templates (OBS-62).
+Expected row order is north to south and column order west to east. Phase 2 must verify
+GeoTIFF metadata before applying masks; geometry cell counts are never valid-pixel counts.
+Preserve the historical M1/Statistics adapter separately. This is not an implemented
+live executor or an authorization to insert research blocks as verified farmer fields.
+
+
+Phase 2 implementation checkpoint (OBS-63/64): `run-phase2-pilot.mjs` is opt-in with
+`--allow-live`, requires a fresh named output directory and preserves raw non-authentication
+responses plus selected headers and hashes. Credentials/tokens are not persisted. Its
+no-flag mode is offline and checks request caps. Live TIFFs are verified before local
+geometry masks and statistics; provider identity is checked before overall pilot acceptance.
+A stopped report is not a validated measurement snapshot. `audit-phase2-pilot.py` checks
+the saved successful pilot offline. The current research outputs are separate from
+production database records and the historical Statistical adapter.
+
+Phase 3 research interface (DEC-51; CODE: `research/scripts/run-phase3.mjs`): the
+research-only collector reuses the Phase 2 inventory and pilot, preserves raw request
+attempts/responses, and counts attempts across restarts. Missing responses remain
+interrupted; automatic Process retries are disabled. Its offline audit reconstructs
+catalogue pagination and verifies the frozen query, response hashes, per-index source
+membership, TIFF grids, local masks and quality counts. A source mismatch leaves paired
+analysis unresolved while retaining any independently verified index. The daily snapshot
+separates no-acquisition, paired-verified and unresolved dates; zero-valid means remain
+null. Freeze emits a deterministic snapshot and a SHA256 manifest of acquisition/code
+artifacts. Hashes make changes detectable; they are not an external archival guarantee.
+No production provider, database contract or application behavior changes are introduced.
+
+
+Phase 3 freeze checkpoint (OBS-67/68): the research snapshot and acquisition manifest
+are now frozen and locally read-only. `research/scripts/audit-phase3-freeze.py` checks
+file hashes, snapshot identity, calendar accounting and recovery/geometry-source linkage.
+The two interrupted NDVI attempts retain verified NDMI but cannot form complete pairs.
+Use the [Phase 3 report](../docs/m3-phase3-acquisition-2026-09-15.md) for artifact locations
+and offline reproduction. Phase 4 consumes this snapshot without replacing unavailable
+values, reclassifying failed requests as quality rejection or calling it an M2 DB export.
+
+
+Phase 3 retry revision (DEC-52; OBS-69; CODE: `research/scripts/retry-phase3.mjs`):
+identical requests recovered both interrupted NDVI responses. The current `frozen-02`
+snapshot links the parent freeze and separate retry manifest; the original snapshot and
+failed attempts remain unchanged. Both recovered NDVI results are quality-rejected,
+not unknown downloads. Subsequent analysis consumes this revision. The retry audit
+reparses responses, verifies source compatibility against preserved NDMI and regenerates
+the revised snapshot without network calls. Original failed-attempt charges remain unknown.
+
+Phase 4 analysis interface (OBS-70; CODE: `research/scripts/analyze-phase4.py`): a
+fully resolved `frozen-02` snapshot is audited before analysis; unresolved snapshots are
+rejected. Existing daily metrics supply calendar coverage, identification bounds and
+gaps. Outputs retain per-date geometry/index counts, summary metrics, policy deltas,
+input hash and code/output hashes. No measured values or quality settings are changed.
+See the Phase 4 result ledger for the scoped zero-difference outcome.

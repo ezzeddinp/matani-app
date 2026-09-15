@@ -1,5 +1,11 @@
 # React Doctor cleanup plans
 
+**Updated:** 2026-09-10
+
+**DEC-45 priority:** unrelated cleanup is paused during AGERS preparation.
+[Plan 016](016-agers-research-preparation.md) owns the authorized research work;
+the statuses below remain historical implementation/device-check records.
+
 Baseline: commit `e9a2173`, React Doctor `0.9.12`, Expo SDK 54, React Native 0.81, React 19.1, React Compiler enabled. The planning scan found **0 errors and 187 warnings across 20 rule families**.
 
 These plans optimize for a working thesis app, not a cosmetic score. React Doctor diagnostics are hypotheses. Each occurrence must close as **Fixed**, **Rejected**, **Needs evidence**, **Unavailable**, or **Waived with evidence**. A warning whose canonical recipe says to keep the current implementation is complete when the evidence and outcome are recorded; do not rewrite working code or add suppressions merely to reach zero warnings.

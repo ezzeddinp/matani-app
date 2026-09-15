@@ -1,0 +1,227 @@
+{
+  "cadence_claim_allowed": false,
+  "data_state": "fixture",
+  "denominator": "unique returned acquisition intervals, not verified individual overpasses",
+  "fields": [
+    {
+      "contiguous_season_blocks": [
+        {
+          "from": "2025-01-01T00:00:00+00:00",
+          "joint": {
+            "leading_boundary_days": 4.0,
+            "longest_inter_observation_days": null,
+            "median_inter_observation_days": null,
+            "no_observation_window_days": null,
+            "trailing_boundary_days": 27.0
+          },
+          "ndmi": {
+            "leading_boundary_days": 4.0,
+            "longest_inter_observation_days": 7.0,
+            "median_inter_observation_days": 7.0,
+            "no_observation_window_days": null,
+            "trailing_boundary_days": 20.0
+          },
+          "ndvi": {
+            "leading_boundary_days": 4.0,
+            "longest_inter_observation_days": null,
+            "median_inter_observation_days": null,
+            "no_observation_window_days": null,
+            "trailing_boundary_days": 27.0
+          },
+          "season": "dry",
+          "to": "2025-02-01T00:00:00+00:00"
+        },
+        {
+          "from": "2025-02-01T00:00:00+00:00",
+          "joint": {
+            "leading_boundary_days": null,
+            "longest_inter_observation_days": null,
+            "median_inter_observation_days": null,
+            "no_observation_window_days": 59.0,
+            "trailing_boundary_days": null
+          },
+          "ndmi": {
+            "leading_boundary_days": null,
+            "longest_inter_observation_days": null,
+            "median_inter_observation_days": null,
+            "no_observation_window_days": 59.0,
+            "trailing_boundary_days": null
+          },
+          "ndvi": {
+            "leading_boundary_days": 4.0,
+            "longest_inter_observation_days": null,
+            "median_inter_observation_days": null,
+            "no_observation_window_days": null,
+            "trailing_boundary_days": 55.0
+          },
+          "season": "wet",
+          "to": "2025-04-01T00:00:00+00:00"
+        },
+        {
+          "from": "2025-04-01T00:00:00+00:00",
+          "joint": {
+            "leading_boundary_days": 4.0,
+            "longest_inter_observation_days": null,
+            "median_inter_observation_days": null,
+            "no_observation_window_days": null,
+            "trailing_boundary_days": 26.0
+          },
+          "ndmi": {
+            "leading_boundary_days": 4.0,
+            "longest_inter_observation_days": null,
+            "median_inter_observation_days": null,
+            "no_observation_window_days": null,
+            "trailing_boundary_days": 26.0
+          },
+          "ndvi": {
+            "leading_boundary_days": 4.0,
+            "longest_inter_observation_days": null,
+            "median_inter_observation_days": null,
+            "no_observation_window_days": null,
+            "trailing_boundary_days": 26.0
+          },
+          "season": "dry",
+          "to": "2025-05-01T00:00:00+00:00"
+        }
+      ],
+      "field_reference_hash": "fixture-field",
+      "intervals": 6,
+      "monthly": [
+        {
+          "intervals": 2,
+          "joint": 1,
+          "month": "2025-01",
+          "ndmi": 2,
+          "ndvi": 1,
+          "season": "dry"
+        },
+        {
+          "intervals": 2,
+          "joint": 0,
+          "month": "2025-02",
+          "ndmi": 0,
+          "ndvi": 1,
+          "season": "wet"
+        },
+        {
+          "intervals": 1,
+          "joint": 0,
+          "month": "2025-03",
+          "ndmi": 0,
+          "ndvi": 0,
+          "season": "wet"
+        },
+        {
+          "intervals": 1,
+          "joint": 1,
+          "month": "2025-04",
+          "ndmi": 1,
+          "ndvi": 1,
+          "season": "dry"
+        }
+      ],
+      "pixel_counts": [
+        {
+          "from": "2025-01-05T00:00:00+00:00",
+          "ndmi": 3,
+          "ndvi": 9
+        },
+        {
+          "from": "2025-01-12T00:00:00+00:00",
+          "ndmi": 3,
+          "ndvi": 8
+        },
+        {
+          "from": "2025-02-05T00:00:00+00:00",
+          "ndmi": 2,
+          "ndvi": 12
+        },
+        {
+          "from": "2025-02-12T00:00:00+00:00",
+          "ndmi": null,
+          "ndvi": null
+        },
+        {
+          "from": "2025-03-05T00:00:00+00:00",
+          "ndmi": 0,
+          "ndvi": 0
+        },
+        {
+          "from": "2025-04-05T00:00:00+00:00",
+          "ndmi": 4,
+          "ndvi": 10
+        }
+      ],
+      "rejection_reason_counts": {
+        "fixture-unavailable": 1,
+        "ndmi-valid-pixel-count-below-approved-floor": 2,
+        "ndvi-valid-pixel-count-below-approved-floor": 2
+      },
+      "seasonal": {
+        "dry": {
+          "intervals": 3,
+          "joint": {
+            "count": 2,
+            "fraction": 0.6666666666666666
+          },
+          "ndmi": {
+            "count": 3,
+            "fraction": 1.0
+          },
+          "ndvi": {
+            "count": 2,
+            "fraction": 0.6666666666666666
+          }
+        },
+        "wet": {
+          "intervals": 3,
+          "joint": {
+            "count": 0,
+            "fraction": 0.0
+          },
+          "ndmi": {
+            "count": 0,
+            "fraction": 0.0
+          },
+          "ndvi": {
+            "count": 1,
+            "fraction": 0.3333333333333333
+          }
+        }
+      },
+      "stored_status_counts": {
+        "passed": 2,
+        "rejected": 3,
+        "unavailable": 1
+      },
+      "whole_window_gaps": {
+        "joint": {
+          "leading_boundary_days": 4.0,
+          "longest_inter_observation_days": 90.0,
+          "median_inter_observation_days": 90.0,
+          "no_observation_window_days": null,
+          "trailing_boundary_days": 26.0
+        },
+        "ndmi": {
+          "leading_boundary_days": 4.0,
+          "longest_inter_observation_days": 83.0,
+          "median_inter_observation_days": 45.0,
+          "no_observation_window_days": null,
+          "trailing_boundary_days": 26.0
+        },
+        "ndvi": {
+          "leading_boundary_days": 4.0,
+          "longest_inter_observation_days": 59.0,
+          "median_inter_observation_days": 45.0,
+          "no_observation_window_days": null,
+          "trailing_boundary_days": 26.0
+        }
+      }
+    }
+  ],
+  "per_index_metric": "pixel-floor sufficiency; does not override stored quality",
+  "schema_version": "m3-descriptive-report-v1",
+  "snapshot_sha256": "75aa7c3206b7146bf2615308e3f91704d8ee0cac63c36f7a33214a83f354c9b2",
+  "source_pipeline": "m1-statistical-api",
+  "uncertainty": "descriptive only; advisor-reviewed inferential method pending"
+}

@@ -1,0 +1,215 @@
+{
+  "data_state": "fixture",
+  "duplicate_intervals_removed": 0,
+  "fields": [
+    {
+      "field_reference_hash": "fixture-field",
+      "observations": [
+        {
+          "counts": {
+            "ndmi": 3,
+            "ndvi": 9
+          },
+          "from": "2025-01-05T00:00:00+00:00",
+          "original": {
+            "acquisition_interval": {
+              "from": "2025-01-05T00:00:00Z",
+              "to": "2025-01-06T00:00:00Z"
+            },
+            "ndmi_stats": {
+              "mean": 0.2,
+              "valid_pixel_count": 3
+            },
+            "ndvi_stats": {
+              "mean": 0.5,
+              "valid_pixel_count": 9
+            },
+            "quality_decision": "passed",
+            "quality_rejection_reasons": [],
+            "season": "dry"
+          },
+          "rejection_reasons": [],
+          "season": "dry",
+          "stored_status": "passed",
+          "to": "2025-01-06T00:00:00+00:00"
+        },
+        {
+          "counts": {
+            "ndmi": 3,
+            "ndvi": 8
+          },
+          "from": "2025-01-12T00:00:00+00:00",
+          "original": {
+            "acquisition_interval": {
+              "from": "2025-01-12T00:00:00Z",
+              "to": "2025-01-13T00:00:00Z"
+            },
+            "ndmi_stats": {
+              "mean": 0.1,
+              "valid_pixel_count": 3
+            },
+            "ndvi_stats": {
+              "mean": 0.4,
+              "valid_pixel_count": 8
+            },
+            "quality_decision": "rejected",
+            "quality_rejection_reasons": [
+              "ndvi-valid-pixel-count-below-approved-floor"
+            ],
+            "season": "dry"
+          },
+          "rejection_reasons": [
+            "ndvi-valid-pixel-count-below-approved-floor"
+          ],
+          "season": "dry",
+          "stored_status": "rejected",
+          "to": "2025-01-13T00:00:00+00:00"
+        },
+        {
+          "counts": {
+            "ndmi": 2,
+            "ndvi": 12
+          },
+          "from": "2025-02-05T00:00:00+00:00",
+          "original": {
+            "acquisition_interval": {
+              "from": "2025-02-05T00:00:00Z",
+              "to": "2025-02-06T00:00:00Z"
+            },
+            "ndmi_stats": {
+              "mean": 0.1,
+              "valid_pixel_count": 2
+            },
+            "ndvi_stats": {
+              "mean": 0.6,
+              "valid_pixel_count": 12
+            },
+            "quality_decision": "rejected",
+            "quality_rejection_reasons": [
+              "ndmi-valid-pixel-count-below-approved-floor"
+            ],
+            "season": "wet"
+          },
+          "rejection_reasons": [
+            "ndmi-valid-pixel-count-below-approved-floor"
+          ],
+          "season": "wet",
+          "stored_status": "rejected",
+          "to": "2025-02-06T00:00:00+00:00"
+        },
+        {
+          "counts": {
+            "ndmi": null,
+            "ndvi": null
+          },
+          "from": "2025-02-12T00:00:00+00:00",
+          "original": {
+            "acquisition_interval": {
+              "from": "2025-02-12T00:00:00Z",
+              "to": "2025-02-13T00:00:00Z"
+            },
+            "ndmi_stats": {
+              "mean": null,
+              "valid_pixel_count": null
+            },
+            "ndvi_stats": {
+              "mean": null,
+              "valid_pixel_count": null
+            },
+            "quality_decision": "unavailable",
+            "quality_rejection_reasons": [
+              "fixture-unavailable"
+            ],
+            "season": "wet"
+          },
+          "rejection_reasons": [
+            "fixture-unavailable"
+          ],
+          "season": "wet",
+          "stored_status": "unavailable",
+          "to": "2025-02-13T00:00:00+00:00"
+        },
+        {
+          "counts": {
+            "ndmi": 0,
+            "ndvi": 0
+          },
+          "from": "2025-03-05T00:00:00+00:00",
+          "original": {
+            "acquisition_interval": {
+              "from": "2025-03-05T00:00:00Z",
+              "to": "2025-03-06T00:00:00Z"
+            },
+            "ndmi_stats": {
+              "mean": null,
+              "valid_pixel_count": 0
+            },
+            "ndvi_stats": {
+              "mean": null,
+              "valid_pixel_count": 0
+            },
+            "quality_decision": "rejected",
+            "quality_rejection_reasons": [
+              "ndvi-valid-pixel-count-below-approved-floor",
+              "ndmi-valid-pixel-count-below-approved-floor"
+            ],
+            "season": "wet"
+          },
+          "rejection_reasons": [
+            "ndvi-valid-pixel-count-below-approved-floor",
+            "ndmi-valid-pixel-count-below-approved-floor"
+          ],
+          "season": "wet",
+          "stored_status": "rejected",
+          "to": "2025-03-06T00:00:00+00:00"
+        },
+        {
+          "counts": {
+            "ndmi": 4,
+            "ndvi": 10
+          },
+          "from": "2025-04-05T00:00:00+00:00",
+          "original": {
+            "acquisition_interval": {
+              "from": "2025-04-05T00:00:00Z",
+              "to": "2025-04-06T00:00:00Z"
+            },
+            "ndmi_stats": {
+              "mean": 0.3,
+              "valid_pixel_count": 4
+            },
+            "ndvi_stats": {
+              "mean": 0.7,
+              "valid_pixel_count": 10
+            },
+            "quality_decision": "passed",
+            "quality_rejection_reasons": [],
+            "season": "dry"
+          },
+          "rejection_reasons": [],
+          "season": "dry",
+          "stored_status": "passed",
+          "to": "2025-04-06T00:00:00+00:00"
+        }
+      ],
+      "season_labels": {
+        "2025-01": "dry",
+        "2025-02": "wet",
+        "2025-03": "wet",
+        "2025-04": "dry"
+      },
+      "site_id": "fixture-site"
+    }
+  ],
+  "schema_version": "m3-m1-snapshot-v1",
+  "source_pipeline": "m1-statistical-api",
+  "study_identity": "fixture-m3-never-a-provider-observation",
+  "versions": {
+    "algorithm": "fixture",
+    "masking": "fixture"
+  },
+  "window": {
+    "from": "2025-01-01T00:00:00Z",
+    "to": "2025-05-01T00:00:00Z"
+  }
+}

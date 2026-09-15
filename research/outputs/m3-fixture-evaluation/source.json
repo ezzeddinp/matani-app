@@ -1,0 +1,23 @@
+{
+  "data_state": "fixture",
+  "study_identity": "fixture-m3-never-a-provider-observation",
+  "versions": {"algorithm": "fixture", "masking": "fixture"},
+  "execution": {"complete": true},
+  "study_contract": {"quality_policy": {"status": "advisor-approved-provisional", "ndvi_min_valid_pixels": 9, "ndmi_min_valid_pixels": 3}},
+  "window": {"from": "2025-01-01T00:00:00Z", "to": "2025-05-01T00:00:00Z"},
+  "site_season_metrics": [
+    {"site_id": "fixture-site", "season": "dry", "acquisitions_by_month": {"2025-01": 2, "2025-04": 1}},
+    {"site_id": "fixture-site", "season": "wet", "acquisitions_by_month": {"2025-02": 2, "2025-03": 1}}
+  ],
+  "fields": [{
+    "field": {"field_reference_hash": "fixture-field", "site_id": "fixture-site", "category": "padi"},
+    "observations": [
+      {"acquisition_interval": {"from": "2025-01-05T00:00:00Z", "to": "2025-01-06T00:00:00Z"}, "season": "dry", "ndvi_stats": {"valid_pixel_count": 9, "mean": 0.5}, "ndmi_stats": {"valid_pixel_count": 3, "mean": 0.2}, "quality_decision": "passed", "quality_rejection_reasons": []},
+      {"acquisition_interval": {"from": "2025-01-12T00:00:00Z", "to": "2025-01-13T00:00:00Z"}, "season": "dry", "ndvi_stats": {"valid_pixel_count": 8, "mean": 0.4}, "ndmi_stats": {"valid_pixel_count": 3, "mean": 0.1}, "quality_decision": "rejected", "quality_rejection_reasons": ["ndvi-valid-pixel-count-below-approved-floor"]},
+      {"acquisition_interval": {"from": "2025-02-05T00:00:00Z", "to": "2025-02-06T00:00:00Z"}, "season": "wet", "ndvi_stats": {"valid_pixel_count": 12, "mean": 0.6}, "ndmi_stats": {"valid_pixel_count": 2, "mean": 0.1}, "quality_decision": "rejected", "quality_rejection_reasons": ["ndmi-valid-pixel-count-below-approved-floor"]},
+      {"acquisition_interval": {"from": "2025-02-12T00:00:00Z", "to": "2025-02-13T00:00:00Z"}, "season": "wet", "ndvi_stats": {"valid_pixel_count": null, "mean": null}, "ndmi_stats": {"valid_pixel_count": null, "mean": null}, "quality_decision": "unavailable", "quality_rejection_reasons": ["fixture-unavailable"]},
+      {"acquisition_interval": {"from": "2025-03-05T00:00:00Z", "to": "2025-03-06T00:00:00Z"}, "season": "wet", "ndvi_stats": {"valid_pixel_count": 0, "mean": null}, "ndmi_stats": {"valid_pixel_count": 0, "mean": null}, "quality_decision": "rejected", "quality_rejection_reasons": ["ndvi-valid-pixel-count-below-approved-floor", "ndmi-valid-pixel-count-below-approved-floor"]},
+      {"acquisition_interval": {"from": "2025-04-05T00:00:00Z", "to": "2025-04-06T00:00:00Z"}, "season": "dry", "ndvi_stats": {"valid_pixel_count": 10, "mean": 0.7}, "ndmi_stats": {"valid_pixel_count": 4, "mean": 0.3}, "quality_decision": "passed", "quality_rejection_reasons": []}
+    ]
+  }]
+}

@@ -1,0 +1,16 @@
+{
+  "analysis_source_sha256": {
+    "scripts/run_m3_evaluation.py": "db02c12c4114bdfc69247c10c5afd81157e6268235f8dfa51e7e98d100bee4f1",
+    "src/matani_rs/evaluation.py": "50e5b0d4854c266bcf9845127473d776c1875ff6088725bc4fda12e0e242cdba"
+  },
+  "data_state": "fixture",
+  "files": {
+    "monthly.csv": "2d8e6f8091b77ce12b2c2b5c3a72832d8c320341e1effa6aa7393db6335cb454",
+    "report.json": "0e0cc359144f9a358823bcfda02b5e531ba9356daebb844faac15c3b0c0ab9ec",
+    "report.md": "1087b931bd7a2a281d40bdeea7977086456ede629d5a9abe16cd10eeffe21194",
+    "snapshot.json": "75aa7c3206b7146bf2615308e3f91704d8ee0cac63c36f7a33214a83f354c9b2",
+    "source.json": "2df314a737f9a6210aab7352b63054f3699fe0335dee0ef5b16459b9c784baf7"
+  },
+  "network_called": false,
+  "schema_version": "m3-artifact-manifest-v1"
+}

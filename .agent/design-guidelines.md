@@ -3,7 +3,7 @@
 **Document type:** Design guidelines
 **Audience:** The developer, thesis advisor, reviewers, and AI agents working in this repo
 **Status:** Active
-**Updated:** 2026-09-10
+**Updated:** 2026-09-15
 **Canonical for:** Design tokens, the screen map, component patterns, and data-state presentation rules
 **Companion documents:** [`product-requirements.md`](product-requirements.md), [`product-brief.md`](product-brief.md), [`project-architecture.md`](project-architecture.md), [`context-dump.md`](context-dump.md)
 
@@ -254,3 +254,9 @@ The current `unknown` string "Belum ada nilai NDVI dengan provenance pengukuran 
 ---
 
 *End of design guidelines. All [As-built] claims are CODE-cited; all [Thesis] clauses are normative guidance distinct from current code. Token consolidation, green unification, contrast fixes, and boilerplate removal are M4; honest data-state presentation is M2 ([`implementation-plan.md`](implementation-plan.md)).*
+
+
+Observation chart presentation (OBS-71; PRD-11): use unconnected dots positioned by
+actual elapsed acquisition dates, preserving visible irregular spacing. Do not join
+across missing observations. A single date is centered. CODE: `ObservationChart` in
+`app/detail-lahan-page.tsx`; this amendment implements the existing no-interpolation rule.

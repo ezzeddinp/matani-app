@@ -3,7 +3,7 @@
 **Document type:** Implementation roadmap
 **Audience:** The developer, thesis advisor, reviewers, and AI agents working in this repo
 **Status:** Active
-**Updated:** 2026-09-08
+**Updated:** 2026-09-15
 **Canonical for:** Milestone sequencing, milestone acceptance criteria, and the definition of done for thesis engineering work
 **Companion documents:** [`project-architecture.md`](project-architecture.md), [`data-evaluation-plan.md`](data-evaluation-plan.md), [`research-protocol.md`](research-protocol.md), [`product-requirements.md`](product-requirements.md), [`evidence-register.md`](evidence-register.md), [`context-dump.md`](context-dump.md)
 
@@ -243,3 +243,42 @@ The thesis paper's system-evaluation track ([`research-protocol.md`](research-pr
 - **Every milestone updates the canonical documents it invalidates.** A change that makes a canonical claim stale ships with the document update — the AGENTS.md "documentation updates are part of done" ritual ([`../AGENTS.md`](../AGENTS.md) § Working rules). A claim lives in exactly one canonical home; this roadmap links, it does not duplicate.
 - **No milestone may violate INV-01…INV-09.** The invariants ([`product-requirements.md`](product-requirements.md) § 1) hold at every milestone boundary. DEC-24 removed the production fixture substitution before M2; introducing any new substitution or invariant violation is a defect, not debt.
 - **The platform-side rotation / restriction gate remains required for formal M0 closure.** The ledger in [`project-architecture.md`](project-architecture.md) § 5.3 covers current Sentinel/Gemini credentials, revocation of the no-longer-consumed historical AccuWeather key, Google Maps per-platform/per-API restrictions, and verification of the backend Supabase key class. Historically committed secrets remain sensitive (no git-history rewrite; DEC-13); rotation/revocation, not history surgery, is the control.
+
+## AGERS preparation overlay (DEC-45; 2026-09-10)
+
+The developer authorizes bounded offline M3 preparation alongside manuscript development.
+This explicitly amends the earlier no-M3-preparation sequencing restriction for this
+work only; it does not mark M0/M2 verification complete or waive advisor acceptance.
+The proposed method is canonical in research-protocol.md section 17. M4 screen
+refactors and unrelated React Doctor cleanup remain paused.
+
+Tasks, the September 14 advisor-packet target, September 15-19 meeting window, and
+subsequent conditional drafting/review schedule are maintained solely in
+[plan 016](../plans/016-agers-research-preparation.md). Conference timing is sourced in
+EVID-041-046. No scheduled automation, submission, or message to the advisor is implied.
+
+
+## Replacement-study acquisition checkpoint (2026-09-15)
+
+DEC-51 authorizes the bounded Phase 3 acquisition beyond DEC-45's earlier offline-only
+preparation. OBS-67/68 record the completed collection and reproducible frozen snapshot,
+with the original failures preserved and both downloads subsequently recovered under
+DEC-52 / OBS-69. [Plan 016](../plans/016-agers-research-preparation.md)
+tracks Phase 4 comparisons and subsequent delivery/manuscript work. This checkpoint
+does not close the entire M3 research-validation milestone or advance M4.
+
+Phase 4 checkpoint (2026-09-15; OBS-70): the replacement-case comparisons are complete
+with zero policy and buffer-coverage differences. Plan 016 and the Phase 4 result ledger
+record proof boundaries. Phase 5 technical delivery checks remain; M3 is not yet closed.
+
+
+Phase 5 checkpoint (2026-09-15; OBS-71): scoped automated technical evaluation is
+complete and the no-interpolation chart defect is corrected. Plan 016 links its scenario
+ledger; device rendering and live database proof remain excluded. Phase 6 drafting is
+next; broader M3 acceptance remains separate.
+
+## Phase 7 manuscript checkpoint (2026-09-15)
+
+DEC-53 / OBS-73 record the completed expanded and formatted full-paper review draft.
+[Plan 016](../plans/016-agers-research-preparation.md) links the deliverables and remaining
+thesis-team review. This document task does not close M3 or advance M4.

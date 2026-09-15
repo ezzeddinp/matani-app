@@ -3,7 +3,7 @@
 **Document type:** Product requirements document
 **Audience:** The developer, thesis advisor, reviewers, and AI agents working in this repo
 **Status:** Active
-**Updated:** 2026-09-10
+**Updated:** 2026-09-15
 **Canonical for:** Feature behavior, scope tags, and product invariants
 **Companion documents:** [`product-brief.md`](product-brief.md), [`project-architecture.md`](project-architecture.md), [`design-guidelines.md`](design-guidelines.md), [`research-protocol.md`](research-protocol.md), [`data-evaluation-plan.md`](data-evaluation-plan.md), [`implementation-plan.md`](implementation-plan.md)
 
@@ -348,3 +348,10 @@ quality-gated values, acquisition dates, and honest absence (OBS-22/23). Hosted/
 compliance remains unverified for repeatable device delivery (OBS-28/30/31). INV-07 holds because Gemini is optional
 and disabled by default. INV-08 holds because UI copy makes no cadence promise beyond the
 advisor-reviewed M1 outcome.
+
+
+PRD-11 verification update (OBS-71; CODE: `app/detail-lahan-page.tsx`,
+`utils/observation-chart.ts`): numeric observations use elapsed-date x positions and
+unconnected dots. Null values remain absent; numeric zero remains visible. The plotted
+range spans the first/last numeric observation rather than the full requested period.
+Automated JSX/helper evidence is not rendered-device verification.

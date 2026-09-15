@@ -1,0 +1,43 @@
+import assert from 'node:assert/strict';
+import { readFileSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import ts from 'typescript';
+import vm from 'node:vm';
+import { observationChartX } from '../../utils/observation-chart.ts';
+import { decideQuality } from '../../backend/measurement/statistics.js';
+
+const path = 'app/detail-lahan-page.tsx';
+const source = readFileSync(path, 'utf8');
+const parsed = ts.createSourceFile(path, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+const names = ['parseValue', 'resolveTimestamp', 'resolveState', 'formatValue'];
+const declarations = parsed.statements.filter(statement => ts.isVariableStatement(statement) && statement.declarationList.declarations.some(declaration => names.includes(declaration.name.getText(parsed))));
+assert.equal(declarations.length, names.length);
+const js = ts.transpileModule(declarations.map(statement => statement.getText(parsed)).join('\n') + '\nglobalThis.api={parseValue,resolveTimestamp,resolveState,formatValue};', { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
+const context = vm.createContext({}); vm.runInContext(js, context);
+const ui = context.api;
+assert.equal(ui.parseValue(null), null);
+assert.equal(ui.parseValue(0), 0);
+assert.equal(ui.formatValue(null), '--');
+assert.equal(ui.formatValue(0), '0.000');
+assert.equal(ui.resolveTimestamp({ captured_at: null, created_at: '2021-01-01' }), null);
+assert.equal(ui.resolveState('rejected'), 'unavailable');
+assert.equal(ui.resolveState('passed'), 'measured');
+const cases = [[9,3,'passed'],[9,2,'rejected'],[8,3,'rejected'],[0,0,'rejected']];
+for(const [a,b,status] of cases) assert.equal(decideQuality({ndvi:{sourcePixelCount:36,validPixelCount:a},ndmi:{sourcePixelCount:9,validPixelCount:b}}).status,status);
+const chart = parsed.statements.find(statement => ts.isFunctionDeclaration(statement) && statement.name?.text === 'ObservationChart');
+assert.ok(chart);
+const chartJS = ts.transpileModule(chart.getText(parsed) + '\nglobalThis.chart=ObservationChart;', { compilerOptions: { target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React } }).outputText;
+const chartContext = vm.createContext({ observationChartX, CHART_WIDTH:320, CHART_HEIGHT:190, CHART_PADDING:30, styles:{}, formatDate:value=>value,
+  React:{createElement:(type,props,...children)=>({type,props,children})}, View:'View', Text:'Text', Svg:'Svg', G:'G', Line:'Line', Circle:'Circle', SvgText:'SvgText', Ionicons:'Ionicons' });
+vm.runInContext(chartJS,chartContext);
+function nodes(tree) { return tree && typeof tree === 'object' ? [tree,...(tree.children??[]).flat(Infinity).flatMap(nodes)] : []; }
+const points = ['2021-01-01','2021-01-02','2021-01-11'].map((timestamp,i)=>({id:String(i),timestamp,ndvi:i===1?null:0,ndmi:null,state:'measured'}));
+const rendered = nodes(chartContext.chart({points,indexKey:'ndvi'}));
+assert.deepEqual(rendered.filter(node=>node.type==='Circle').map(node=>node.props.cx),[30,290]);
+assert.equal(rendered.filter(node=>node.type==='Polyline').length,0);
+assert.equal(nodes(chartContext.chart({points,indexKey:'ndmi'})).filter(node=>node.type==='Circle').length,0);
+const sql = readFileSync('supabase/migrations/20260830000100_m2_measurement_pipeline.sql','utf8');
+for(const index of ['ndvi','ndmi']) assert.ok(sql.includes(`case when m.quality_status = 'passed' then ${index}.mean else null end as ${index}_score`));
+const report = { data_state:'fixture', checks:['production quality complete/NDVI-only/NDMI-only/rejected cases','actual TS presentation helpers: null versus zero, status, acquisition date only','static SQL complete-pair projection contract','actual chart JSX evaluated with host stubs: missing omitted, zero retained, dated dots, empty index'], limits:['SQL expressions inspected, not executed','No rendered React Native or physical-device evidence','Independent policy is not implemented in the current app'], source_sha256:Object.fromEntries([path,'backend/measurement/statistics.js','supabase/migrations/20260830000100_m2_measurement_pipeline.sql','research/scripts/check-phase5.mjs','utils/observation-chart.ts'].map(file=>[file,createHash('sha256').update(readFileSync(file)).digest('hex')])) };
+writeFileSync(process.argv[2],JSON.stringify(report,null,2)+'\n',{flag:'wx'});
+console.log(JSON.stringify({checks:'passed',data_state:'fixture'}));
