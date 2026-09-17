@@ -47,6 +47,8 @@ Copy-Item research/contracts/m1-study-input-v1.fixture.geojson research/private/
 Edit `research/private/m1-study-fields.geojson`. Use the fixture only as a structural
 template and make these exact replacements:
 
+tess
+
 ```json
 {
   "matani_m1": {
