@@ -1,6 +1,6 @@
 # 016 - AGERS research preparation
 
-**Updated:** 2026-09-15
+**Updated:** 2026-09-17
 **Decision:** DEC-45, amended through DEC-51. **Status:** Phase 6 content drafts prepared; thesis-team review and source confirmation pending.
 
 ## Execution record
@@ -273,3 +273,17 @@ and [artifact manifest](../docs/manuscripts/phase7-manifest.json) own the delive
 
 The full-length review draft is complete. Separate chapter expansion remains subsequent work;
 no automatic submission, participant claim or closure of broader M3 gates follows.
+
+
+### Phase 7 editorial revision (2026-09-17)
+
+OBS-74 records the developer-requested full-paper rewrite after review identified
+internal terminology and repetitive qualifications. The revised standard DOCX and PDF
+retain the case results and citation set; the review checklist records all-page inspection
+and remaining author/advisor decisions. This is editorial completion, not new research
+validation or expansion of the separate chapter draft.
+
+
+### Phase 7 reference and Google Docs validation (2026-09-17)
+
+OBS-75 records the refreshed 36-source audit, published-version citation update, NDMI wording clarification, explicit table borders, successful native Google Docs import and all-page PDF inspection. The review checklist records template-conversion differences and remaining author/advisor/venue checks.

@@ -29,12 +29,29 @@ with ZipFile(out / 'phase7-paper.docx') as archive:
     end = next(i for i, p in enumerate(paragraphs) if p.strip().lower() == 'references')
     word_count = len(' '.join(paragraphs[start:end]).split())
     assert 6000 <= word_count <= 7000, word_count
-    assert not re.search(r'OBS-\d|EVID-\d|DEC-\d|HYP-\d|\[@|line 1:|Paper Title\*', text)
+    assert not re.search(r'OBS-\d|EVID-\d|DEC-\d|HYP-\d|\[@|line 1:|Paper Title\*|open-sea-2021-tile|Phase [1-7]|host-stub JSX|root tests|/Users/|research/private/', text)
+    for value in ['23 of 365', '6.30 percent', '32.39 percent', '65 days', '55.82 percent', '1,571.63', '3,557.38']:
+        assert value in text, value
     assert len(document.findall('.//w:tbl', ns)) == 7
     assert len(document.findall('.//w:drawing', ns)) == 1
     assert all(f'({i})' in text for i in range(1, 5))
     assert 'Normalized Difference Moisture Index' in text
     assert len(document.findall('.//w:sectPr', ns)) == 3
+with ZipFile(out / 'phase7-paper-standard.docx') as archive:
+    standard = ET.fromstring(archive.read('word/document.xml'))
+    wn = '{http://schemas.openxmlformats.org/wordprocessingml/2006/main}'
+    cells = list(standard.iter(wn + 'tcPr'))
+    assert len(cells) == 137
+    for cell in cells:
+        borders = cell.find(wn + 'tcBorders')
+        for edge in ['top', 'left', 'bottom', 'right']:
+            border = borders.find(wn + edge)
+            assert border is not None and border.get(wn + 'val') == 'single'
+            assert border.get(wn + 'sz') == '4'
+    relationships = ET.fromstring(archive.read('word/_rels/document.xml.rels'))
+    links = [r.get('Target') for r in relationships if r.get('Type', '').endswith('/hyperlink')]
+    assert len(links) == 36 and all(link.startswith('https://') and '\u200b' not in link for link in links)
+    assert ''.join(standard.itertext()).replace('\u200b', '') == ''.join(document.itertext()).replace('\u200b', '')
 results = json.loads((root / 'research/private/replacement-study/phase4-20260915-analysis-01/results.json').read_text())
 snapshot = root / 'research/private/replacement-study/phase3-20260915-frozen-02/snapshot.json'
 assert hashlib.sha256(snapshot.read_bytes()).hexdigest() == results['snapshot_sha256']

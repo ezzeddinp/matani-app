@@ -1,8 +1,8 @@
 {
   "source_snapshot_sha256": "41ab605fb814ea07b29db3b4bccf953dcad3bd9c0bb59f170f81e0ec31cdbdc1",
   "draft_sha256": {
-    "phase6-paper.md": "b9b8d036e2839f6182ba7d297235ea4af6c75c46b9552935c12f051c63f5c9dc",
-    "phase6-review.md": "4aac20e99d0ef8aca494b087e895da9fb49647da2e217250fb6d7f9d35ec6ee7",
+    "phase6-paper.md": "a16b993e2119ebb0f92599adf057695d82a331f479df6c4ea2d5ec01ed306ee5",
+    "phase6-review.md": "40889b8d9b9ab62db194afe274d57ef5833b482cfbe18664ea2fed4b5dcec9c6",
     "phase6-thesis-chapters.md": "57ae2abda35b431be6b3185234028c553c93f8c0daff8b55ab962236f07b35b4"
   },
   "status": "full-paper-superseded-by-phase7; chapter-draft-unchanged-pending-author-review",

@@ -1,27 +1,41 @@
 [
   {
     "key": "bps",
-    "bibliography": "BPS-Statistics Indonesia, “Paddy harvested area and production in Indonesia 2023, final figures,” Mar. 1, 2024.",
+    "bibliography": "BPS-Statistics Indonesia, “In 2023, paddy harvested area was approximately 10.21 million hectares with 53.98 million tons of dry unhusked paddy (GKG) production,” Mar. 1, 2024.",
     "url": "https://www.bps.go.id/en/pressrelease/2024/03/01/2375/pada-2023--luas-panen-padi-mencapai-",
     "section": "Abstract",
     "claim": "Indonesia recorded approximately 10.21 million harvested hectares of paddy in 2023.",
     "limitation": "Historical national context; not current production or the study block.",
     "old_reference": 3,
     "evidence": "EVID-067",
-    "checked": "2026-09-15",
-    "number": 1
+    "checked": "2026-09-17",
+    "number": 1,
+    "previous_checked": "2026-09-15",
+    "verification": {
+      "date": "2026-09-17",
+      "kind": "official statistics",
+      "existence": "confirmed against primary publisher, author repository or official source",
+      "access": "Official source text and relevant supporting section reviewed."
+    }
   },
   {
     "key": "zhao",
     "bibliography": "R. Zhao, Y. Li, and M. Ma, “Mapping paddy rice with satellite remote sensing: A review,” Sustainability, vol. 13, no. 2, art. 503, 2021, doi: 10.3390/su13020503.",
-    "url": "https://www.mdpi.com/2071-1050/13/2/503",
+    "url": "https://mdpi-res.com/d_attachment/sustainability/sustainability-13-00503/article_deploy/sustainability-13-00503.pdf",
     "section": "Abstract and mapping-method categories",
     "claim": "Rice mapping research includes optical, microwave, and combined approaches.",
     "limitation": "Targeted review context; not Matani validation.",
     "old_reference": 4,
     "evidence": "EVID-068",
-    "checked": "2026-09-15",
-    "number": 2
+    "checked": "2026-09-17",
+    "number": 2,
+    "previous_checked": "2026-09-15",
+    "verification": {
+      "date": "2026-09-17",
+      "kind": "journal article",
+      "existence": "confirmed against primary publisher, author repository or official source",
+      "access": "Publisher PDF, abstract and metadata; HTML rate-limited."
+    }
   },
   {
     "key": "rose",
@@ -32,32 +46,53 @@
     "limitation": "UK study; does not establish Indonesian adoption.",
     "old_reference": 25,
     "evidence": "EVID-069",
-    "checked": "2026-09-15",
-    "number": 3
+    "checked": "2026-09-17",
+    "number": 3,
+    "previous_checked": "2026-09-15",
+    "verification": {
+      "date": "2026-09-17",
+      "kind": "journal article",
+      "existence": "confirmed against primary publisher, author repository or official source",
+      "access": "Official source text and relevant supporting section reviewed."
+    }
   },
   {
     "key": "s2",
-    "bibliography": "Copernicus Data Space Ecosystem, “Sentinel-2 L2A,” technical documentation, accessed Sep. 15, 2026.",
+    "bibliography": "Copernicus Data Space Ecosystem, “Sentinel-2 L2A,” technical documentation, accessed Sep. 17, 2026.",
     "url": "https://documentation.dataspace.copernicus.eu/APIs/SentinelHub/Data/S2L2A.html",
     "section": "Available bands table",
     "claim": "B04 and B08 have 10 m source resolution whereas B11 and SCL have 20 m source resolution.",
     "limitation": "Sensor/provider definition; output grids still require inspection.",
     "old_reference": 26,
     "evidence": "EVID-070",
-    "checked": "2026-09-15",
-    "number": 4
+    "checked": "2026-09-17",
+    "number": 4,
+    "previous_checked": "2026-09-15",
+    "verification": {
+      "date": "2026-09-17",
+      "kind": "technical or product documentation",
+      "existence": "confirmed against primary publisher, author repository or official source",
+      "access": "Official source text and relevant supporting section reviewed."
+    }
   },
   {
     "key": "ndvi",
-    "bibliography": "Sentinel Hub, “Normalized difference vegetation index,” Custom Scripts, accessed Sep. 15, 2026.",
+    "bibliography": "Sentinel Hub, “Normalized difference vegetation index,” Custom Scripts, accessed Sep. 17, 2026.",
     "url": "https://custom-scripts.sentinel-hub.com/custom-scripts/sentinel-2/ndvi/",
     "section": "Description and evalscript",
     "claim": "The Sentinel-2 NDVI recipe uses the normalized difference of B08 and B04.",
     "limitation": "Formula only; no crop-health thresholds adopted.",
     "old_reference": 31,
     "evidence": "EVID-071",
-    "checked": "2026-09-15",
-    "number": 5
+    "checked": "2026-09-17",
+    "number": 5,
+    "previous_checked": "2026-09-15",
+    "verification": {
+      "date": "2026-09-17",
+      "kind": "technical or product documentation",
+      "existence": "confirmed against primary publisher, author repository or official source",
+      "access": "Official source text and relevant supporting section reviewed."
+    }
   },
   {
     "key": "gao",
@@ -68,32 +103,53 @@
     "limitation": "Abstract reviewed; not the exact Sentinel-2 B08/B11 band combination.",
     "old_reference": 27,
     "evidence": "EVID-072",
-    "checked": "2026-09-15",
-    "number": 6
+    "checked": "2026-09-17",
+    "number": 6,
+    "previous_checked": "2026-09-15",
+    "verification": {
+      "date": "2026-09-17",
+      "kind": "journal article",
+      "existence": "confirmed against primary publisher, author repository or official source",
+      "access": "Official source text and relevant supporting section reviewed."
+    }
   },
   {
     "key": "ndmi",
-    "bibliography": "Sentinel Hub, “Normalized Difference Moisture Index,” Custom Scripts, accessed Sep. 15, 2026.",
+    "bibliography": "Sentinel Hub, “Normalized Difference Moisture Index,” Custom Scripts, accessed Sep. 17, 2026.",
     "url": "https://custom-scripts.sentinel-hub.com/custom-scripts/sentinel-2/ndmi/",
-    "section": "Description, Sentinel-2 formula",
-    "claim": "The documented Sentinel-2 NDMI recipe is (B08 − B11)/(B08 + B11).",
-    "limitation": "Formula only; does not validate root-zone moisture or diagnosis.",
+    "section": "Description formula and example evalscripts",
+    "claim": "The description text gives Sentinel-2 NDMI as (B08 − B11)/(B08 + B11), whereas the example scripts use B8A/B11.",
+    "limitation": "The page is internally inconsistent. Matani explicitly uses B08/B11 as shown in its methods and retained requests; the example code is not the implemented formula. Neither formulation establishes root-zone moisture or diagnosis.",
     "old_reference": null,
     "evidence": "EVID-073",
-    "checked": "2026-09-15",
-    "number": 7
+    "checked": "2026-09-17",
+    "number": 7,
+    "previous_checked": "2026-09-15",
+    "verification": {
+      "date": "2026-09-17",
+      "kind": "technical or product documentation",
+      "existence": "confirmed against primary publisher, author repository or official source",
+      "access": "Official source text and relevant supporting section reviewed."
+    }
   },
   {
     "key": "usgs",
-    "bibliography": "U.S. Geological Survey, “Normalized Difference Moisture Index,” Landsat Missions, accessed Sep. 15, 2026.",
+    "bibliography": "U.S. Geological Survey, “Normalized Difference Moisture Index,” Landsat Missions, accessed Sep. 17, 2026.",
     "url": "https://www.usgs.gov/landsat-missions/normalized-difference-moisture-index",
     "section": "Index definition and sensor-specific band equations",
     "claim": "USGS defines NDMI using a normalized NIR/SWIR ratio for vegetation water content.",
     "limitation": "Landsat documentation; its band numbers and scaling are not transferred to Sentinel-2.",
     "old_reference": null,
     "evidence": "EVID-074",
-    "checked": "2026-09-15",
-    "number": 8
+    "checked": "2026-09-17",
+    "number": 8,
+    "previous_checked": "2026-09-15",
+    "verification": {
+      "date": "2026-09-17",
+      "kind": "technical or product documentation",
+      "existence": "confirmed against primary publisher, author repository or official source",
+      "access": "Official source text and relevant supporting section reviewed."
+    }
   },
   {
     "key": "kuenzer",
@@ -104,8 +160,15 @@
     "limitation": "Metadata only; no detailed findings attributed.",
     "old_reference": 6,
     "evidence": "EVID-075",
-    "checked": "2026-09-15",
-    "number": 9
+    "checked": "2026-09-17",
+    "number": 9,
+    "previous_checked": "2026-09-15",
+    "verification": {
+      "date": "2026-09-17",
+      "kind": "journal article",
+      "existence": "confirmed against primary publisher, author repository or official source",
+      "access": "Author-institution metadata record only; the paper attributes no detailed study finding."
+    }
   },
   {
     "key": "thorp",
@@ -116,20 +179,34 @@
     "limitation": "Author summary reviewed; no accuracy or implemented classification transferred to Matani.",
     "old_reference": 14,
     "evidence": "EVID-076",
-    "checked": "2026-09-15",
-    "number": 10
+    "checked": "2026-09-17",
+    "number": 10,
+    "previous_checked": "2026-09-15",
+    "verification": {
+      "date": "2026-09-17",
+      "kind": "journal article",
+      "existence": "confirmed against primary publisher, author repository or official source",
+      "access": "Official source text and relevant supporting section reviewed."
+    }
   },
   {
     "key": "guan",
     "bibliography": "S. Guan et al., “Assessing correlation of high-resolution NDVI with fertilizer application level and yield of rice and wheat crops using small UAVs,” Remote Sensing, vol. 11, no. 2, art. 112, 2019, doi: 10.3390/rs11020112.",
-    "url": "https://www.mdpi.com/journal/remotesensing/editors_choice?listby=date&page_count=50&page_no=14",
-    "section": "Publisher article listing, Guan abstract",
+    "url": "https://www.mdpi.com/2072-4292/11/2/112",
+    "section": "Publisher-indexed article abstract and metadata",
     "claim": "Guan et al. examine UAV-derived NDVI correlations with fertilizer levels and rice/wheat yield.",
     "limitation": "Publisher abstract only after article rate limit; UAV evidence is not Sentinel-2 validation.",
     "old_reference": 7,
     "evidence": "EVID-077",
-    "checked": "2026-09-15",
-    "number": 11
+    "checked": "2026-09-17",
+    "number": 11,
+    "previous_checked": "2026-09-15",
+    "verification": {
+      "date": "2026-09-17",
+      "kind": "journal article",
+      "existence": "confirmed against primary publisher, author repository or official source",
+      "access": "Publisher-indexed article abstract and metadata; direct retrieval rate-limited. Replaced general editor listing."
+    }
   },
   {
     "key": "huang",
@@ -140,68 +217,110 @@
     "limitation": "Provincial Chinese model; not field-level accuracy or a model implemented here.",
     "old_reference": 9,
     "evidence": "EVID-078",
-    "checked": "2026-09-15",
-    "number": 12
+    "checked": "2026-09-17",
+    "number": 12,
+    "previous_checked": "2026-09-15",
+    "verification": {
+      "date": "2026-09-17",
+      "kind": "journal article",
+      "existence": "confirmed against primary publisher, author repository or official source",
+      "access": "Official source text and relevant supporting section reviewed."
+    }
   },
   {
     "key": "ryu",
     "bibliography": "J.-H. Ryu et al., “Remote sensing-based evaluation of heat stress damage on paddy rice using NDVI and PRI measured at leaf and canopy scales,” Agronomy, vol. 12, no. 8, art. 1972, 2022, doi: 10.3390/agronomy12081972.",
-    "url": "https://www.mdpi.com/2073-4395/12/8",
-    "section": "Article 1972 abstract",
+    "url": "https://www.mdpi.com/2073-4395/12/8/1972",
+    "section": "Publisher-indexed article abstract and metadata",
     "claim": "Ryu et al. assess rice heat damage under elevated temperatures in a temperature-gradient field chamber.",
     "limitation": "Publisher abstract; no transferable Matani threshold or field diagnosis.",
     "old_reference": 16,
     "evidence": "EVID-079",
-    "checked": "2026-09-15",
-    "number": 13
+    "checked": "2026-09-17",
+    "number": 13,
+    "previous_checked": "2026-09-15",
+    "verification": {
+      "date": "2026-09-17",
+      "kind": "journal article",
+      "existence": "confirmed against primary publisher, author repository or official source",
+      "access": "Publisher-indexed article and issue abstract; direct article retrieval blocked. Replaced issue-only URL."
+    }
   },
   {
     "key": "soriano",
     "bibliography": "J. Soriano-González et al., “Monitoring rice crop and yield estimation with Sentinel-2 data,” Field Crops Research, vol. 281, art. 108507, 2022, doi: 10.1016/j.fcr.2022.108507.",
-    "url": "https://repositori.irta.cat/handle/20.500.12327/1682",
+    "url": "https://www.sciencedirect.com/science/article/pii/S0378429022000788",
     "section": "Abstract",
     "claim": "The Ebro Delta study reports field-scale limitations associated with Sentinel-2 data gaps.",
-    "limitation": "Retain EVID-050 reviewed abstract scope; full-text refresh returned 403.",
+    "limitation": "Publisher abstract reviewed; no field-scale accuracy transferred to Matani.",
     "old_reference": null,
     "evidence": "EVID-050",
-    "checked": "2026-09-10",
-    "number": 14
+    "checked": "2026-09-17",
+    "number": 14,
+    "previous_checked": "2026-09-10",
+    "verification": {
+      "date": "2026-09-17",
+      "kind": "journal article",
+      "existence": "confirmed against primary publisher, author repository or official source",
+      "access": "Publisher-indexed abstract confirms Ebro Delta data-gap limitation; repository refresh failed."
+    }
   },
   {
     "key": "tsar",
-    "bibliography": "I. Tsardanidis, A. Koukos, V. Sitokonstantinou, T. Drivas, and C. Kontoes, “Cloud gap-filling with deep learning for improved grassland monitoring,” arXiv:2403.09554v1, 2024.",
-    "url": "https://arxiv.org/abs/2403.09554v1",
-    "section": "Abstract, v1",
-    "claim": "The preprint combines Sentinel-1 and Sentinel-2 in a CNN/RNN method to reconstruct NDVI time series.",
-    "limitation": "Grassland preprint v1; reconstruction not observed rice measurements.",
+    "bibliography": "I. Tsardanidis, A. Koukos, V. Sitokonstantinou, T. Drivas, and C. Kontoes, “Cloud gap-filling with deep learning for improved grassland monitoring,” Computers and Electronics in Agriculture, vol. 230, art. 109732, 2025, doi: 10.1016/j.compag.2024.109732.",
+    "url": "https://www.sciencedirect.com/science/article/pii/S0168169924011232",
+    "section": "Published article metadata, highlights and abstract",
+    "claim": "The published study combines SAR and optical imagery to reconstruct continuous NDVI time series for grassland monitoring.",
+    "limitation": "Grassland reconstruction, not observed rice measurements or evidence of Matani performance.",
     "old_reference": null,
     "evidence": "EVID-064",
-    "checked": "2026-09-15",
-    "number": 15
+    "checked": "2026-09-17",
+    "number": 15,
+    "previous_checked": "2026-09-15",
+    "verification": {
+      "date": "2026-09-17",
+      "kind": "journal article",
+      "existence": "confirmed against primary publisher, author repository or official source",
+      "access": "Publisher-indexed journal record and abstract. Updated preprint to published 2025 article, volume 230, 109732. DOI contains 2024 but publication year is 2025."
+    }
   },
   {
     "key": "zhai",
     "bibliography": "Z. Zhai, J. F. Martínez, V. Beltran, and N. Lucas Martínez, “Decision support systems for agriculture 4.0: Survey and challenges,” Computers and Electronics in Agriculture, vol. 170, art. 105256, 2020, doi: 10.1016/j.compag.2020.105256.",
-    "url": "https://oa.upm.es/63393/",
+    "url": "https://www.sciencedirect.com/science/article/pii/S0168169919316497",
     "section": "Abstract; deposited article",
     "claim": "Zhai et al. survey agricultural decision-support systems and their development challenges.",
     "limitation": "Review context; not empirical Matani performance.",
     "old_reference": 22,
     "evidence": "EVID-080",
-    "checked": "2026-09-15",
-    "number": 16
+    "checked": "2026-09-17",
+    "number": 16,
+    "previous_checked": "2026-09-15",
+    "verification": {
+      "date": "2026-09-17",
+      "kind": "journal article",
+      "existence": "confirmed against primary publisher, author repository or official source",
+      "access": "Publisher-indexed abstract and metadata; repository timeout."
+    }
   },
   {
     "key": "gutierrez",
     "bibliography": "F. Gutiérrez, N. N. Htun, F. Schlenz, A. Kasimati, and K. Verbert, “A review of visualisations in agricultural decision support systems: An HCI perspective,” Computers and Electronics in Agriculture, vol. 163, art. 104844, 2019, doi: 10.1016/j.compag.2019.05.053.",
-    "url": "https://zenodo.org/records/3267196",
-    "section": "Author-deposited abstract",
+    "url": "https://www.sciencedirect.com/science/article/pii/S0168169918319069",
+    "section": "Publisher-indexed abstract",
     "claim": "The review identifies opportunities for agricultural dashboards to help users understand data uncertainty.",
     "limitation": "Review abstract; does not demonstrate usability of Matani.",
     "old_reference": 24,
     "evidence": "EVID-081",
-    "checked": "2026-09-15",
-    "number": 17
+    "checked": "2026-09-17",
+    "number": 17,
+    "previous_checked": "2026-09-15",
+    "verification": {
+      "date": "2026-09-17",
+      "kind": "journal article",
+      "existence": "confirmed against primary publisher, author repository or official source",
+      "access": "Publisher-indexed abstract and author list; direct retrieval blocked. Abstract explicitly discusses uncertainty visualisation."
+    }
   },
   {
     "key": "cucho",
@@ -212,8 +331,15 @@
     "limitation": "Different acquisition platform; no direct cost or adoption comparison.",
     "old_reference": 21,
     "evidence": "EVID-082",
-    "checked": "2026-09-15",
-    "number": 18
+    "checked": "2026-09-17",
+    "number": 18,
+    "previous_checked": "2026-09-15",
+    "verification": {
+      "date": "2026-09-17",
+      "kind": "journal article",
+      "existence": "confirmed against primary publisher, author repository or official source",
+      "access": "Official source text and relevant supporting section reviewed."
+    }
   },
   {
     "key": "irrigasys",
@@ -224,56 +350,91 @@
     "limitation": "Portugal system; abstract does not establish its pair-gating semantics.",
     "old_reference": null,
     "evidence": "EVID-049",
-    "checked": "2026-09-15",
-    "number": 19
+    "checked": "2026-09-17",
+    "number": 19,
+    "previous_checked": "2026-09-15",
+    "verification": {
+      "date": "2026-09-17",
+      "kind": "journal article",
+      "existence": "confirmed against primary publisher, author repository or official source",
+      "access": "Official source text and relevant supporting section reviewed."
+    }
   },
   {
     "key": "rosebruce",
     "bibliography": "D. C. Rose and T. J. A. Bruce, “Finding the right connection: What makes a successful decision support system?” Food and Energy Security, vol. 7, no. 1, art. e00123, 2018, doi: 10.1002/fes3.123.",
-    "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC5993350/",
+    "url": "https://onlinelibrary.wiley.com/doi/abs/10.1002/fes3.123",
     "section": "User-centred design discussion",
     "claim": "The authors recommend understanding user workflows and testing with actual users.",
     "limitation": "Design guidance; not evidence that participant-free tests establish adoption.",
     "old_reference": null,
     "evidence": "EVID-083",
-    "checked": "2026-09-15",
-    "number": 20
+    "checked": "2026-09-17",
+    "number": 20,
+    "previous_checked": "2026-09-15",
+    "verification": {
+      "date": "2026-09-17",
+      "kind": "journal article",
+      "existence": "confirmed against primary publisher, author repository or official source",
+      "access": "Publisher-indexed article and citation; PMC challenged access. Issue year 2018 is correct despite online publication in 2017."
+    }
   },
   {
     "key": "eo",
-    "bibliography": "Sentinel Hub, “EO Browser,” product documentation, accessed Sep. 15, 2026.",
+    "bibliography": "Sentinel Hub, “EO Browser,” product documentation, accessed Sep. 17, 2026.",
     "url": "https://www.sentinel-hub.com/explore/eobrowser/",
     "section": "Timelapse and statistical analysis feature descriptions",
     "claim": "EO Browser documents satellite browsing and statistical time-series exploration.",
     "limitation": "Vendor-described capability only; no performance comparison.",
     "old_reference": 30,
     "evidence": "EVID-084",
-    "checked": "2026-09-15",
-    "number": 21
+    "checked": "2026-09-17",
+    "number": 21,
+    "previous_checked": "2026-09-15",
+    "verification": {
+      "date": "2026-09-17",
+      "kind": "technical or product documentation",
+      "existence": "confirmed against primary publisher, author repository or official source",
+      "access": "Official source text and relevant supporting section reviewed."
+    }
   },
   {
     "key": "onesoil",
-    "bibliography": "OneSoil, “NDVI API,” API Guide, accessed Sep. 15, 2026.",
+    "bibliography": "OneSoil, “NDVI API,” API Guide, accessed Sep. 17, 2026.",
     "url": "https://api-b2b.prod-be.onesoil.ai/docs/ndvi_api/",
     "section": "Search NDVI, request and response parameters",
     "claim": "OneSoil documents searching NDVI imagery using dates and cloud-related parameters.",
     "limitation": "Documentation only; no assertion of actual backend quality rules or effectiveness.",
     "old_reference": 32,
     "evidence": "EVID-085",
-    "checked": "2026-09-15",
-    "number": 22
+    "checked": "2026-09-17",
+    "number": 22,
+    "previous_checked": "2026-09-15",
+    "verification": {
+      "date": "2026-09-17",
+      "kind": "technical or product documentation",
+      "existence": "confirmed against primary publisher, author repository or official source",
+      "access": "Official source text and relevant supporting section reviewed."
+    }
   },
   {
     "key": "plantix",
-    "bibliography": "Plantix, “Plantix,” product website, accessed Sep. 15, 2026.",
+    "bibliography": "Plantix, “Plantix,” product website, accessed Sep. 17, 2026.",
     "url": "https://plantix.net/en/",
     "section": "Product description",
     "claim": "Plantix advertises photo-based crop diagnosis and treatment information.",
     "limitation": "Vendor claim used only to distinguish product category, not endorse accuracy.",
     "old_reference": 38,
     "evidence": "EVID-086",
-    "checked": "2026-09-15",
-    "number": 23
+    "checked": "2026-09-17",
+    "number": 23,
+    "previous_checked": "2026-09-15",
+    "verification": {
+      "date": "2026-09-17",
+      "kind": "technical or product documentation",
+      "existence": "confirmed against primary publisher, author repository or official source",
+      "access": "Official source text and relevant supporting section reviewed."
+    }
   },
   {
     "key": "chou",
@@ -284,20 +445,34 @@
     "limitation": "China climate projections, not local weather-warning calibration.",
     "old_reference": 18,
     "evidence": "EVID-087",
-    "checked": "2026-09-15",
-    "number": 24
+    "checked": "2026-09-17",
+    "number": 24,
+    "previous_checked": "2026-09-15",
+    "verification": {
+      "date": "2026-09-17",
+      "kind": "journal article",
+      "existence": "confirmed against primary publisher, author repository or official source",
+      "access": "Official source text and relevant supporting section reviewed."
+    }
   },
   {
     "key": "weather",
-    "bibliography": "Open-Meteo, “Weather Forecast API,” documentation, accessed Sep. 15, 2026.",
+    "bibliography": "Open-Meteo, “Weather Forecast API,” documentation, accessed Sep. 17, 2026.",
     "url": "https://open-meteo.com/en/docs",
     "section": "Hourly/current/daily variables; API parameter definitions",
     "claim": "The API exposes model-based temperature, precipitation, humidity, and wind variables.",
     "limitation": "Provider weather context, not on-plot sensor measurements or calibrated crop risk.",
     "old_reference": 29,
     "evidence": "EVID-088",
-    "checked": "2026-09-15",
-    "number": 25
+    "checked": "2026-09-17",
+    "number": 25,
+    "previous_checked": "2026-09-15",
+    "verification": {
+      "date": "2026-09-17",
+      "kind": "technical or product documentation",
+      "existence": "confirmed against primary publisher, author repository or official source",
+      "access": "Official source text and relevant supporting section reviewed."
+    }
   },
   {
     "key": "ginting",
@@ -308,20 +483,34 @@
     "limitation": "Not independent crop truth for the selected block.",
     "old_reference": null,
     "evidence": "EVID-061",
-    "checked": "2026-09-15",
-    "number": 26
+    "checked": "2026-09-17",
+    "number": 26,
+    "previous_checked": "2026-09-15",
+    "verification": {
+      "date": "2026-09-17",
+      "kind": "journal article",
+      "existence": "confirmed against primary publisher, author repository or official source",
+      "access": "Official source text and relevant supporting section reviewed."
+    }
   },
   {
     "key": "zenodo",
-    "bibliography": "F. I. Ginting et al., “Open-SEA-Rice-10,” dataset, Zenodo, record 14627003, 2025, doi: 10.5281/zenodo.14627003.",
+    "bibliography": "F. I. Ginting et al., “Open-SEA-Rice-10: Open Access High-Resolution Maps of Rice Harvested Area and Cropping Intensity in Southeast Asia,” dataset, Zenodo, record 14627003, 2025, doi: 10.5281/zenodo.14627003.",
     "url": "https://zenodo.org/records/14627003",
     "section": "Retained API metadata: description, licence and files",
     "claim": "The dataset metadata labels the map 2021 and declares CC BY 4.0.",
-    "limitation": "Metadata checked Sep. 14; Sep. 15 refresh failed, preserved local metadata used.",
+    "limitation": "2021 map year rechecked; licence evidence remains retained 2026-09-14 API metadata. Map labels are not surveyed field boundaries.",
     "old_reference": null,
     "evidence": "EVID-060",
-    "checked": "2026-09-14",
-    "number": 27
+    "checked": "2026-09-17",
+    "number": 27,
+    "previous_checked": "2026-09-14",
+    "verification": {
+      "date": "2026-09-17",
+      "kind": "dataset",
+      "existence": "confirmed against primary publisher, author repository or official source",
+      "access": "Landing record, DOI and 2021 map-year description refreshed. Licence widget was not exposed and API refresh failed; CC BY 4.0 still relies on retained metadata checked 2026-09-14."
+    }
   },
   {
     "key": "geojson",
@@ -332,80 +521,130 @@
     "limitation": "Exchange convention; not survey validity or metric buffering accuracy.",
     "old_reference": null,
     "evidence": "EVID-089",
-    "checked": "2026-09-15",
-    "number": 28
+    "checked": "2026-09-17",
+    "number": 28,
+    "previous_checked": "2026-09-15",
+    "verification": {
+      "date": "2026-09-17",
+      "kind": "standard or specification",
+      "existence": "confirmed against primary publisher, author repository or official source",
+      "access": "Official source text and relevant supporting section reviewed."
+    }
   },
   {
     "key": "catalog",
-    "bibliography": "Copernicus Data Space Ecosystem, “Catalog API,” documentation, accessed Sep. 15, 2026.",
+    "bibliography": "Copernicus Data Space Ecosystem, “Catalog API,” documentation, accessed Sep. 17, 2026.",
     "url": "https://documentation.dataspace.copernicus.eu/APIs/SentinelHub/Catalog.html",
     "section": "Pagination",
     "claim": "The Catalog API documents continuation-based pagination.",
     "limitation": "Completed query coverage is not universal satellite coverage.",
     "old_reference": null,
     "evidence": "EVID-065",
-    "checked": "2026-09-15",
-    "number": 29
+    "checked": "2026-09-17",
+    "number": 29,
+    "previous_checked": "2026-09-15",
+    "verification": {
+      "date": "2026-09-17",
+      "kind": "technical or product documentation",
+      "existence": "confirmed against primary publisher, author repository or official source",
+      "access": "Official source text and relevant supporting section reviewed."
+    }
   },
   {
     "key": "process",
-    "bibliography": "Copernicus Data Space Ecosystem, “Processing API,” documentation, accessed Sep. 15, 2026.",
+    "bibliography": "Copernicus Data Space Ecosystem, “Processing API,” documentation, accessed Sep. 17, 2026.",
     "url": "https://documentation.dataspace.copernicus.eu/APIs/SentinelHub/Process.html",
-    "section": "Processing API and request structure",
+    "section": "Processing API overview and linked S2L2A request examples",
     "claim": "Process API requests specify spatial extent, source data, processing and output.",
     "limitation": "Provider contract only; actual returned grids must be verified.",
     "old_reference": null,
     "evidence": "EVID-090",
-    "checked": "2026-09-15",
-    "number": 30
+    "checked": "2026-09-17",
+    "number": 30,
+    "previous_checked": "2026-09-15",
+    "verification": {
+      "date": "2026-09-17",
+      "kind": "technical or product documentation",
+      "existence": "confirmed against primary publisher, author repository or official source",
+      "access": "Official source text and relevant supporting section reviewed.",
+      "additional_source": "https://documentation.dataspace.copernicus.eu/APIs/SentinelHub/Process/Examples/S2L2A.html"
+    }
   },
   {
     "key": "eval",
-    "bibliography": "Sentinel Hub, “Evalscript V3,” documentation, accessed Sep. 15, 2026.",
+    "bibliography": "Sentinel Hub, “Evalscript V3,” documentation, accessed Sep. 17, 2026.",
     "url": "https://docs.sentinel-hub.com/api/latest/evalscript/v3/",
     "section": "setup, evaluatePixel and output sampleType",
     "claim": "Evalscript defines input bands and per-pixel outputs.",
-    "limitation": "Documentation is moving; source/version archived in research requests.",
+    "limitation": "Documentation is moving; source/version archived in research requests. Current page announces migration to docs.planet.com; link availability is perishable.",
     "old_reference": null,
     "evidence": "EVID-091",
-    "checked": "2026-09-15",
-    "number": 31
+    "checked": "2026-09-17",
+    "number": 31,
+    "previous_checked": "2026-09-15",
+    "verification": {
+      "date": "2026-09-17",
+      "kind": "technical or product documentation",
+      "existence": "confirmed against primary publisher, author repository or official source",
+      "access": "Official source text and relevant supporting section reviewed."
+    }
   },
   {
     "key": "mask",
-    "bibliography": "Sentinel Hub, “dataMask,” documentation, accessed Sep. 15, 2026.",
+    "bibliography": "Sentinel Hub, “dataMask,” documentation, accessed Sep. 17, 2026.",
     "url": "https://docs.sentinel-hub.com/api/latest/user-guides/datamask/",
     "section": "General notes",
     "claim": "dataMask indicates whether a pixel has source data.",
-    "limitation": "Source presence alone does not establish cloud-free or accurate observations.",
+    "limitation": "Source presence alone does not establish cloud-free or accurate observations. Current page announces migration to docs.planet.com; link availability is perishable.",
     "old_reference": null,
     "evidence": "EVID-092",
-    "checked": "2026-09-15",
-    "number": 32
+    "checked": "2026-09-17",
+    "number": 32,
+    "previous_checked": "2026-09-15",
+    "verification": {
+      "date": "2026-09-17",
+      "kind": "technical or product documentation",
+      "existence": "confirmed against primary publisher, author repository or official source",
+      "access": "Official source text and relevant supporting section reviewed."
+    }
   },
   {
     "key": "scl",
-    "bibliography": "Sentinel Hub, “Sentinel-2 L2A Scene Classification Map,” Custom Scripts, accessed Sep. 15, 2026.",
+    "bibliography": "Sentinel Hub, “Sentinel-2 L2A Scene Classification Map,” Custom Scripts, accessed Sep. 17, 2026.",
     "url": "https://custom-scripts.sentinel-hub.com/custom-scripts/sentinel-2/scene-classification/",
     "section": "Class code table and script",
     "claim": "SCL assigns codes to water, shadows, clouds, cirrus and other classes.",
     "limitation": "Class labels do not validate Matani exclusions or 9/3 floors.",
     "old_reference": null,
     "evidence": "EVID-093",
-    "checked": "2026-09-15",
-    "number": 33
+    "checked": "2026-09-17",
+    "number": 33,
+    "previous_checked": "2026-09-15",
+    "verification": {
+      "date": "2026-09-17",
+      "kind": "technical or product documentation",
+      "existence": "confirmed against primary publisher, author repository or official source",
+      "access": "Official source text and relevant supporting section reviewed."
+    }
   },
   {
     "key": "stats",
-    "bibliography": "Sentinel Hub, “Statistical API,” documentation, accessed Sep. 15, 2026.",
+    "bibliography": "Sentinel Hub, “Statistical API,” documentation, accessed Sep. 17, 2026.",
     "url": "https://docs.sentinel-hub.com/api/latest/api/statistical/",
     "section": "General approach; Exclude pixels from calculations",
     "claim": "Statistical API can return aggregates without downloading imagery and requires explicit masking decisions.",
-    "limitation": "Background alternative; current experiment uses Process rasters.",
+    "limitation": "Background alternative; current experiment uses Process rasters. Current page announces migration to docs.planet.com; link availability is perishable.",
     "old_reference": 28,
     "evidence": "EVID-094",
-    "checked": "2026-09-15",
-    "number": 34
+    "checked": "2026-09-17",
+    "number": 34,
+    "previous_checked": "2026-09-15",
+    "verification": {
+      "date": "2026-09-17",
+      "kind": "technical or product documentation",
+      "existence": "confirmed against primary publisher, author repository or official source",
+      "access": "Official source text and relevant supporting section reviewed."
+    }
   },
   {
     "key": "prov",
@@ -416,8 +655,15 @@
     "limitation": "Conceptual connection; Matani does not claim PROV conformance.",
     "old_reference": null,
     "evidence": "EVID-095",
-    "checked": "2026-09-15",
-    "number": 35
+    "checked": "2026-09-17",
+    "number": 35,
+    "previous_checked": "2026-09-15",
+    "verification": {
+      "date": "2026-09-17",
+      "kind": "standard or specification",
+      "existence": "confirmed against primary publisher, author repository or official source",
+      "access": "Official source text and relevant supporting section reviewed."
+    }
   },
   {
     "key": "fair",
@@ -428,7 +674,14 @@
     "limitation": "Publisher indexed text reviewed; not a FAIR certification or public release claim.",
     "old_reference": null,
     "evidence": "EVID-096",
-    "checked": "2026-09-15",
-    "number": 36
+    "checked": "2026-09-17",
+    "number": 36,
+    "previous_checked": "2026-09-15",
+    "verification": {
+      "date": "2026-09-17",
+      "kind": "journal article",
+      "existence": "confirmed against primary publisher, author repository or official source",
+      "access": "Publisher-indexed article, principles and citation; direct open failed."
+    }
   }
 ]

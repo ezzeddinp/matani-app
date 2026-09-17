@@ -1,11 +1,11 @@
 {
-  "updated": "2026-09-15",
-  "status": "full-length-review-draft-complete; author-advisor-venue-review-pending",
+  "updated": "2026-09-17",
+  "status": "references-validated-and-google-docs-import-verified; author-advisor-venue-review-pending",
   "decision": "DEC-53",
-  "observation": "OBS-73",
+  "observation": "OBS-75",
   "source_snapshot_sha256": "41ab605fb814ea07b29db3b4bccf953dcad3bd9c0bb59f170f81e0ec31cdbdc1",
   "counts": {
-    "words_excluding_title_authors_references": 6287,
+    "words_excluding_title_authors_references": 6026,
     "references": 36,
     "old_references_screened": 38,
     "pages": 8,
@@ -14,18 +14,18 @@
     "figures": 1
   },
   "files_sha256": {
-    "docs/manuscripts/phase6-paper.md": "b9b8d036e2839f6182ba7d297235ea4af6c75c46b9552935c12f051c63f5c9dc",
-    "docs/manuscripts/phase6-review.md": "4aac20e99d0ef8aca494b087e895da9fb49647da2e217250fb6d7f9d35ec6ee7",
+    "docs/manuscripts/phase6-paper.md": "a16b993e2119ebb0f92599adf057695d82a331f479df6c4ea2d5ec01ed306ee5",
+    "docs/manuscripts/phase6-review.md": "40889b8d9b9ab62db194afe274d57ef5833b482cfbe18664ea2fed4b5dcec9c6",
     "docs/manuscripts/phase6-thesis-chapters.md": "57ae2abda35b431be6b3185234028c553c93f8c0daff8b55ab962236f07b35b4",
-    "docs/manuscripts/phase6-manifest.json": "f86b7073abcd7b4597fdc5a2c056a282d4da7bc20780041a7c575276b68c2a8f",
-    "docs/manuscripts/phase7-paper.docx": "8f33585a6adf8641028ec7e085d52fc1eb7ca82463f8189f666f8884dcb18699",
-    "docs/manuscripts/phase7-reference-audit.md": "acc5318b5c0b0f76fe23ffd1b951ded3528368ac5c56427c7a89da3c7e4f46f4",
-    "docs/manuscripts/phase7-reference-audit.json": "c74352e55b4e378c3d00ee36b1c0f35792c8dbae19fd3fc7d84d7dfdaaecc48b",
+    "docs/manuscripts/phase6-manifest.json": "5eb1cb2b86d7f5f4407d8194e361d4299c678bd54e39a92a8f238d393ef8eb26",
+    "docs/manuscripts/phase7-paper.docx": "25f8cf06ca06d5bf0f398c4e6300a00a600f568541c237b9f8c33c3669480bb0",
+    "docs/manuscripts/phase7-reference-audit.md": "99d91e5cf283c6fe23779871ee102029634dbf64eda849ea53469c5635985592",
+    "docs/manuscripts/phase7-reference-audit.json": "a98147bd847e8a70f7bafe3b5febf1b61dd590ba833e83df9bcca0e5c9cb1ce4",
     "docs/manuscripts/phase7-timeline.png": "4f70624d7de6fe7afacafd6998db003a1f56248f9e742dadfb8db53066544d2f",
     "docs/manuscripts/phase7-timeline.pdf": "d8ed0f15ffc2371fdc3f0b160ce7f1be0ec0afbd5c0f144c4bc9729f64ac54b8",
-    "docs/manuscripts/check-phase7.py": "0179e4c6d388fc9cdc76926747d978966c48456fe89131cb2f8d3ec7c31f4944",
-    "output/pdf/matani-phase7-paper.pdf": "8d9bb33a6c468138ef356ca8de9a8c0ec545982ac27f1165e9808e9647303cdf",
-    "docs/manuscripts/phase7-paper-standard.docx": "b36d30181b0dde66426b33274d604c031d9a5f719812369f6e72a62dad923fbb"
+    "docs/manuscripts/check-phase7.py": "6e18ed83bbc76555252b64e7a560ae8fa680ee9c6414e06a149b437fd1bed854",
+    "output/pdf/matani-phase7-paper.pdf": "27cbe4455e6fe1f47082e16c211aeaa3f9df011464b5e0a6f8b356d783cd0a18",
+    "docs/manuscripts/phase7-paper-standard.docx": "bf4d21fb800deb60d11f6d35ef40c38ce18e0904d8780832655f866b202301f2"
   },
   "source_files_sha256": {
     "/Users/billy/Downloads/thesis fix-2.pdf": "05e06c26840ad5446817deb9bca2a1d331df61b9d4f68db8f1e9577be33e116a",
@@ -49,7 +49,9 @@
       "table readability",
       "figure placement",
       "reference formatting"
-    ]
+    ],
+    "artifact": "phase7-paper-standard.docx",
+    "checked": "2026-09-17"
   },
   "template_fidelity": {
     "method": "Strict OOXML package patch; unchanged parts byte-identical; all original named styles preserved; semantic Title alias added",
@@ -60,6 +62,11 @@
       "figure relationship and PNG",
       "core title metadata",
       "semantic Title style alias"
+    ],
+    "conversion_notes": [
+      "Standard copy normalises continuous-section margins to the effective source render (27 pt top, 44.65 pt sides, 72 pt bottom); not exact section XML equivalence",
+      "Table rules 0.5 pt versus template sample 0.25 pt",
+      "Google Docs reflows text and pagination; subsection alignment repaired; final-page columns remain unbalanced"
     ]
   },
   "limitations": [
@@ -72,8 +79,46 @@
   "standard_docx_copy": {
     "file": "docs/manuscripts/phase7-paper-standard.docx",
     "format": "Transitional Office Open XML",
-    "validation": "OBS 2026-09-15: all document text unchanged; seven tables and one figure retained; all eight rendered pages inspected; title sanitizer passed without changes",
-    "google_docs_import": "Not yet tested; provided for retrying import",
-    "original": "phase7-paper.docx preserved"
+    "validation": "OBS-75: text equality, explicit physical borders on 137 cells, 36 native reference hyperlinks; eight rendered pages inspected",
+    "google_docs_import": "Verified: native import, readback and all-page exported PDF review",
+    "original": "phase7-paper.docx preserved",
+    "google_docs_url": "https://docs.google.com/document/d/1BdAlrWpf7DhGUnyRV6kGai6J3Sj1ck1S3yaq6JimNpg/edit"
+  },
+  "editorial_revision": {
+    "scope": "Full-paper prose revision, internal terminology removal and method clarification",
+    "scientific_settings": "unchanged",
+    "new_external_source_audit": false,
+    "chapter_draft": "unchanged"
+  },
+  "google_docs_validation": {
+    "checked": "2026-09-17",
+    "document_id": "1BdAlrWpf7DhGUnyRV6kGai6J3Sj1ck1S3yaq6JimNpg",
+    "tab_id": "t.0",
+    "tables": 7,
+    "cells_with_four_borders": 137,
+    "reference_hyperlinks": 36,
+    "subsection_alignments_repaired": 21,
+    "exported_pdf_pages_inspected": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8
+    ],
+    "exported_pdf_sha256": "a58002b9c851520c6a5210a4472961901bf7d81caceb2d10065f0da3cb54f8e7",
+    "scope": "Google PDF export and connector readback, not live browser canvas"
+  },
+  "reference_validation": {
+    "checked": "2026-09-17",
+    "sources": 36,
+    "journal_articles": 18,
+    "other_sources": 18,
+    "full_text_access": "varies; see per-reference audit",
+    "published_version_upgrade": 15,
+    "ndmi_formula_caveat": 7,
+    "licence_refresh_limit": "Reference 27 licence supported by retained September 14 metadata"
   }
 }
