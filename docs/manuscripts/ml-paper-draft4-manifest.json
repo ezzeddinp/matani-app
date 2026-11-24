@@ -1,0 +1,62 @@
+{
+ "draft": "ML paper draft 4: draft 3 plus reference-paper house style (R15), review-trace wording removed (R16), AI-use acknowledgment (DEC-58)",
+ "frozen": "2026-09-28",
+ "observations": [
+  "OBS-79",
+  "OBS-80",
+  "OBS-83",
+  "OBS-84",
+  "OBS-85"
+ ],
+ "decisions": [
+  "DEC-56",
+  "DEC-57",
+  "DEC-58"
+ ],
+ "predictions": {
+  "path": "research/private/ml-dataset/team-run-v2-final/predictions.csv",
+  "sha256": "2ceb7897b7248d9da2f3375c37689aa4a008ef398c555ee4664f3884a6fbecff",
+  "env_txt_sha256": "2e8f98e718539bac1408008178add20cec02e47b388a9258ef573db4623fa4a2"
+ },
+ "handoff": {
+  "path": "research/private/ml-dataset/ml-dataset-v2.zip",
+  "sha256": "33dee5a0bf6e1f5a5cd43ad6757214ce7969eb826307b471cbe24922c1eec2e5"
+ },
+ "evaluation": {
+  "path": "research/private/ml-dataset/evaluation-team-v2-final",
+  "files_sha256": {
+   "baseline_predictions.csv": "be1d385c1173f33d2965e2e5eb770dc0b3a32db23a60eb6708155f31112d74d0",
+   "gap_availability.csv": "c7c2461052d9ede192a00e82a04f759efe4ca39edb9e21cae804e82dcc9cc5eb",
+   "gap_events.csv": "ffceacb52b79a961a6420c84a51895ded5af2e5d0b1b0a1727a4284ecda100f6",
+   "gap_summary.csv": "68a2a074b5748df875a9fff47dd18161a901bdddeade84c4b1bce2ffc57cb9d9",
+   "metrics.csv": "9950832b4023335ce7dc2b6ebaa6bbef4ba89646927c16bed152a8e18aa72f5f",
+   "summary.json": "5644617be3febcc3683e857b668d9d9ae2378bcac66cbee14722dd9c66c70cfc"
+  }
+ },
+ "counts": {
+  "pages": 6,
+  "words_excluding_title_tables_captions_references": 3200,
+  "tables": 3,
+  "figures": 3,
+  "references": 23,
+  "verified_numbers": 74
+ },
+ "files_sha256": {
+  "docs/manuscripts/ml-paper-draft4-2026-09-28.md": "5c5430a982c3a0143094ef8193070e6c8fd37818b5ed4864341f7758647521a7",
+  "docs/manuscripts/ml-paper-draft4-2026-09-28.docx": "f2e5cf0b5c46046265edc4d0e40f3e522ad734150e103a916cce26c70299439c",
+  "output/pdf/matani-ml-paper-draft4-2026-09-28.pdf": "a4b71698fa8ee6bdb92cba7aae9e73f4f526189db363aebc71a0b6b16103bb84",
+  "docs/manuscripts/ml-fig-area.png": "b94fd25c98f3c2852f8aca70c33ba7ac4238c420362cb1c8ef705cf98feac31c",
+  "docs/manuscripts/ml-fig-gap.png": "131c9dacf31c99fd220473fcdf29f5ced41802e4c67c440e5bde00ce5b6113a8",
+  "docs/manuscripts/ml-fig-krangkeng.png": "aa8d273e4e25d343786e09aca5b8e7cc1cadd9817dd21459f33697496f631af3",
+  "docs/manuscripts/ml-paper-numbers.json": "eaf754ed31f1dc1c426eac92d2f1832eaba93c5174e21aafd2ebf7129ef72e57",
+  "docs/manuscripts/build-ml-paper.py": "f1a48d008ed3bbc121fc0a163c092a34ffe6dd372055c0a6b8e3ef36d791906c",
+  "research/scripts/make-ml-paper-figures.py": "b1d9f75739671bd4736e752e84cab2ad428d5295c38e56460242fd81a413e526",
+  "research/scripts/evaluate_ml.py": "e80b38f337b97b0955bf7b7b13c315757f9de90ba3efa37b7a0a5433bcdd516e",
+  "research/scripts/rebuild-ml-paper.sh": "ae36e1cbaca12436420e2c1ab443b26dda2d7c306f921e25428451427f3a7c98",
+  "research/scripts/check_run_binding.py": "76f6bb4a621bb948ba82170a339167dea6939eac159e87fe4e1d97cfea4ff993",
+  "research/lib/cdse-s1.mjs": "569448b1f562616a2d7bab0c49c7e020f05ad655e8c8e468497171acb58fdbf5",
+  "research/scripts/refeature-extraction.mjs": "4b857756f1551c9ad1f8f6fc6e129ca8a1bbe4edd434dce929c1efae5561d58a",
+  "research/ml-handoff/example_train.py": "94f82e357c605413bcd0258043f859f00b3246516c384412c72dea27ec75dcbc",
+  "docs/manuscripts/paper-best-practice.md": "c1135ce2f2de9055e95b119003a3a215b6fffc4c639249271b44025da3596bd5"
+ }
+}

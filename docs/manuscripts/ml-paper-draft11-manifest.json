@@ -1,0 +1,77 @@
+{
+ "draft": "ML paper draft 11: draft 10 (GPT-6 Astra round 11 CLEAN) plus its two Nits: DOCX core properties set to the manuscript title with template author/dates cleared (N29), the app_display replica returns no estimate without observations (N30); IV-E states the Fig. 4 radar pass time in UTC",
+ "frozen": "2026-09-28",
+ "observations": [
+  "OBS-79",
+  "OBS-80",
+  "OBS-83",
+  "OBS-84",
+  "OBS-85",
+  "OBS-87"
+ ],
+ "decisions": [
+  "DEC-56",
+  "DEC-57",
+  "DEC-58",
+  "DEC-59",
+  "DEC-60"
+ ],
+ "predictions": {
+  "path": "research/private/ml-dataset/team-run-v2-final/predictions.csv",
+  "sha256": "2ceb7897b7248d9da2f3375c37689aa4a008ef398c555ee4664f3884a6fbecff",
+  "env_txt_sha256": "2e8f98e718539bac1408008178add20cec02e47b388a9258ef573db4623fa4a2"
+ },
+ "handoff": {
+  "path": "research/private/ml-dataset/ml-dataset-v2.zip",
+  "sha256": "33dee5a0bf6e1f5a5cd43ad6757214ce7969eb826307b471cbe24922c1eec2e5"
+ },
+ "evaluation": {
+  "path": "research/private/ml-dataset/evaluation-team-v2-final",
+  "files_sha256": {
+   "baseline_predictions.csv": "be1d385c1173f33d2965e2e5eb770dc0b3a32db23a60eb6708155f31112d74d0",
+   "gap_availability.csv": "c7c2461052d9ede192a00e82a04f759efe4ca39edb9e21cae804e82dcc9cc5eb",
+   "gap_events.csv": "ffceacb52b79a961a6420c84a51895ded5af2e5d0b1b0a1727a4284ecda100f6",
+   "gap_summary.csv": "68a2a074b5748df875a9fff47dd18161a901bdddeade84c4b1bce2ffc57cb9d9",
+   "metrics.csv": "9950832b4023335ce7dc2b6ebaa6bbef4ba89646927c16bed152a8e18aa72f5f",
+   "summary.json": "5644617be3febcc3683e857b668d9d9ae2378bcac66cbee14722dd9c66c70cfc"
+  }
+ },
+ "counts": {
+  "pages": 6,
+  "words_excluding_title_tables_captions_references": 3556,
+  "tables": 3,
+  "figures": 4,
+  "references": 23,
+  "verified_numbers": 77,
+  "docx_render_pages": 6
+ },
+ "files_sha256": {
+  "docs/manuscripts/ml-paper-draft11-2026-09-28.md": "6be4fe70df26c203f5c36a6fb9169c4281ab3fb0300b56736ca8f762e66fd437",
+  "docs/manuscripts/ml-paper-draft11-2026-09-28.docx": "ee6e85e5dc19c3d383a35623296155aef809c42228a6691a1f68607056f242e6",
+  "output/pdf/matani-ml-paper-draft11-2026-09-28.pdf": "1227535c309994a2bc586936c5c0e7fd46b9805bc74d89ffd1c17a7da7fd968e",
+  "docs/manuscripts/ml-fig-area.png": "b94fd25c98f3c2852f8aca70c33ba7ac4238c420362cb1c8ef705cf98feac31c",
+  "docs/manuscripts/ml-fig-gap.png": "131c9dacf31c99fd220473fcdf29f5ced41802e4c67c440e5bde00ce5b6113a8",
+  "docs/manuscripts/ml-fig-krangkeng.png": "aa8d273e4e25d343786e09aca5b8e7cc1cadd9817dd21459f33697496f631af3",
+  "docs/manuscripts/ml-paper-numbers.json": "34149642f42831db9dcc06a149a398161e7ce93ee8c18c83c1fcca5b4da4330f",
+  "docs/manuscripts/build-ml-paper.py": "be07efeb3befb818aa73ea7fca1cd8fad60c9f054e038621bf6664d6bfba815e",
+  "research/scripts/make-ml-paper-figures.py": "23b59e2db60edc57384cb1482999dba16a0309083d26b88758b2e3507867c6a9",
+  "research/scripts/evaluate_ml.py": "e80b38f337b97b0955bf7b7b13c315757f9de90ba3efa37b7a0a5433bcdd516e",
+  "research/scripts/rebuild-ml-paper.sh": "0b3284d0b60d6e0b8d66f09ce4a8d97fa3a26876890cfa0b2bfce26a804bca69",
+  "research/scripts/check_run_binding.py": "76f6bb4a621bb948ba82170a339167dea6939eac159e87fe4e1d97cfea4ff993",
+  "research/lib/cdse-s1.mjs": "569448b1f562616a2d7bab0c49c7e020f05ad655e8c8e468497171acb58fdbf5",
+  "research/scripts/refeature-extraction.mjs": "4b857756f1551c9ad1f8f6fc6e129ca8a1bbe4edd434dce929c1efae5561d58a",
+  "research/ml-handoff/example_train.py": "94f82e357c605413bcd0258043f859f00b3246516c384412c72dea27ec75dcbc",
+  "docs/manuscripts/paper-best-practice.md": "e42b0ca824dfee12531dc04f1b3ccd98e973c689849a76f90a786a1609d43226",
+  "output/pdf/matani-ml-paper-draft11-2026-09-28-docx-render.pdf": "597bcfc7b822dc90b59e326796faa084d2d67cbafde397941379c6509a432a6e",
+  "docs/manuscripts/ml-fig-app.png": "94d95d62e7a01a2cab71ab95e5187baa031066471a0a34a71e87b55a566f3f19",
+  "utils/estimate-timeline.ts": "19efd1f986d97faf8c95f3c5b6acc3274ceceafd3e4c23d7cf4e001249902833",
+  "app/detail-lahan-page.tsx": "07e5e21369ed925fd9ca12f836c254ae9e73ee61d8c9c5885d7a82e0dfb6c8f8",
+  "research/scripts/seed-local-krangkeng-demo.py": "3b48fc2643e7ef8c628c2341377d13d4c3cff1a0e68e57607ec9d402607fab52",
+  "metro.config.js": "05c703bc25d14bb130dae79397b49f1a1853958f4285601591e73df108b04ca7",
+  "tests/estimate-timeline.test.mjs": "f18bd6bb6aaf88dc5d996077f77d5b3e9ecbee061a4be70b352e217d94f628d4",
+  "utils/web-stubs/react-native-maps.js": "0c7ccbf9226439a86f057ccb09454d17b2b796cb11860ba11ebe6322d7f9c0fa",
+  "research/lib/ndvi-estimate-import.mjs": "99030daf175a20bd27ba2c792819ba8c0194b87a6fa2fdfabca7cf5ca83254f9"
+ },
+ "review": "draft 10: GPT-6 Astra round 11 CLEAN (docs/manuscripts/ml-paper-astra-review-r11.md); draft 11 = draft 10 + round-11 nits",
+ "docx_repackaged": "2026-09-28: DOCX re-exported for Google Docs import; same text (page-by-page identical LibreOffice render). Removed the template's empty bibliography customXml (Strict namespace), unused hyperlink/image relationships, and Strict values (jc start/end, tblHeader val=true); run/paragraph properties sorted into schema order. Open XML SDK validator (Office 2019): 0 errors, previously the file failed to load."
+}

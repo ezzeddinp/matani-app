@@ -3,7 +3,7 @@
 **Document type:** Design guidelines
 **Audience:** The developer, thesis advisor, reviewers, and AI agents working in this repo
 **Status:** Active
-**Updated:** 2026-09-15
+**Updated:** 2026-09-25
 **Canonical for:** Design tokens, the screen map, component patterns, and data-state presentation rules
 **Companion documents:** [`product-requirements.md`](product-requirements.md), [`product-brief.md`](product-brief.md), [`project-architecture.md`](project-architecture.md), [`context-dump.md`](context-dump.md)
 
@@ -260,3 +260,10 @@ Observation chart presentation (OBS-71; PRD-11): use unconnected dots positioned
 actual elapsed acquisition dates, preserving visible irregular spacing. Do not join
 across missing observations. A single date is centered. CODE: `ObservationChart` in
 `app/detail-lahan-page.tsx`; this amendment implements the existing no-interpolation rule.
+
+Estimated NDVI presentation (DEC-55; PRD-12):
+- **Chart marks:** estimates are hollow, dashed-outline diamonds in the index colour; measured values stay solid-outline circles. The legend names both with text ("Terukur · Sentinel-2", "Estimasi radar · Sentinel-1"), so colour is never the only signal.
+- **Point details:** tapping the chart selects the nearest point, and its details appear inline below the chart (no modal).
+  - An estimate shows its date, "NDVI ≈" with two decimals (measured values keep three), the evaluated model error, the radar pass date and orbit, the model and version, and a plain note that it is not an optical measurement.
+  - The estimate detail panel uses a dashed border, echoing the diamond.
+- **Copy:** never "prediksi" or diagnosis words; use "estimasi radar".

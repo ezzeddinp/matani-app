@@ -40,7 +40,7 @@ Every non-obvious claim in any document carries a typed marker:
 
 ## Vocabulary
 
-English throughout; Indonesian domain terms kept where they are the product's words (glossary: `.agent/context-dump.md`). Core terms: **lahan** = field/plot (DB table), **ladang** = farm field (UI tab), NDVI/NDMI = Sentinel-2 vegetation/moisture indices, **GROW** = the thesis paper's decision-support workflow (Gathering, Recognizing, Offering, Warning — a paper-defined framing, not an external methodology). Data states: **fixture** (labeled test data) · **prototype** (partially wired, non-provenance-safe) · **measured** (persisted, provenance-complete) · **unavailable** (honest absence).
+English throughout; Indonesian domain terms kept where they are the product's words (glossary: `.agent/context-dump.md`). Core terms: **lahan** = field/plot (DB table), **ladang** = farm field (UI tab), NDVI/NDMI = Sentinel-2 vegetation/moisture indices, **GROW** = the thesis paper's decision-support workflow (Gathering, Recognizing, Offering, Warning — a paper-defined framing, not an external methodology). Data states: **fixture** (labeled test data) · **prototype** (partially wired, non-provenance-safe) · **measured** (persisted, provenance-complete) · **unavailable** (honest absence) · **estimated** (model-derived NDVI from Sentinel-1, stored separately in `ndvi_estimates`, never counted or shown as measured; DEC-55).
 
 Refer to the project owner as "the developer" and the three thesis authors collectively as "the thesis team" — never by personal name.
 

@@ -4,7 +4,7 @@
 **Audience:** The developer, thesis advisor, reviewers, and AI agents working in this repo
 **Status:** Active — M2 implemented and verified locally; one scoped manual hosted
 measurement is verified, while repeatable Vercel-deferred completion remains open
-**Updated:** 2026-09-15
+**Updated:** 2026-09-25
 
 **DEC-37 amendment:** Empty field details may initialize one idempotent measurement job
 per visit; polling reads stored observations. This changes the request trigger only,
@@ -164,6 +164,37 @@ When no quality-passing observation exists for a field/window, the pipeline reco
 ## 5 · Persistence and provenance `[As-built local]`
 
 The pipeline persists a **provenance-complete measurement record** — every value carries its origin, so `measured` is distinguishable from `unavailable` and never confused with synthetic (`AGENTS.md` § Vocabulary; [`project-architecture.md`](project-architecture.md) § 3 provenance contract).
+
+### Offline NDVI estimates (DEC-55)
+
+`estimated` means NDVI inferred offline in Python from Sentinel-1 inputs by Random
+Forest or XGBoost. It is never a Sentinel-2 measurement. The separate table stores
+target date, radar acquisition/products/orbit/offset, model/feature/dataset/run identity,
+evaluation role, optional test MAE, and source-row/fold/seed provenance. An estimated
+row requires an in-range value and radar identity; an unavailable row requires a reason
+and no estimate. Only `held_out_test` rows may carry a reference NDVI. The unique key is
+field/date/model-version/evaluation-role; repeat imports replace values, preserving row
+identity and creation time (`supabase/migrations/20260926000100_ndvi_estimates.sql:1`,
+CODE). Access and deployment boundaries are owned by [ADR-19](project-architecture.md#adr-19--estimated-ndvi-is-a-separate-read-only-to-clients-data-state).
+
+The CSV importer selects the requested model and feature set, joins predictions by
+table and row ID, and includes only source rows with `role=showcase`. It averages seeds
+without clipping, rejects out-of-range predictions and ambiguous source/fold/target
+collisions, and preserves the seed list. `ml_table` rows map to `held_out_test` using
+`s2_date`, reference `ndvi`, and the recorded offset. `showcase_apply` rows map to
+`applied` using `s1_date`, no reference, and zero offset. Applied rows are skipped when
+the same block has a present NDVI with `valid_frac >= 0.8` within an inclusive three-day
+window. These are developer-selected import rules, not calibrated scientific thresholds
+or independently verified held-out/model-quality claims (DEC-55;
+`research/lib/ndvi-estimate-import.mjs:80`, CODE).
+
+`import-ndvi-estimates.mjs` prints role counts, skipped count, and the first three rows
+by default; `--live` calls the privileged estimate RPC. Historical remeasurement uses
+unique sorted block dates and one-day UTC windows through the existing measurement
+worker, preserving measurement provenance and missingness. The scripts load no env
+file and make no network call in dry-run mode (`research/scripts/import-ndvi-estimates.mjs:10`,
+`research/scripts/queue-historical-measurements.mjs:55`, CODE). No live execution is
+authorized by this implementation task (DEC-55).
 
 ### Required fields (logical schema)
 
@@ -451,3 +482,14 @@ rejected. Existing daily metrics supply calendar coverage, identification bounds
 gaps. Outputs retain per-date geometry/index counts, summary metrics, policy deltas,
 input hash and code/output hashes. No measured values or quality settings are changed.
 See the Phase 4 result ledger for the scoped zero-difference outcome.
+
+## Radar NDVI estimation dataset (DEC-54) — 2026-09-25
+
+The engineering contract lives in [`../docs/matani-ml-technical-spec.md`](../docs/matani-ml-technical-spec.md) §4–§5 and §11.
+
+Code:
+- `research/scripts/select-ml-blocks.mjs` selects the blocks.
+- `research/lib/cdse-s1.mjs` and `research/scripts/run-s1-extraction.mjs` do the extraction.
+- `research/scripts/make-ml-handoff.py` builds the reviewer package.
+
+The Sentinel-2 target reuses the M3 Statistical API request and SCL mask unchanged, and the pilot reproduced the frozen Phase 4 dates and values. Estimates enter Matani only through ADR-19. Tests: `tests/s1-extraction.test.mjs`.

@@ -3,7 +3,7 @@
 **Document type:** Architecture document
 **Audience:** The developer, thesis advisor, reviewers, and AI agents working in this repo
 **Status:** Active
-**Updated:** 2026-09-15
+**Updated:** 2026-09-25
 **Canonical for:** As-built and target architecture, **current measurement provenance (canonical wording — § 2)**, trust boundaries, provider decisions, Architecture Decision Records (ADRs), free-tier constraints, security risks, verification baseline, migration triggers
 **Companion documents:** [`evidence-register.md`](evidence-register.md), [`context-dump.md`](context-dump.md), [`data-evaluation-plan.md`](data-evaluation-plan.md), [`research-protocol.md`](research-protocol.md), [`product-requirements.md`](product-requirements.md), [`implementation-plan.md`](implementation-plan.md)
 
@@ -226,6 +226,11 @@ created by the M2 completion RPC with complete provenance can be **measured**; t
 remain **fixture**, M1/live-adapter artifacts remain **prototype**, and failed/absent
 retrieval is **unavailable**. Local implementation does not retroactively promote legacy
 or M1 rows and does not prove hosted rows exist.
+
+DEC-55 adds **estimated** as a separate offline-model state, with its own store and
+privileged import boundary (ADR-19). Its contract lives in
+[data evaluation plan § 5](data-evaluation-plan.md#offline-ndvi-estimates-dec-55);
+it does not change the measured provenance classification above.
 
 ---
 
@@ -696,6 +701,32 @@ Each ADR aligns to a `DEC-*` in [`context-dump.md`](context-dump.md) and carries
 
 ---
 
+### ADR-19 · Estimated NDVI is a separate, read-only-to-clients data state
+- **Status:** Accepted 2026-09-25 (DEC-55). The migration and pgTAP test exist locally; applying them to hosted Supabase needs explicit developer approval.
+- **Context:** DEC-54 adds radar-based NDVI estimates. They are computed offline in Python (the reviewer trains RF/XGBoost) and must be shown in Matani without weakening measurement provenance.
+- **Decision:**
+  - **Storage:** table `public.ndvi_estimates` (`supabase/migrations/20260926000100_ndvi_estimates.sql`) with model, radar-source and evaluation provenance. It is never joined into `measurement_observations`. Owner-scoped RLS, select-only for `authenticated`.
+  - **Writes:** only the service-role security-definer RPC `import_ndvi_estimates`, fed by `research/scripts/import-ndvi-estimates.mjs` (dry-run by default).
+  - **Reads:** no new Express route; the app reads through RLS, exactly like observations.
+  - **Display:** measured values within ±3 days win (`utils/estimate-timeline.ts`).
+  - **2021 observations:** historical measured observations for the showcase field come from the existing worker (`research/scripts/queue-historical-measurements.mjs`).
+- **Trigger for a later ADR:** live or scheduled inference, meaning a worker job that fetches Sentinel-1 and runs the model. That requires a model-serving decision (ONNX in Node versus a Python service) and is out of scope for the thesis deadline.
+
+- **Import implementation amendment (2026-09-25; DEC-55):** The migration derives
+  estimate ownership from `lahan` (`supabase/migrations/20260926000100_ndvi_estimates.sql:55`,
+  CODE). Local pgTAP and hosted deployment remain unverified for this migration.
+- **Execution:** Research scripts are dry-run by default and read environment values
+  only when explicitly invoked with `--live`; callers load environment files.
+  The historical script uses the existing admin/provider/worker constructors and
+  sequential enqueue/process calls. Its supplied `historical:` key still passes through
+  the worker's existing geometry/version cache identity; previously successful jobs
+  are reused (`research/scripts/queue-historical-measurements.mjs:24`,
+  `backend/measurement/worker.js:42`, CODE).
+- **Consequences:** The admin exposes its existing request method without changing
+  authentication or timeout behavior (`backend/measurement/supabase-admin.js:43`, CODE).
+  Estimates cannot close measurement gaps in research availability results; this change
+  makes no model-accuracy, thesis-readiness, or live-execution claim (DEC-55).
+
 ## 5 · Trust boundaries and security risks
 
 ### 5.1 Backend: protected provider boundary
@@ -914,11 +945,9 @@ when it fires):
   Express stays.
 - **CDSE quota (ADR-02 trigger):** the free-tier quota (EVID-010, **perishable — recheck at
   source**) proves insufficient, forcing a paid tier or a different acquisition strategy.
-- **Sentinel-1 (SAR) addition:** a cloud-penetrating complement to optical Sentinel-2
-  (EVID-017) requires a **separate thesis-scope decision** — it is a set-aside post-thesis
-  contingency, not current scope (DEC — see [`context-dump.md`](context-dump.md) § 6). SAR
-  measures backscatter, not the NDVI/NDMI reflectance this project uses, so it is a
-  fallback pathway, not a drop-in substitute.
+- **Sentinel-1 (SAR) addition:** DEC-54/55 authorize the radar-estimate direction
+  and separate import boundary in ADR-19. Live or scheduled inference requires the
+  further architecture decision described there; persistence does not establish model accuracy.
 - **Hosted vs local Supabase:** local (CLI + Docker) is the default for development; moving a
   workload to hosted Supabase Free (shared testing/demo/pilot) is a scoped decision bounded
   by that tier's limits.

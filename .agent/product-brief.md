@@ -3,7 +3,7 @@
 **Document type:** Product brief
 **Audience:** The developer, thesis advisor, reviewers, and AI agents working in this repo
 **Status:** Active
-**Updated:** 2026-09-07
+**Updated:** 2026-09-25
 **Canonical for:** The product thesis, positioning, target user, and phased scope
 **Companion documents:** [`product-requirements.md`](product-requirements.md), [`project-architecture.md`](project-architecture.md), [`research-protocol.md`](research-protocol.md), [`evidence-register.md`](evidence-register.md), [`context-dump.md`](context-dump.md), [`implementation-plan.md`](implementation-plan.md)
 
@@ -56,12 +56,13 @@ The implementation connects saved polygons to explicit jobs and persisted observ
 surfaces (DEC-31/33). Delivery must be described using [`project-architecture.md`](project-architecture.md) § 2; M0 and M2 acceptance
 remain open under the [roadmap](implementation-plan.md) (OBS-32).
 
-Throughout, the app distinguishes four data states (per [`../AGENTS.md`](../AGENTS.md) § Vocabulary), and this distinction is a product feature, not an implementation detail:
+Throughout, the app distinguishes five data states (per [`../AGENTS.md`](../AGENTS.md) § Vocabulary), and this distinction is a product feature, not an implementation detail:
 
 - **fixture** — labeled test data, deterministic.
 - **prototype** — partially wired/non-provenance-safe research or legacy output.
 - **measured** — persisted and provenance-complete through the M2 schema.
 - **unavailable** — an honest, stated absence of data.
+- **estimated** — a radar-model NDVI value, stored and shown separately from measurements with its model and evaluated error (DEC-55; the fifth state added 2026-09-25).
 
 ---
 

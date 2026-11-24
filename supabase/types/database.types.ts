@@ -470,6 +470,93 @@ export type Database = {
           },
         ]
       }
+      ndvi_estimates: {
+        Row: {
+          created_at: string
+          dataset_version: string
+          evaluation_role: string
+          feature_set: string
+          id: string
+          lahan_id: string
+          model_name: string
+          model_test_mae: number | null
+          model_version: string
+          ndvi_estimate: number | null
+          offset_days: number | null
+          orbit_direction: string | null
+          provenance: Json
+          radar_acquired_at: string | null
+          radar_product_ids: string[]
+          reference_ndvi: number | null
+          run_id: string
+          status: string
+          target_date: string
+          unavailable_reason: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          dataset_version: string
+          evaluation_role: string
+          feature_set: string
+          id?: string
+          lahan_id: string
+          model_name: string
+          model_test_mae?: number | null
+          model_version: string
+          ndvi_estimate?: number | null
+          offset_days?: number | null
+          orbit_direction?: string | null
+          provenance?: Json
+          radar_acquired_at?: string | null
+          radar_product_ids?: string[]
+          reference_ndvi?: number | null
+          run_id: string
+          status: string
+          target_date: string
+          unavailable_reason?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          dataset_version?: string
+          evaluation_role?: string
+          feature_set?: string
+          id?: string
+          lahan_id?: string
+          model_name?: string
+          model_test_mae?: number | null
+          model_version?: string
+          ndvi_estimate?: number | null
+          offset_days?: number | null
+          orbit_direction?: string | null
+          provenance?: Json
+          radar_acquired_at?: string | null
+          radar_product_ids?: string[]
+          reference_ndvi?: number | null
+          run_id?: string
+          status?: string
+          target_date?: string
+          unavailable_reason?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ndvi_estimates_lahan_id_fkey"
+            columns: ["lahan_id"]
+            isOneToOne: false
+            referencedRelation: "lahan"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ndvi_estimates_lahan_id_fkey"
+            columns: ["lahan_id"]
+            isOneToOne: false
+            referencedRelation: "lahan_with_info"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       users: {
         Row: {
           created_at: string
@@ -626,6 +713,10 @@ export type Database = {
           p_job_id: string
         }
         Returns: undefined
+      }
+      import_ndvi_estimates: {
+        Args: { p_lahan_id: string; p_rows: Json }
+        Returns: number
       }
     }
     Enums: {

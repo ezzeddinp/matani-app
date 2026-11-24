@@ -5,15 +5,28 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { observationChartX } from "@/utils/observation-chart";
 import { shouldStartMeasurement } from "@/utils/measurement-start";
 import {
+  MIN_BRACKETED_GAP_DAYS,
+  MIN_OPEN_GAP_DAYS,
+  MODEL_LABEL,
+  gapEstimates,
+  heldOutFor,
+  inYear,
+  timelineYears,
+  toEstimatePoints,
+  type EstimatePoint,
+  type EstimateRecord,
+} from "@/utils/estimate-timeline";
+import {
   ActivityIndicator,
   ImageBackground,
   ScrollView,
   StyleSheet,
   Text,
+  Platform,
   Pressable,
   View,
 } from "react-native";
-import Svg, { Circle, G, Line, Text as SvgText } from "react-native-svg";
+import Svg, { Circle, G, Line, Path, Text as SvgText } from "react-native-svg";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { lahanService, supabase, type LahanDetail } from "@/hooks/supabase";
@@ -130,21 +143,37 @@ const formatArea = (value: number | null | undefined) =>
     ? `${value.toFixed(2)} ha`
     : "Luas belum tersedia";
 
+type ChartSelection =
+  | { kind: "measured"; point: TimelinePoint }
+  | { kind: "estimated"; point: EstimatePoint }
+  | null;
+
+const diamondPath = (x: number, y: number, size: number) =>
+  `M ${x} ${y - size} L ${x + size} ${y} L ${x} ${y + size} L ${x - size} ${y} Z`;
+
 function ObservationChart({
   points,
+  estimates,
   indexKey,
+  selection,
+  onSelect,
 }: {
   points: TimelinePoint[];
+  estimates: EstimatePoint[];
   indexKey: IndexKey;
+  selection: ChartSelection;
+  onSelect: (selection: ChartSelection) => void;
 }) {
-  const validPoints = points
-    .map((point) => ({ ...point, value: point[indexKey] }))
-    .filter(
-      (point): point is TimelinePoint & { value: number } =>
-        typeof point.value === "number" && Number.isFinite(point.value)
-    );
+  const [frameWidth, setFrameWidth] = useState(CHART_WIDTH);
+  const measured = points
+    .map((point) => ({ point, value: point[indexKey], timestamp: point.timestamp }))
+    .filter((item): item is { point: TimelinePoint; value: number; timestamp: string } =>
+      typeof item.value === "number" && Number.isFinite(item.value));
+  const estimated = indexKey === "ndvi"
+    ? estimates.map((point) => ({ point, value: point.ndvi, timestamp: point.timestamp }))
+    : [];
 
-  if (validPoints.length === 0) {
+  if (measured.length === 0 && estimated.length === 0) {
     return (
       <View style={styles.chartEmpty}>
         <Ionicons name="analytics-outline" size={28} color="#94A3B8" />
@@ -158,62 +187,195 @@ function ObservationChart({
     );
   }
 
-  const minValue = Math.min(...validPoints.map((point) => point.value));
-  const maxValue = Math.max(...validPoints.map((point) => point.value));
+  const all = [...measured, ...estimated];
+  const times = all.map((item) => Date.parse(item.timestamp));
+  const first = new Date(Math.min(...times)).toISOString();
+  const last = new Date(Math.max(...times)).toISOString();
+  const minValue = Math.min(...all.map((item) => item.value));
+  const maxValue = Math.max(...all.map((item) => item.value));
   const span = Math.max(maxValue - minValue, 0.1);
   const chartInnerWidth = CHART_WIDTH - CHART_PADDING * 2;
   const chartInnerHeight = CHART_HEIGHT - CHART_PADDING * 2;
-  const coordinates = validPoints.map((point) => ({
-    ...point,
-    x: observationChartX(point.timestamp, validPoints[0].timestamp, validPoints[validPoints.length - 1].timestamp, CHART_PADDING, chartInnerWidth),
-    y: CHART_PADDING + ((maxValue - point.value) / span) * chartInnerHeight,
-  }));
+  const place = (timestamp: string, value: number) => ({
+    x: observationChartX(timestamp, first, last, CHART_PADDING, chartInnerWidth),
+    y: CHART_PADDING + ((maxValue - value) / span) * chartInnerHeight,
+  });
+  const measuredCoords = measured.map((item) => ({ ...item, ...place(item.timestamp, item.value) }));
+  const estimatedCoords = estimated.map((item) => ({ ...item, ...place(item.timestamp, item.value) }));
+  const stroke = indexKey === "ndvi" ? "#15803D" : "#0369A1";
+  const selectedId = selection?.point.id ?? null;
+
+  // The SVG scales to the frame width (viewBox, "meet"), so map touches back into chart units.
+  const scale = Math.min(frameWidth / CHART_WIDTH, 1);
+  const offsetX = (frameWidth - CHART_WIDTH * scale) / 2;
+  const selectNearest = (touchX: number, touchY: number) => {
+    const x = (touchX - offsetX) / scale;
+    const y = touchY / scale;
+    const candidates: { distance: number; selection: ChartSelection }[] = [
+      ...measuredCoords.map((item) => ({
+        distance: Math.hypot(item.x - x, item.y - y),
+        selection: { kind: "measured" as const, point: item.point },
+      })),
+      ...estimatedCoords.map((item) => ({
+        distance: Math.hypot(item.x - x, item.y - y),
+        selection: { kind: "estimated" as const, point: item.point },
+      })),
+    ];
+    const nearest = candidates.reduce((best, item) => (item.distance < best.distance ? item : best));
+    onSelect(nearest.distance <= 28 ? nearest.selection : null);
+  };
 
   return (
     <View style={styles.chartFrame}>
-      <Svg
-        width="100%"
-        height={CHART_HEIGHT}
-        viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
-        accessibilityLabel={`Grafik deret waktu ${indexKey.toUpperCase()}`}
+      <Pressable
+        onLayout={(event) => setFrameWidth(event.nativeEvent.layout.width)}
+        onPress={(event) => {
+          if (Platform.OS !== "web") return selectNearest(event.nativeEvent.locationX, event.nativeEvent.locationY);
+          // react-native-web passes the DOM click, which has no chart-relative locationX/Y
+          const { clientX, clientY } = event.nativeEvent as unknown as MouseEvent;
+          const box = (event.currentTarget as unknown as HTMLElement).getBoundingClientRect();
+          selectNearest(clientX - box.left, clientY - box.top);
+        }}
+        accessibilityRole="button"
+        accessibilityLabel={`Grafik deret waktu ${indexKey.toUpperCase()}: ${measured.length} titik terukur${
+          estimated.length ? `, ${estimated.length} estimasi radar` : ""
+        }`}
+        accessibilityHint="Ketuk dekat sebuah titik untuk melihat sumber nilainya di bawah grafik."
       >
-        {[0, 0.5, 1].map((ratio) => {
-          const y = CHART_PADDING + ratio * chartInnerHeight;
-          const value = maxValue - ratio * span;
-          return (
-            <G key={ratio}>
-              <Line
-                x1={CHART_PADDING}
-                y1={y}
-                x2={CHART_WIDTH - CHART_PADDING}
-                y2={y}
-                stroke="#E2E8F0"
-                strokeWidth={1}
-              />
-              <SvgText x={2} y={y + 4} fontSize={9} fill="#64748B">
-                {value.toFixed(2)}
-              </SvgText>
-            </G>
-          );
-        })}
-        {coordinates.map((point) => (
-          <Circle
-            key={point.id}
-            cx={point.x}
-            cy={point.y}
-            r={5}
-            fill={point.state === "unavailable" ? "#F59E0B" : "#FFFFFF"}
-            stroke={indexKey === "ndvi" ? "#15803D" : "#0369A1"}
-            strokeWidth={3}
-          />
-        ))}
-      </Svg>
+        <Svg width="100%" height={CHART_HEIGHT} viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}>
+          {[0, 0.5, 1].map((ratio) => {
+            const y = CHART_PADDING + ratio * chartInnerHeight;
+            const value = maxValue - ratio * span;
+            return (
+              <G key={ratio}>
+                <Line x1={CHART_PADDING} y1={y} x2={CHART_WIDTH - CHART_PADDING} y2={y} stroke="#E2E8F0" strokeWidth={1} />
+                <SvgText x={2} y={y + 4} fontSize={9} fill="#64748B">
+                  {value.toFixed(2)}
+                </SvgText>
+              </G>
+            );
+          })}
+          {estimatedCoords.map((item) => (
+            <Path
+              key={`e-${item.point.id}`}
+              d={diamondPath(item.x, item.y, item.point.id === selectedId ? 7 : 5.5)}
+              fill="#FFFFFF"
+              stroke={stroke}
+              strokeWidth={item.point.id === selectedId ? 2.5 : 1.75}
+              strokeDasharray="2.5 2"
+            />
+          ))}
+          {measuredCoords.map((item) => (
+            <Circle
+              key={`m-${item.point.id}`}
+              cx={item.x}
+              cy={item.y}
+              r={item.point.id === selectedId ? 6.5 : 5}
+              fill={item.point.id === selectedId ? stroke : "#FFFFFF"}
+              stroke={stroke}
+              strokeWidth={3}
+            />
+          ))}
+        </Svg>
+      </Pressable>
       <View style={styles.chartAxisRow}>
-        <Text style={styles.chartAxisText}>{formatDate(validPoints[0].timestamp)}</Text>
-        <Text style={styles.chartAxisText}>
-          {formatDate(validPoints[validPoints.length - 1].timestamp)}
-        </Text>
+        <Text style={styles.chartAxisText}>{formatDate(first)}</Text>
+        <Text style={styles.chartAxisText}>{formatDate(last)}</Text>
       </View>
+      <View style={styles.chartLegend}>
+        <View style={styles.legendItem}>
+          <Svg width={14} height={14} viewBox="0 0 14 14">
+            <Circle cx={7} cy={7} r={4.5} fill="#FFFFFF" stroke={stroke} strokeWidth={2.5} />
+          </Svg>
+          <Text style={styles.legendText}>Terukur · Sentinel-2</Text>
+        </View>
+        {indexKey === "ndvi" && estimated.length > 0 && (
+          <View style={styles.legendItem}>
+            <Svg width={14} height={14} viewBox="0 0 14 14">
+              <Path d={diamondPath(7, 7, 5.5)} fill="#FFFFFF" stroke={stroke} strokeWidth={1.75} strokeDasharray="2.5 2" />
+            </Svg>
+            <Text style={styles.legendText}>Estimasi radar · Sentinel-1</Text>
+          </View>
+        )}
+      </View>
+    </View>
+  );
+}
+
+function SelectionDetail({
+  selection,
+  indexKey,
+  estimates,
+}: {
+  selection: ChartSelection;
+  indexKey: IndexKey;
+  estimates: EstimatePoint[];
+}) {
+  if (!selection) {
+    return (
+      <Text style={styles.selectionHint}>
+        Ketuk titik pada grafik untuk melihat tanggal dan sumber nilainya.
+      </Text>
+    );
+  }
+
+  if (selection.kind === "measured") {
+    const point = selection.point;
+    const blind = indexKey === "ndvi" ? heldOutFor(estimates, point.timestamp) : null;
+    const value = point[indexKey];
+    return (
+      <View style={styles.selectionPanel} accessibilityLiveRegion="polite">
+        <View style={styles.selectionHeader}>
+          <Text style={styles.selectionKind}>Terukur</Text>
+          <Text style={styles.selectionDate}>{formatDate(point.timestamp)}</Text>
+        </View>
+        <Text style={styles.selectionValue}>
+          {indexKey.toUpperCase()} {formatValue(value)}
+        </Text>
+        <Text style={styles.selectionMeta}>
+          Citra Sentinel-2 · {(indexKey === "ndvi" ? point.ndviValidPixelCount : point.ndmiValidPixelCount) ?? "--"} pixel lahan lolos kualitas
+        </Text>
+        {blind && value !== null && (
+          <View style={styles.selectionCompare}>
+            <Text style={styles.selectionCompareText}>
+              Uji model: estimasi radar tanpa melihat nilai ini adalah {blind.ndvi.toFixed(3)} (selisih{" "}
+              {blind.ndvi - value >= 0 ? "+" : "−"}
+              {Math.abs(blind.ndvi - value).toFixed(3)}).
+            </Text>
+          </View>
+        )}
+      </View>
+    );
+  }
+
+  const point = selection.point;
+  return (
+    <View style={[styles.selectionPanel, styles.selectionPanelEstimate]} accessibilityLiveRegion="polite">
+      <View style={styles.selectionHeader}>
+        <Text style={[styles.selectionKind, styles.selectionKindEstimate]}>Estimasi radar</Text>
+        <Text style={styles.selectionDate}>{formatDate(point.timestamp)}</Text>
+      </View>
+      <Text style={styles.selectionValue}>NDVI ≈ {point.ndvi.toFixed(2)}</Text>
+      {point.modelTestMae !== null && (
+        <Text style={styles.selectionMeta}>
+          Rata-rata galat model saat diuji di wilayah lain: ±{point.modelTestMae.toFixed(2)} NDVI
+        </Text>
+      )}
+      <Text style={styles.selectionMeta}>
+        Dari radar Sentinel-1{point.radarAcquiredAt ? `, ${formatDate(point.radarAcquiredAt)}` : ""}
+        {point.orbitDirection ? ` · orbit ${point.orbitDirection === "ASCENDING" ? "naik" : "turun"}` : ""}
+      </Text>
+      <Text style={styles.selectionMeta}>
+        Model {MODEL_LABEL[point.modelName] ?? point.modelName}
+        {point.modelVersion ? ` · versi ${point.modelVersion}` : ""}
+      </Text>
+      <Text style={styles.selectionNote}>
+        Bukan pengukuran optik. Estimasi radar hanya ditampilkan bila jarak antara dua citra Sentinel-2 yang lolos
+        kualitas mencapai {MIN_BRACKETED_GAP_DAYS} hari atau lebih. Sebelum citra pertama dan setelah citra terakhir,
+        estimasi ditampilkan bila citra terdekat berjarak {MIN_OPEN_GAP_DAYS} hari atau lebih. Batas ini sementara,
+        diambil dari uji perbandingan dengan nilai terukur terdekat; celah sebelum citra pertama belum diuji tersendiri.
+        Tidak ada nilai NDMI untuk estimasi.
+      </Text>
     </View>
   );
 }
@@ -224,6 +386,9 @@ export default function DetailLahanPage() {
   const fieldId = Array.isArray(id) ? id[0] : id;
   const [detail, setDetail] = useState<LahanDetail | null>(null);
   const [observations, setObservations] = useState<TimelinePoint[]>([]);
+  const [estimates, setEstimates] = useState<EstimatePoint[]>([]);
+  const [selectedYear, setSelectedYear] = useState<number | null>(null);
+  const [selection, setSelection] = useState<ChartSelection>(null);
   const [activeIndex, setActiveIndex] = useState<IndexKey>("ndvi");
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -256,7 +421,7 @@ export default function DetailLahanPage() {
           setDetail(null);
           setObservations([]);
         }
-        const [field, observationResult, jobResult] = await Promise.all([
+        const [field, observationResult, jobResult, estimateResult] = await Promise.all([
           lahanService.getLahanDetail(fieldId),
           supabase
             .from("measurement_observations")
@@ -271,6 +436,11 @@ export default function DetailLahanPage() {
             .order("created_at", { ascending: false })
             .limit(1)
             .maybeSingle(),
+          supabase
+            .from("ndvi_estimates")
+            .select("id,target_date,ndvi_estimate,status,radar_acquired_at,orbit_direction,offset_days,model_name,model_version,feature_set,evaluation_role,reference_ndvi,model_test_mae")
+            .eq("lahan_id", fieldId)
+            .order("target_date", { ascending: true }),
         ]);
 
         if (!active) return;
@@ -324,6 +494,13 @@ export default function DetailLahanPage() {
           .filter((point): point is TimelinePoint => point !== null);
 
         setObservations(timeline);
+        if (estimateResult.error) {
+          // Estimates are optional context; a missing table or failed read never blocks measurements.
+          console.warn("Estimasi radar tidak dimuat:", estimateResult.error.message);
+          setEstimates([]);
+        } else {
+          setEstimates(toEstimatePoints((estimateResult.data ?? []) as EstimateRecord[]));
+        }
         setIsLoading(false);
         if (
           !jobResult.error &&
@@ -389,6 +566,14 @@ export default function DetailLahanPage() {
         .filter((value): value is number => value !== null),
     [activeIndex, observations]
   );
+  const gapFill = useMemo(() => gapEstimates(estimates, observations), [estimates, observations]);
+  const years = useMemo(
+    () => timelineYears([...observations.filter((point) => point.ndvi !== null || point.ndmi !== null), ...gapFill]),
+    [observations, gapFill]
+  );
+  const chartYear = selectedYear !== null && years.includes(selectedYear) ? selectedYear : years.at(-1) ?? null;
+  const chartObservations = useMemo(() => inYear(observations, chartYear), [observations, chartYear]);
+  const chartEstimates = useMemo(() => inYear(gapFill, chartYear), [gapFill, chartYear]);
   const unavailableCount = observations.filter(
     (point) => point.state === "unavailable"
   ).length;
@@ -496,7 +681,10 @@ export default function DetailLahanPage() {
                     activeIndex === key && styles.segmentButtonActive,
                     pressed && { opacity: 0.2 },
                   ]}
-                onPress={() => setActiveIndex(key)}
+                onPress={() => {
+                  setActiveIndex(key);
+                  setSelection(null);
+                }}
                 accessibilityRole="tab"
                 accessibilityState={{ selected: activeIndex === key }}
               >
@@ -512,7 +700,48 @@ export default function DetailLahanPage() {
             ))}
           </View>
 
-          <ObservationChart points={observations} indexKey={activeIndex} />
+          {years.length > 1 && (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.yearChips}
+              accessibilityRole="tablist"
+            >
+              {years.map((year) => (
+                <Pressable
+                  key={year}
+                  style={({ pressed }) => [
+                    styles.yearChip,
+                    chartYear === year && styles.yearChipActive,
+                    pressed && { opacity: 0.6 },
+                  ]}
+                  onPress={() => {
+                    setSelectedYear(year);
+                    setSelection(null);
+                  }}
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected: chartYear === year }}
+                  accessibilityLabel={`Tampilkan tahun ${year}`}
+                >
+                  <Text style={[styles.yearChipText, chartYear === year && styles.yearChipTextActive]}>{year}</Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          )}
+
+          <ObservationChart
+            points={chartObservations}
+            estimates={chartEstimates}
+            indexKey={activeIndex}
+            selection={selection}
+            onSelect={setSelection}
+          />
+          {activeIndex === "ndmi" && chartEstimates.length > 0 && (
+            <Text style={styles.selectionHint}>
+              Estimasi radar hanya tersedia untuk NDVI. Pilih NDVI untuk melihatnya.
+            </Text>
+          )}
+          <SelectionDetail selection={selection} indexKey={activeIndex} estimates={estimates} />
 
           <View style={styles.metricRow}>
             <View style={styles.metricBlock}>
@@ -663,6 +892,9 @@ export default function DetailLahanPage() {
             {unavailableCount > 0
               ? `${unavailableCount} citra ditolak/tidak tersedia dan tidak ditampilkan sebagai nilai.`
               : "Nilai pada halaman ini berasal dari measurement CDSE yang tersimpan dengan provenance sumber."}
+            {gapFill.length > 0
+              ? ` ${gapFill.length} estimasi radar ditampilkan sebagai belah ketupat pada grafik NDVI, hanya pada celah optik panjang (${MIN_BRACKETED_GAP_DAYS} hari atau lebih di antara dua citra, atau ${MIN_OPEN_GAP_DAYS} hari atau lebih di awal atau akhir rangkaian), dan tidak dihitung sebagai observasi.`
+              : ""}
           </Text>
         </View>
       </ScrollView>
@@ -707,6 +939,26 @@ const styles = StyleSheet.create({
   chartFrame: { marginTop: 14, backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: "#E2E8F0", paddingTop: 8, borderRadius: 14, overflow: "hidden" },
   chartAxisRow: { flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 12, paddingBottom: 10 },
   chartAxisText: { color: "#64748B", fontSize: 10 },
+  chartLegend: { flexDirection: "row", flexWrap: "wrap", gap: 16, paddingHorizontal: 12, paddingBottom: 12, borderTopWidth: 1, borderTopColor: "#F1F5F9", paddingTop: 10 },
+  legendItem: { flexDirection: "row", alignItems: "center", gap: 6 },
+  legendText: { color: "#334155", fontSize: 12, fontWeight: "600" },
+  yearChips: { gap: 8, paddingTop: 14 },
+  yearChip: { minHeight: 36, minWidth: 64, paddingHorizontal: 14, alignItems: "center", justifyContent: "center", borderRadius: 999, borderWidth: 1, borderColor: "#CBD5E1", backgroundColor: "#FFFFFF" },
+  yearChipActive: { backgroundColor: "#166534", borderColor: "#166534" },
+  yearChipText: { color: "#334155", fontSize: 13, fontWeight: "700", fontVariant: ["tabular-nums"] },
+  yearChipTextActive: { color: "#FFFFFF" },
+  selectionHint: { color: "#475569", fontSize: 12, lineHeight: 18, marginTop: 10 },
+  selectionPanel: { marginTop: 12, padding: 14, gap: 4, backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: "#E2E8F0", borderRadius: 14 },
+  selectionPanelEstimate: { borderStyle: "dashed", borderColor: "#15803D" },
+  selectionHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 4 },
+  selectionKind: { color: "#166534", backgroundColor: "#F0FDF4", fontSize: 11, fontWeight: "800", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, overflow: "hidden" },
+  selectionKindEstimate: { color: "#14532D", backgroundColor: "#FFFFFF", borderWidth: 1, borderStyle: "dashed", borderColor: "#15803D" },
+  selectionDate: { color: "#334155", fontSize: 13, fontWeight: "600" },
+  selectionValue: { color: "#0F172A", fontSize: 22, fontWeight: "800", fontVariant: ["tabular-nums"] },
+  selectionMeta: { color: "#475569", fontSize: 12, lineHeight: 18 },
+  selectionCompare: { marginTop: 6, paddingTop: 8, borderTopWidth: 1, borderTopColor: "#F1F5F9" },
+  selectionCompareText: { color: "#334155", fontSize: 12, lineHeight: 18 },
+  selectionNote: { color: "#475569", fontSize: 12, lineHeight: 18, marginTop: 6 },
   chartEmpty: { height: 210, alignItems: "center", justifyContent: "center", paddingHorizontal: 28, backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: "#E2E8F0", marginTop: 14 },
   chartEmptyTitle: { color: "#334155", fontSize: 14, fontWeight: "700", marginTop: 8 },
   chartEmptyText: { color: "#64748B", fontSize: 12, textAlign: "center", lineHeight: 18, marginTop: 4 },

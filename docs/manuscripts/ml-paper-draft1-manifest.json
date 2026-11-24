@@ -1,0 +1,43 @@
+{
+ "draft": "ML paper draft 1 (backup before the reviewer's prediction run)",
+ "frozen": "2026-09-26",
+ "observation": "OBS-78",
+ "predictions": {
+  "path": "research/private/ml-dataset/sanity-run/predictions.csv",
+  "sha256": "f0c6524b9615d1b6d690ece29d3b58511474dfc42f7fec3dbc4bf6c0ee0f0bfe",
+  "origin": "reference harness (example_train.py), not the reviewer's run"
+ },
+ "evaluation": {
+  "path": "research/private/ml-dataset/evaluation-v1",
+  "files_sha256": {
+   "baseline_predictions.csv": "be1d385c1173f33d2965e2e5eb770dc0b3a32db23a60eb6708155f31112d74d0",
+   "gap_availability.csv": "c7c2461052d9ede192a00e82a04f759efe4ca39edb9e21cae804e82dcc9cc5eb",
+   "gap_events.csv": "bfc131f6a10fa1dc0247b211ed5875d5c3205b6f8b371d74329ee70aa9af93fe",
+   "gap_summary.csv": "30b306c51180017e3089f3ef64265f341f2098eab0d08586faf415c28203ff7f",
+   "metrics.csv": "890309c80a6c6e3f1b13f939c84dfb1cf4728a9845b27ad45b8ead42883aad12",
+   "summary.json": "a99795ee1125002883c378971fa76d7ca0d425cd8afcd65788e2973d1f713a36"
+  }
+ },
+ "counts": {
+  "pages": 5,
+  "words_excluding_title_tables_captions_references": 2739,
+  "tables": 3,
+  "figures": 3,
+  "references": 21,
+  "verified_numbers": 65
+ },
+ "files_sha256": {
+  "docs/manuscripts/ml-paper-draft1-2026-09-26.md": "2571a6a403383c1ec2d52c5391aa9884cb2cd963f6dc787d4cfa50b7a2bf27af",
+  "docs/manuscripts/ml-paper-draft1-2026-09-26.docx": "6e58baf8e3e89b959f8d037a95fbf1e94bac6f7545c64763941bf09f798786d4",
+  "output/pdf/matani-ml-paper-draft1-2026-09-26.pdf": "e122a615a618c45a4b102bd42abc6d667d42881c06f3b049ab421c78c28cb040",
+  "docs/manuscripts/ml-fig-area.png": "b94fd25c98f3c2852f8aca70c33ba7ac4238c420362cb1c8ef705cf98feac31c",
+  "docs/manuscripts/ml-fig-gap.png": "4a5ef2f61426509b0928e694094c6d03183069da30c8c5fbd7631f60957d834e",
+  "docs/manuscripts/ml-fig-krangkeng.png": "e63ffb09a78bf225e423cf199df28c51ad58d684dc2a511ad6488f8c5f7afefb",
+  "docs/manuscripts/ml-paper-numbers.json": "96bf6eec2d7a4d3901feb508a614d48297b10ced4aab623e045b5465d4343131",
+  "docs/manuscripts/build-ml-paper.py": "84f3ffb530094080930df7a110e2a985dbb78f5a050c7708d85abea39de6553c",
+  "research/scripts/make-ml-paper-figures.py": "e4f9f72c5aca448d130aa21803c29dd471b88ceaac3f89e3f3e79a8a3bb3fcf3",
+  "research/scripts/evaluate_ml.py": "da577d8f8fe46ea0a2ab235eb26346fe027e30ee9ae02eb03824a376829e0ada",
+  "research/scripts/rebuild-ml-paper.sh": "698da20bf52914e9c3011239ef286b78cb1cd897bad957028de54d54f085a51c"
+ },
+ "revised": "2026-09-26: repetition and machine-sounding wording removed (see paper-best-practice.md R11)"
+}

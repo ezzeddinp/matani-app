@@ -1,0 +1,54 @@
+{
+ "draft": "ML paper draft 2 (ml-dataset-v2, after external and GPT-6 Astra reviews)",
+ "frozen": "2026-09-28",
+ "observations": [
+  "OBS-79",
+  "OBS-80",
+  "OBS-81"
+ ],
+ "decision": "DEC-56",
+ "predictions": {
+  "path": "research/private/ml-dataset/reference-run-v2/predictions.csv",
+  "sha256": "34ca431dcd98b16dbf671282e0e53765eb9c6b24c42ad61c42bf285c4c2046b5",
+  "origin": "reference harness on ml-dataset-v2, not the model trainer's run"
+ },
+ "handoff": {
+  "path": "research/private/ml-dataset/ml-dataset-v2.zip",
+  "sha256": "8870dfa293ac8e1d9c578d10008797cc5ee402dad99ceb4b8635a00d3c3d316e"
+ },
+ "evaluation": {
+  "path": "research/private/ml-dataset/evaluation-v2",
+  "files_sha256": {
+   "baseline_predictions.csv": "be1d385c1173f33d2965e2e5eb770dc0b3a32db23a60eb6708155f31112d74d0",
+   "gap_availability.csv": "c7c2461052d9ede192a00e82a04f759efe4ca39edb9e21cae804e82dcc9cc5eb",
+   "gap_events.csv": "a4ba80afe08f420fa3bbb760acff17e3258906ea516cb27a55b5f7dec4e46c0a",
+   "gap_summary.csv": "ad6aa02eb9e649061bb1614c5c8a9b3fb6091c8b258850818f83c931252c87bd",
+   "metrics.csv": "7ecb0b295b25013921a536f2a7aa73254d336b722388f470129dc205a0cc4293",
+   "summary.json": "bb4dfc65b003ab12ed0cd712b8f5dea88eb30ff241e368e22a3e2489b30e75aa"
+  }
+ },
+ "counts": {
+  "pages": 6,
+  "words_excluding_title_tables_captions_references": 3125,
+  "tables": 3,
+  "figures": 3,
+  "references": 23,
+  "verified_numbers": 70
+ },
+ "files_sha256": {
+  "docs/manuscripts/ml-paper-draft2-2026-09-28.md": "125049fa2c7e6c3b8a54621a85a74cad4aa1a350211abfb311d4133c2148895b",
+  "docs/manuscripts/ml-paper-draft2-2026-09-28.docx": "1b37c23030b91e9c03185aaec822127fcc40ca9b014f2b0ccd9f9cb6a88d329f",
+  "output/pdf/matani-ml-paper-draft2-2026-09-28.pdf": "5eb2dd53af75189650cd0c5aead8e233301804ff6eb498be0ca1f1e692ee9a0f",
+  "docs/manuscripts/ml-fig-area.png": "b94fd25c98f3c2852f8aca70c33ba7ac4238c420362cb1c8ef705cf98feac31c",
+  "docs/manuscripts/ml-fig-gap.png": "131c9dacf31c99fd220473fcdf29f5ced41802e4c67c440e5bde00ce5b6113a8",
+  "docs/manuscripts/ml-fig-krangkeng.png": "aa8d273e4e25d343786e09aca5b8e7cc1cadd9817dd21459f33697496f631af3",
+  "docs/manuscripts/ml-paper-numbers.json": "99f01a65c33c771054f31f239d245abc192c93d8b99931b91c71544e79af6995",
+  "docs/manuscripts/build-ml-paper.py": "44a27dac8799e3a098f016add7af8bd3a4b30b99744e2e56765f211372c0a19d",
+  "research/scripts/make-ml-paper-figures.py": "116bb92badc5f9f360f7740828580133cc46e702fab679c7e7f9358879849268",
+  "research/scripts/evaluate_ml.py": "da577d8f8fe46ea0a2ab235eb26346fe027e30ee9ae02eb03824a376829e0ada",
+  "research/scripts/rebuild-ml-paper.sh": "0451b2afc22f4413dda05f4fbfbe5a8b4436c19d0ceb27b41249d82595f0a7a7",
+  "research/lib/cdse-s1.mjs": "569448b1f562616a2d7bab0c49c7e020f05ad655e8c8e468497171acb58fdbf5",
+  "research/scripts/refeature-extraction.mjs": "4b857756f1551c9ad1f8f6fc6e129ca8a1bbe4edd434dce929c1efae5561d58a",
+  "research/ml-handoff/example_train.py": "21f21bee1c8c222fc23f6dcaf75f1b7651905ed9e2a5aeecef256e153877e500"
+ }
+}

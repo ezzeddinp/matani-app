@@ -3,7 +3,7 @@
 **Document type:** Product requirements document
 **Audience:** The developer, thesis advisor, reviewers, and AI agents working in this repo
 **Status:** Active
-**Updated:** 2026-09-15
+**Updated:** 2026-09-25
 **Canonical for:** Feature behavior, scope tags, and product invariants
 **Companion documents:** [`product-brief.md`](product-brief.md), [`project-architecture.md`](project-architecture.md), [`design-guidelines.md`](design-guidelines.md), [`research-protocol.md`](research-protocol.md), [`data-evaluation-plan.md`](data-evaluation-plan.md), [`implementation-plan.md`](implementation-plan.md)
 
@@ -43,6 +43,7 @@ The invariants below are **product-wide constraints** that no feature may violat
 - **INV-07 — Core thesis functionality works without Gemini.** The measurement pipeline, feasibility study, and all research-relevant surfaces function with the AI summary entirely absent; Gemini is optional UX only (ADR-05 / DEC-08).
 - **INV-08 — Cadence claims require the feasibility study.** No monitoring-cadence promise (weekly/biweekly/monthly/etc.) is made anywhere in the product until the Indonesia feasibility study supports it, per site and season. Nominal 5-day revisit (EVID-006) is an acquisition cadence, not a usable one ([`research-protocol.md`](research-protocol.md) § 4; DEC-12).
 - **INV-09 — Observation only, never diagnosis.** NDVI/NDMI values may be shown by acquisition date and summarized descriptively, but the product may not convert them into crop-health, pest, disease, stress, harvest, yield, or improvement/decline labels. HYP-04 is retired from the active UI and research claim surface (DEC-24).
+- **INV-10 — Estimates remain distinct.** `estimated` NDVI must never be presented or stored as a measured observation (DEC-55). The separate import/read boundary is specified in [architecture ADR-19](project-architecture.md#adr-19--estimated-ndvi-is-a-separate-read-only-to-clients-data-state); the handoff filtering contract lives in [data evaluation plan § 5](data-evaluation-plan.md#offline-ndvi-estimates-dec-55).
 
 ### Invariants and deployment qualification
 
@@ -355,3 +356,15 @@ PRD-11 verification update (OBS-71; CODE: `app/detail-lahan-page.tsx`,
 unconnected dots. Null values remain absent; numeric zero remains visible. The plotted
 range spans the first/last numeric observation rather than the full requested period.
 Automated JSX/helper evidence is not rendered-device verification.
+
+## Estimated NDVI (DEC-55, ADR-19) — 2026-09-25
+
+**PRD-12. Radar estimates on the field detail chart.**
+- **What shows:** only `ndvi_estimates` rows with `evaluation_role = applied` and `status = estimated`, and only on the NDVI chart. They are hidden when a measured NDVI exists within ±3 days, because measured values win.
+- **What stays measured-only:**
+  - estimates never enter latest/min/max metrics, chronology cards, home/Ladang cards or AI input;
+  - there is never an NDMI value for an estimate;
+  - held-out (`held_out_test`) rows appear only as a comparison inside the selected measured point's detail.
+- **Year selector:** year chips appear when the plotted data spans more than one year, defaulting to the latest year.
+- **Failure handling:** a failed or missing estimates read must not block observations.
+- **Tests:** `utils/estimate-timeline.ts`, `tests/estimate-timeline.test.mjs`. Rendered-device verification is pending.

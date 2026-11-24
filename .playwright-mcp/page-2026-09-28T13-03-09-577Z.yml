@@ -1,0 +1,7 @@
+- generic [ref=f2e5]:
+  - generic:
+    - generic:
+      - generic:
+        - link "splash, back" [ref=f2e7] [cursor=pointer]:
+          - /url: /splash
+        - heading "index" [level=1] [ref=f2e10]

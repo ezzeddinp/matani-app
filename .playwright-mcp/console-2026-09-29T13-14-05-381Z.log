@@ -1,0 +1,50 @@
+[    4493ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:8081/node_modules/expo-router/entry.bundle?platform=web&dev=true&hot=false&lazy=true&transform.routerRoot=app&transform.reactCompiler=true:51099
+[    4529ms] [LOG] Running application "main" with appParams:
+ {rootTag: #root, hydrate: undefined} 
+Development-level warnings: ON.
+Performance optimizations: OFF. @ http://localhost:8081/node_modules/expo-router/entry.bundle?platform=web&dev=true&hot=false&lazy=true&transform.routerRoot=app&transform.reactCompiler=true:51099
+[    4582ms] [WARNING] "shadow*" style props are deprecated. Use "boxShadow". @ http://localhost:8081/node_modules/expo-router/entry.bundle?platform=web&dev=true&hot=false&lazy=true&transform.routerRoot=app&transform.reactCompiler=true:51099
+[    4625ms] [LOG] 🌍 BASE_URL => matani-app-b26l.vercel.app @ http://localhost:8081/node_modules/expo-router/entry.bundle?platform=web&dev=true&hot=false&lazy=true&transform.routerRoot=app&transform.reactCompiler=true:51099
+[    4625ms] [LOG] 🌐 API candidates => [matani-app-b26l.vercel.app] @ http://localhost:8081/node_modules/expo-router/entry.bundle?platform=web&dev=true&hot=false&lazy=true&transform.routerRoot=app&transform.reactCompiler=true:51099
+[    4915ms] [WARNING] Animated: `useNativeDriver` is not supported because the native animated module is missing. Falling back to JS-based animation. To resolve this, add `RCTAnimation` module to this app, or remove `useNativeDriver`. Make sure to run `bundle exec pod install` first. Read more about autolinking: https://github.com/react-native-community/cli/blob/master/docs/autolinking.md @ http://localhost:8081/node_modules/expo-router/entry.bundle?platform=web&dev=true&hot=false&lazy=true&transform.routerRoot=app&transform.reactCompiler=true:51099
+[    9035ms] [LOG] Requesting location permission... @ http://localhost:8081/node_modules/expo-router/entry.bundle?platform=web&dev=true&hot=false&lazy=true&transform.routerRoot=app&transform.reactCompiler=true:51099
+[    9119ms] [LOG] Location permission denied @ http://localhost:8081/node_modules/expo-router/entry.bundle?platform=web&dev=true&hot=false&lazy=true&transform.routerRoot=app&transform.reactCompiler=true:51099
+[    9186ms] [WARNING] Image: style.resizeMode is deprecated. Please use props.resizeMode. @ http://localhost:8081/node_modules/expo-router/entry.bundle?platform=web&dev=true&hot=false&lazy=true&transform.routerRoot=app&transform.reactCompiler=true:51099
+[   11191ms] [LOG] Fetching weather for lahan: Krangkeng 2021 (riset) at -6.500209396, 108.505616707 @ http://localhost:8081/node_modules/expo-router/entry.bundle?platform=web&dev=true&hot=false&lazy=true&transform.routerRoot=app&transform.reactCompiler=true:51099
+[   11191ms] [WARNING] The Geocoding API has been removed in SDK 49, use Place Autocomplete service instead(https://developers.google.com/maps/documentation/places/web-service/autocomplete) @ http://localhost:8081/node_modules/expo-router/entry.bundle?platform=web&dev=true&hot=false&lazy=true&transform.routerRoot=app&transform.reactCompiler=true:51099
+[   11193ms] [LOG] 🌦 Fetching weather for -6.500209396, 108.505616707 @ http://localhost:8081/node_modules/expo-router/entry.bundle?platform=web&dev=true&hot=false&lazy=true&transform.routerRoot=app&transform.reactCompiler=true:51099
+[   12397ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:8081/matani-app-b26l.vercel.app/weather?lat=-6.500209396&lon=108.505616707:0
+[   12403ms] [WARNING] ⚠️ Weather request network error for matani-app-b26l.vercel.app/weather?lat=-6.500209396&lon=108.505616707: Backend mengembalikan respons yang tidak valid. @ http://localhost:8081/node_modules/expo-router/entry.bundle?platform=web&dev=true&hot=false&lazy=true&transform.routerRoot=app&transform.reactCompiler=true:51099
+[   12719ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:8081/matani-app-b26l.vercel.app/api/weather?lat=-6.500209396&lon=108.505616707:0
+[   12719ms] [WARNING] ⚠️ Weather request network error for matani-app-b26l.vercel.app/api/weather?lat=-6.500209396&lon=108.505616707: Backend mengembalikan respons yang tidak valid. @ http://localhost:8081/node_modules/expo-router/entry.bundle?platform=web&dev=true&hot=false&lazy=true&transform.routerRoot=app&transform.reactCompiler=true:51099
+[   12725ms] [ERROR] ❌ Weather fetch error: Error: Backend mengembalikan respons yang tidak valid.
+    at fetchWeatherData (http://localhost:8081/node_modules/expo-router/entry.bundle?platform=web&dev=true&hot=false&lazy=true&transform.routerRoot=app&transform.reactCompiler=true:124854:17)
+    at async updateWeatherForLahan (http://localhost:8081/node_modules/expo-router/entry.bundle?platform=web&dev=true&hot=false&lazy=true&transform.routerRoot=app&transform.reactCompiler=true:125337:29) @ http://localhost:8081/node_modules/expo-router/entry.bundle?platform=web&dev=true&hot=false&lazy=true&transform.routerRoot=app&transform.reactCompiler=true:51099
+[   45666ms] [WARNING] Disconnected from Metro (1006)
+To reconnect:
+- Ensure that Metro is running and available on the same network
+- Reload this app (will trigger further help if Metro cannot be connected to) @ http://localhost:8081/node_modules/expo-router/entry.bundle?platform=web&dev=true&hot=false&lazy=true&transform.routerRoot=app&transform.reactCompiler=true:51099
+[ 5144735ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:54321/auth/v1/token?grant_type=refresh_token:0
+[ 5144952ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:54321/auth/v1/token?grant_type=refresh_token:0
+[ 5405978ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:54321/auth/v1/token?grant_type=refresh_token:0
+[ 5540426ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:54321/auth/v1/token?grant_type=refresh_token:0
+[ 5540630ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:54321/auth/v1/token?grant_type=refresh_token:0
+[ 5541038ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:54321/auth/v1/token?grant_type=refresh_token:0
+[ 5541843ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:54321/auth/v1/token?grant_type=refresh_token:0
+[ 5543450ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:54321/auth/v1/token?grant_type=refresh_token:0
+[ 5546658ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:54321/auth/v1/token?grant_type=refresh_token:0
+[ 5553069ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:54321/auth/v1/token?grant_type=refresh_token:0
+[ 5565886ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:54321/auth/v1/token?grant_type=refresh_token:0
+[ 5630398ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:54321/auth/v1/token?grant_type=refresh_token:0
+[ 5630605ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:54321/auth/v1/token?grant_type=refresh_token:0
+[ 5631012ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:54321/auth/v1/token?grant_type=refresh_token:0
+[ 5631816ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:54321/auth/v1/token?grant_type=refresh_token:0
+[ 5633419ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:54321/auth/v1/token?grant_type=refresh_token:0
+[ 5636630ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:54321/auth/v1/token?grant_type=refresh_token:0
+[ 5643041ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:54321/auth/v1/token?grant_type=refresh_token:0
+[ 5655864ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:54321/auth/v1/token?grant_type=refresh_token:0
+[ 5720380ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:54321/auth/v1/token?grant_type=refresh_token:0
+[ 5720586ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:54321/auth/v1/token?grant_type=refresh_token:0
+[ 5720993ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:54321/auth/v1/token?grant_type=refresh_token:0
+[ 5721799ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:54321/auth/v1/token?grant_type=refresh_token:0
+[ 5723404ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:54321/auth/v1/token?grant_type=refresh_token:0

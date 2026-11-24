@@ -40,6 +40,7 @@ export const createSupabaseMeasurementAdmin = ({
     request(`rpc/${name}`, { method: "POST", body: JSON.stringify(body) });
 
   return {
+    request,
     async loadField({ lahanId, userId }) {
       const query = new URLSearchParams({
         select: "id,user_id,name,geojson,area_ha,category",

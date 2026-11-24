@@ -1,0 +1,72 @@
+{
+ "draft": "ML paper draft 9: Matani + ML (DEC-60): contribution list, implemented 60-day display rule, Fig. 4 app demonstration on local Supabase (OBS-87)",
+ "frozen": "2026-09-28",
+ "observations": [
+  "OBS-79",
+  "OBS-80",
+  "OBS-83",
+  "OBS-84",
+  "OBS-85",
+  "OBS-87"
+ ],
+ "decisions": [
+  "DEC-56",
+  "DEC-57",
+  "DEC-58",
+  "DEC-59",
+  "DEC-60"
+ ],
+ "predictions": {
+  "path": "research/private/ml-dataset/team-run-v2-final/predictions.csv",
+  "sha256": "2ceb7897b7248d9da2f3375c37689aa4a008ef398c555ee4664f3884a6fbecff",
+  "env_txt_sha256": "2e8f98e718539bac1408008178add20cec02e47b388a9258ef573db4623fa4a2"
+ },
+ "handoff": {
+  "path": "research/private/ml-dataset/ml-dataset-v2.zip",
+  "sha256": "33dee5a0bf6e1f5a5cd43ad6757214ce7969eb826307b471cbe24922c1eec2e5"
+ },
+ "evaluation": {
+  "path": "research/private/ml-dataset/evaluation-team-v2-final",
+  "files_sha256": {
+   "baseline_predictions.csv": "be1d385c1173f33d2965e2e5eb770dc0b3a32db23a60eb6708155f31112d74d0",
+   "gap_availability.csv": "c7c2461052d9ede192a00e82a04f759efe4ca39edb9e21cae804e82dcc9cc5eb",
+   "gap_events.csv": "ffceacb52b79a961a6420c84a51895ded5af2e5d0b1b0a1727a4284ecda100f6",
+   "gap_summary.csv": "68a2a074b5748df875a9fff47dd18161a901bdddeade84c4b1bce2ffc57cb9d9",
+   "metrics.csv": "9950832b4023335ce7dc2b6ebaa6bbef4ba89646927c16bed152a8e18aa72f5f",
+   "summary.json": "5644617be3febcc3683e857b668d9d9ae2378bcac66cbee14722dd9c66c70cfc"
+  }
+ },
+ "counts": {
+  "pages": 6,
+  "words_excluding_title_tables_captions_references": 3437,
+  "tables": 3,
+  "figures": 4,
+  "references": 23,
+  "verified_numbers": 77,
+  "docx_render_pages": 6
+ },
+ "files_sha256": {
+  "docs/manuscripts/ml-paper-draft9-2026-09-28.md": "7f39d3cc01ade8037127ef8fb5c6f3b2dd5c8d27f9d2bec4aa3c3955a7da82e7",
+  "docs/manuscripts/ml-paper-draft9-2026-09-28.docx": "9e24d5f7b7d9d8ba1ecea04c4d69fa3809af912c1579b0e1c8ed6e31368afacb",
+  "output/pdf/matani-ml-paper-draft9-2026-09-28.pdf": "ef56af12f6e20a8f15b2c72753beee62f232921e848b29d545b0d453934dfe16",
+  "docs/manuscripts/ml-fig-area.png": "b94fd25c98f3c2852f8aca70c33ba7ac4238c420362cb1c8ef705cf98feac31c",
+  "docs/manuscripts/ml-fig-gap.png": "131c9dacf31c99fd220473fcdf29f5ced41802e4c67c440e5bde00ce5b6113a8",
+  "docs/manuscripts/ml-fig-krangkeng.png": "aa8d273e4e25d343786e09aca5b8e7cc1cadd9817dd21459f33697496f631af3",
+  "docs/manuscripts/ml-paper-numbers.json": "34149642f42831db9dcc06a149a398161e7ce93ee8c18c83c1fcca5b4da4330f",
+  "docs/manuscripts/build-ml-paper.py": "d200ecb54fffe100bebc00e5c69af16417b173f4c650c5bd2600dfda15797ec7",
+  "research/scripts/make-ml-paper-figures.py": "5c7dfa3fd6df6e3e1b8324ab24ef6c134a215e2d5cd2c0f6406561c25ecf9ad4",
+  "research/scripts/evaluate_ml.py": "e80b38f337b97b0955bf7b7b13c315757f9de90ba3efa37b7a0a5433bcdd516e",
+  "research/scripts/rebuild-ml-paper.sh": "0b3284d0b60d6e0b8d66f09ce4a8d97fa3a26876890cfa0b2bfce26a804bca69",
+  "research/scripts/check_run_binding.py": "76f6bb4a621bb948ba82170a339167dea6939eac159e87fe4e1d97cfea4ff993",
+  "research/lib/cdse-s1.mjs": "569448b1f562616a2d7bab0c49c7e020f05ad655e8c8e468497171acb58fdbf5",
+  "research/scripts/refeature-extraction.mjs": "4b857756f1551c9ad1f8f6fc6e129ca8a1bbe4edd434dce929c1efae5561d58a",
+  "research/ml-handoff/example_train.py": "94f82e357c605413bcd0258043f859f00b3246516c384412c72dea27ec75dcbc",
+  "docs/manuscripts/paper-best-practice.md": "e42b0ca824dfee12531dc04f1b3ccd98e973c689849a76f90a786a1609d43226",
+  "output/pdf/matani-ml-paper-draft9-2026-09-28-docx-render.pdf": "e2663f3960ba8970247093a3e68b888aa84b3d56c4672571d1f0671b12d83518",
+  "docs/manuscripts/ml-fig-app.png": "46bf4ec9f951962409525b82ee4224425cb9f045f2ee4708f838bdc6c5ec6bc6",
+  "utils/estimate-timeline.ts": "0f4b1a2b1ff3a3d55b284f2d26775a46d61ac1b8e46c4ba5cd83749a20e2742e",
+  "app/detail-lahan-page.tsx": "bcb8517469f78fce0ffacd7ec8a86648b3bf19268bb9b8019d4848b62b413419",
+  "research/scripts/seed-local-krangkeng-demo.py": "a142e1a17e63d2d5e51b2690aeb9d39aad191ba165e3199c3cac33ffeac230c1",
+  "metro.config.js": "05c703bc25d14bb130dae79397b49f1a1853958f4285601591e73df108b04ca7"
+ }
+}

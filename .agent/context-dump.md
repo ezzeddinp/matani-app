@@ -3,7 +3,7 @@
 **Document type:** Historical decision record
 **Audience:** The developer, thesis advisor, reviewers, and AI agents working in this repo
 **Status:** Active
-**Updated:** 2026-09-15
+**Updated:** 2026-09-25
 
 **Canonical for:** Project history, the hackathon→thesis pivot, superseded ideas, the decisions index (DEC-*), and the EN↔ID glossary
 **Companion documents:** [`evidence-register.md`](evidence-register.md), [`project-architecture.md`](project-architecture.md), [`research-protocol.md`](research-protocol.md), [`product-brief.md`](product-brief.md), [`implementation-plan.md`](implementation-plan.md)
@@ -230,6 +230,8 @@ elaborate them.
 
 | **DEC-36** | **Build every connected Vercel backend project directly from `backend/` and make authentication a complete, keyboard-stable mobile flow.** Keep Express source ownership and direct framework detection under `backend/` with no repository-root server shim; persist Supabase sessions through mobile storage; complete email-verification redirects; use one branded, accessible auth component pattern; keep native input wrappers stable during focus; prevent Android password autofill/layout transitions from dismissing the keyboard; remove controls that imply unavailable remember/reset behavior. | 2026-09-08 | Repository-root detection failed first because no entrypoint existed and then because a re-export did not directly import Express. Three Vercel projects were attached to the repository with inconsistent roots. Login/sign-up also had raw errors, non-functional controls, no persistent storage adapter, no callback screen, and unstable field focus on the reported phone. The shared `AuthField` conditionally restyled its wrapper from `onFocus`; removing that state transition isolates the trigger reported across all sign-up fields. This row amends the earlier same-day root-adapter and password-only wording. | Active |
 
+| **DEC-55** | Separate estimated NDVI from measurements; storage/import details are in data evaluation plan § 5 and architecture ADR-19. | 2026-09-25 | Developer request for the estimate state and dry-run-first import/historical queue scripts. | Implementation authorized; this task authorizes no live execution or deployment. |
+
 ## 6. Superseded ideas / set-asides
 
 - **Independent raster comparison (RQ2/HYP-02).** Set aside by DEC-26 as optional
@@ -248,9 +250,9 @@ elaborate them.
   Open-Meteo). Time-limited free access; not thesis-relevant.
 - **Commercial Sentinel Hub account** (`services.sentinel-hub.com`). Superseded by
   DEC-04 (CDSE free tier).
-- **Sentinel-1 (SAR).** Set aside as a **post-thesis contingency** — a possible
-  cloud-penetrating complement to optical Sentinel-2 — requiring a **separate scope
-  decision** before adoption. Not in the current thesis scope.
+- **Sentinel-1 (SAR).** The earlier post-thesis set-aside is amended by DEC-54/55.
+  Estimate persistence and import semantics live in data evaluation plan § 5;
+  the separate write/read boundary is recorded in architecture ADR-19.
 
 ## 7. Glossary (EN ↔ ID)
 
@@ -278,6 +280,7 @@ elaborate them.
 | **prototype** | Partially wired and **non-provenance-safe** research/legacy output; never a current M2 measured row. |
 | **measured** | Persisted and **provenance-complete** — every value carries its origin. |
 | **unavailable** | An **honest absence** of data, stated rather than papered over. |
+| **estimated** | A model-derived value (radar → NDVI), stored separately from measurements, always labeled with its model, radar source and evaluated error, and never counted as an observation (DEC-55). |
 
 ### Index expansions
 
@@ -401,3 +404,88 @@ using the existing A4 conference template. Reuse author information provisionall
 and flag it for thesis-team verification. Preserve original source files and defer
 expansion of the separate chapter-based thesis. This authorizes the full-length
 review draft, not submission, venue page-limit approval or academic acceptance.
+
+### DEC-54 — ML evaluation direction for the AGERS paper (2026-09-25)
+
+The developer reported that the reviewer suggested moving the paper towards ML and will
+train the models. The developer chose Sentinel-1 → NDVI estimation over mapped-rice blocks
+as the paper's question (Random Forest and XGBoost, radar-only inputs, leave-one-tile-out
+evaluation, gap-length comparison against interpolation). This is the separate scope
+decision the product brief required before any SAR work. The frozen Krangkeng observation
+study stays unchanged as motivation. Rationale and datasets:
+`docs/matani-ml-direction-agent-brief.md`. Canonical method: `docs/matani-ml-technical-spec.md`.
+Choices fixed before model fitting:
+- Sampling: 42 pool blocks (3 per window × 14 windows) plus Krangkeng as the showcase.
+- Target: target-v1, valid fraction ≥ 0.8 (HYP).
+- Matching: nearest pass within ±3 days (HYP), from **both** orbit directions, with
+  same-orbit history. This revised the single-orbit rule after the Krangkeng pilot
+  acquisition counts (OBS: 12 vs 18 of 23 clear dates matchable).
+
+Pilot OBS (2026-09-25): the new extraction reproduced the frozen study exactly: 71
+acquisitions, the same 23 clear dates, NDVI within 5 × 10⁻⁵. This does not approve the
+paper or establish model accuracy.
+
+### DEC-62 — two display rules for radar estimates in Matani (2026-09-29)
+
+The single 60-day rule (DEC-60) is replaced by two provisional rules, one for each baseline that applies to the gap. The chart draws neither baseline; the rules only decide whether an estimate is shown. This follows the reviewer's natural-gap comparison (DEC-61).
+- **Bracketed gap** (a qualifying observation on both sides): an estimate is shown when the interval is at least 80 days (`MIN_BRACKETED_GAP_DAYS`). Interpolation is the baseline here. Radar was worse in every bin up to 60 days, and beyond 60 days no difference was detected. The exploratory linear crossover was 78.6 days for RF (block-bootstrap 95 % CI 58–152, extending beyond the longest observed gap) and 83.3 for XGBoost.
+- **Open gap:** after the last observation, an estimate is shown when that observation is at least 20 days away (`MIN_OPEN_GAP_DAYS`). Persistence (LOCF) is the baseline here; the fitted crossover was 19.4 days for RF (CI 16.6–22.7) and 19.5 for XGBoost, and radar was clearly better beyond 30 days. Before the first observation the same cutoff is applied by symmetry, which was not evaluated separately.
+
+Both cutoffs are rounded crossover points, chosen for the prototype; they are not validated thresholds. The UTC-calendar-day convention, the 3-day measurement precedence and "no estimate without an observation" are unchanged. The code is `utils/estimate-timeline.ts`, tested in `tests/estimate-timeline.test.mjs`. For Krangkeng 2021, 8 of 52 radar passes are shown, all before the first observation on 17 March; the 65-day October–December gap is below 80 days, so the chart shows no estimate there.
+
+### DEC-61 — the reviewer's 12-ablation pipeline is the paper's result (2026-09-29)
+
+The reviewer built his own pipeline, `research/pipelines/` (a data-prep notebook, 12 experiment notebooks, and parquet outputs), on ml-dataset-v2. The developer decided to follow it. It supersedes DEC-57's `team-run-v2-final` and the gap-masking experiment as the paper's results; both stay on disk for audit.
+
+The 12 ablations are:
+- **Primary:** RF vs XGBoost under leave-one-tile-out; feature sets F2, F0, F0+F1 and F0+F1+F2; five seeds; MAE, RMSE, R² and bias.
+- **Operational:** radar vs interpolation, and radar vs LOCF, across natural optical-gap length; the linear gap-length crossover.
+- **Robustness:** held-out region; NDVI range; S1–S2 offset; flagged observations.
+- **Optional:** random vs grouped vs spatial split.
+
+His pipeline code is treated as given. We add sampling uncertainty (a block cluster bootstrap on his row-level predictions, `research/scripts/reviewer_ci.py`), which asserts equality with his point estimates. The reviewer is acknowledged, not added as an author (developer's choice). GPT-6 Astra reviews our integration (paper, CI script, figures, app), not his ML process.
+
+### DEC-60 — the paper is "Matani + ML" (2026-09-28)
+
+The reviewer advised keeping Matani in the paper ("matani + ml aja … klo pure ml nanti susah novelty-innya"), because a pure-ML paper would struggle to show novelty. The developer adopted this. The paper lists three contributions: the region-held-out evaluation, the gap-length crossover, and Matani applying the crossover as a display rule. Radar estimates are shown only within optical gaps of at least 60 days (`MIN_ESTIMATE_GAP_DAYS` in `utils/estimate-timeline.ts`, tested), labelled with their evaluated MAE. The demonstration uses a local Supabase only, and production is untouched. The paper states that Matani is an unreleased prototype not evaluated with users.
+
+### DEC-59 — no citation for Matani or the unpublished delivery-policy study (2026-09-28)
+
+Matani is the authors' own unpublished system and is described in the text, not cited. The earlier delivery-policy analysis of the Krangkeng block has not been submitted or published, so the ML paper no longer calls it "an earlier study". Its Krangkeng figures (71 acquisitions, 23 passing Matani's quality rule, the 65-day gap and the 75-day absence) are stated as this study's own measurement, which the ML extraction reproduces and the build gates. If the delivery-policy paper is later submitted or published, cite it in the Introduction and have each paper acknowledge the other.
+
+### DEC-58 — house style and AI-use disclosure for the ML paper (2026-09-28)
+
+The developer adopted the reviewer's IEEE paper (GRACE-LAKSA) as the layout and wording reference: italic affiliation lines, "Index Terms", "TABLE I:" captions with three-rule tables, "Fig. 1:" captions and "1)" lists (paper-best-practice R15). The six-section structure was kept. Review-trace wording is banned from the paper (R16). The paper gets an Acknowledgment that fully discloses AI assistance in code, analysis, drafting and review. All authors must confirm its wording before submission. On 2026-09-28 the developer chose calmer standard wording (the tools, Sections I–VI, the code behind Tables I–III and Figs. 1–3, and the analysis check; content "reviewed, revised and verified by the authors"). This wording is conditional on the authors' own revision pass.
+
+### DEC-57 — the team trains the models (2026-09-28)
+
+The developer decided that the team trains the models itself, because the reviewer may not have time before the 1 October deadline. The primary result is `team-run-v2-final`: the frozen harness `research/ml-handoff/example_train.py` run on ml-dataset-v2 with data and prediction hashes recorded in `env.txt` (OBS-83). The earlier runs `reference-run-v2` and `team-run-v2` reproduce it and are kept for audit. DEC-54's role split (the reviewer fits the models) becomes optional; any reviewer run is a replication check through `rebuild-ml-paper.sh`, which is hash-bound to the dataset.
+
+The safeguards do not depend on who runs the harness:
+- the splits were frozen before fitting;
+- tuning happens only inside the training tiles, and each test tile is predicted once;
+- the harness settings were written before any test result and are unchanged, except for the added data hashes (rerun matched within 6 × 10⁻¹⁶);
+- the one post-result change, the F1 fix, was adopted whatever its outcome under README §5.5.
+
+Disclose that the same team built the data and fitted the models.
+
+### DEC-56 — adopt ml-dataset-v2 (per-track radar history) (2026-09-28)
+
+The developer approved fixing the confirmed F1 orbit-mixing bug (OBS-79). The fix builds a new dataset version with history per relative orbit, reruns the reference harness, and adopts v2 whatever the result, following README §5.5. External review is run with GPT-6 Astra (high effort). ml-dataset-v1 and evaluation-v1 remain unchanged for audit. The model trainer must use `ml-dataset-v2` from now on. Results: OBS-80.
+
+### DEC-55 — "estimated" data state in Matani (2026-09-25)
+
+The developer approved full app integration before the deadline. Radar-model NDVI
+estimates become a fifth, visibly distinct data state, **estimated**. They live in
+`public.ndvi_estimates` and are never written to measurement tables (ADR-19).
+- In the app, they show only on the NDVI chart, as dashed diamonds with a text legend.
+  Measured values within ±3 days always win.
+- Held-out estimates are shown only as a comparison inside a measured point's detail.
+- Estimates are excluded from AI summaries, latest-value cards and the chronology.
+
+This narrows the earlier "does not synthesize missing observations" wording. Matani still
+never presents a synthetic or estimated value as measured. The thesis and paper text must be
+revised to match.
+
+The 2021 Krangkeng observations reach the app through the existing measurement worker,
+with no new measurement write path.

@@ -3,7 +3,7 @@
 **Document type:** Research protocol
 **Audience:** The developer, thesis advisor, reviewers, and AI agents working in this repo
 **Status:** Active — RQ1/RQ3 and M1 scope approved (DEC-29/30); validation remains open
-**Updated:** 2026-09-15
+**Updated:** 2026-09-25
 **Canonical for:** Research questions, hypotheses, methodology, and validity of the Sentinel-2 NDVI/NDMI monitoring evaluation, and the thesis paper's system-evaluation track (§ 16)
 **Companion documents:** [`evidence-register.md`](evidence-register.md), [`data-evaluation-plan.md`](data-evaluation-plan.md), [`project-architecture.md`](project-architecture.md), [`implementation-plan.md`](implementation-plan.md), [`product-requirements.md`](product-requirements.md)
 
@@ -611,3 +611,15 @@ the question; literature review has not established that this is the first such 
 The baseline is an explicit design alternative, not a claimed reproduction of another
 published system. Literature limitations do not prevent specifying the experiment but
 must remain visible in the paper's novelty wording.
+
+## ML evaluation extension (DEC-54) — advisor-visible, 2026-09-25
+
+**Status:** proposed, not advisor-approved.
+
+**Question:** how accurately radar-only Random Forest and XGBoost models estimate block-mean Sentinel-2 NDVI over held-out mapped-rice regions, and at what optical-gap length they beat temporal interpolation.
+
+**Method:** see [`../docs/matani-ml-technical-spec.md`](../docs/matani-ml-technical-spec.md):
+- sampling §3, target and matching §4, features §5, leave-one-tile-out splits §6;
+- baselines and budgets §7, metrics and the gap experiment §8, leakage controls §9, threats §10.
+
+The frozen Phase 4 observation study stays unchanged and serves as motivation. The claim is limited to within-2021 spatial transfer over map-confident contiguous rice. It does not establish agronomic accuracy, stages, yield or farmer benefit.

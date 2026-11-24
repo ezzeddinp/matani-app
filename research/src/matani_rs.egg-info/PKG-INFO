@@ -1,0 +1,5 @@
+Metadata-Version: 2.4
+Name: matani-rs
+Version: 0.1.0
+Summary: Fixture-first Matani feasibility and measurement-contract tooling
+Requires-Python: >=3.11
