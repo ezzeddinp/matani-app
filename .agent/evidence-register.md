@@ -3,7 +3,7 @@
 **Document type:** Evidence register
 **Audience:** The developer, thesis advisor, reviewers, and AI agents working in this repo
 **Status:** Active
-**Updated:** 2026-09-25
+**Updated:** 2026-11-24
 
 **OBS-40 (2026-09-10, Expo Go Google Maps route implemented locally):** Matani now
 detects the iOS Expo Go execution environment and renders the Google Maps JavaScript API
@@ -570,6 +570,17 @@ Registered for the ML evaluation (DEC-54; `docs/matani-ml-technical-spec.md` §2
   - `flagNegativeNdvi` counts the 8 references below 0 (flooded paddy) as suspect.
   - Notebook 12's spatial split uses fixed hyperparameters, so it is not identical to notebook 01.
   - Notebook outputs are not saved.
+
+**OBS-91 (2026-11-24, AGERS camera-ready analyses):** `research/scripts/revision_analyses.py` on the frozen `research/pipelines/` outputs (RF F0+F1, seed-mean, 2,000-resample block bootstrap) first reproduces the published Table III bins, then reports (output `research/private/ml-dataset/revision-2026-11/analyses.json`):
+- LOCF >30 d: 45 rows, 26 blocks, 3 tiles, 20 S2 dates, ≤4 rows per block. Leave-one-block-out −0.159 to −0.139 and leave-one-tile-date-out −0.164 to −0.132, every CI below zero. Without negative reference/baseline values −0.152 [−0.201, −0.095] (42 rows; LOCF MAE 0.283). Radar-before-optical only −0.182 [−0.292, −0.079] (13 rows).
+- Interp >60 d: 29 rows, 18 blocks, 18 dates; every leave-one-out CI includes zero; isotonic crossover 76 d, CI 55 d to beyond the observed range (9% of resamples never cross).
+- Isotonic LOCF crossover 21 d [14, 31] (linear 19 d). NOCB: 21–30 d −0.034 [−0.079, 0.010], >30 d −0.171 [−0.235, −0.114], isotonic 26 d [19, 29].
+- LOCF + β·ΔVH (β 0.018–0.033 per dB, fit on the other tiles): MAE 0.109, equal to LOCF overall; radar − hybrid >30 d −0.127 [−0.172, −0.073].
+- Pooled ±MAE contains 56% of references; the 80% range by estimate value, leave-one-tile-out, contains 76% (mean width 0.44).
+- NOCB is evaluated mostly within the series: only 38 rows precede their block's first observation. Event-clustered (tile × date) bootstrap: LOCF >30 [−0.203, −0.094], NOCB >30 [−0.238, −0.108], interp >60 [−0.101, 0.072].
+- Fig. 4 recaptured with `research/scripts/capture-fig4.py` (local web build, English chart copy, 400 px at 3×) after the 30-day leading rule (DEC-63): 6 estimates, panel for 8 February 2021, NDVI ≈ 0.37, range 0.19–0.60. The Indonesian build was re-inspected under the 30-day rule: "6 estimasi model", note and provenance band show 80/30/20 days and "batas sementara". Still web-only; nothing verified on a phone.
+- Figures (2026-11-24): Fig. 2 plots each bin at its mean gap length with the isotonic fits, the NOCB comparison in panel (b) and the display zones (80; 20 after last, 30 before first); Fig. 3 marks shown vs hidden estimates and the 80% range band. `make-ml-paper-figures.py` now takes `--analyses`; palette validated (dataviz `validate_palette.js`, all checks pass, aqua contrast covered by marker and legend).
+- Limitation: within-sample sensitivity only; it says nothing about cloudy-period accuracy or other years.
 
 **OBS-90 (2026-09-29, review loop on the reviewer-pipeline paper closed):** GPT-6 Astra (high, read-only; scope was our integration, not the collaborator's ML process) reviewed draft 12 in round 12. It found five Minor findings (N31–N35) and three Nits (N36–N38), all confirmed and fixed in draft 13. It reviewed draft 13 in round 13: CLEAN, with three Nits, fixed in draft 14. In round 13 Astra verified 66 hashes, 83 number checks, 724 numeric fields and 3,255 independent metric checks, and both display implementations reproduced 52/20/24/8. Draft 14 (`ml-paper-draft14-manifest.json`) is the current version. Still open, for the authors only: the collaborator's name in the Acknowledgment (REVIEWER-NAME placeholder), confirmation of the AI acknowledgment's facts, co-author approval, AGERS format rules, a check in Microsoft Word, and the release policy.
 - **Update (same day):** Fig. 4 showed "versi reviewer-pipeline", the local import's `model_version`. That is review-trace wording, visible in the figure. The same predictions were re-imported locally as `model_version` `2026.09` (`run_id` `ml-2026-09-29`), and Fig. 4 was recaptured (the chart still shows 8 estimates). The build now fails on review-trace words in the rendered text (R16); figure text is checked by eye.

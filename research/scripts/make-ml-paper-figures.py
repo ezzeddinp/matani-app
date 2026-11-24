@@ -30,10 +30,11 @@ import polars as pl
 
 # Validated categorical slots (dataviz reference palette, light); every series also has a marker/linestyle.
 BLUE, ORANGE, AQUA, YELLOW, GREY, INK = "#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#8a8a85", "#222220"
+GREEN_TINT, GREEN_INK = "#e3f1e6", "#14532d"  # Matani's estimate green (app/detail-lahan-page.tsx): where estimates are shown
 TILES = {"42": "Indramayu, West Java", "49": "Pati, Central Java", "55": "Gresik, East Java"}
 TILE_COLOUR = {"42": BLUE, "49": ORANGE, "55": AQUA}
 SHOWCASE_MODEL = ("rf", "F0+F1")  # primary configuration; RF and XGBoost do not differ (numbers.json → ci.paired)
-MIN_BRACKETED_GAP_DAYS, MIN_OPEN_GAP_DAYS = 80, 20  # utils/estimate-timeline.ts (DEC-62)
+MIN_BRACKETED_GAP_DAYS, MIN_LEADING_GAP_DAYS, MIN_TRAILING_GAP_DAYS = 80, 30, 20  # utils/estimate-timeline.ts (DEC-62/63)
 
 plt.rcParams.update({"font.family": "serif", "font.size": 8, "axes.spines.top": False, "axes.spines.right": False,
                      "axes.edgecolor": "#6b6b66", "axes.linewidth": 0.6, "xtick.color": "#4a4a46",
@@ -76,36 +77,61 @@ def area_figure(blocks, out):
     save(fig, out, "ml-fig-area")
 
 
-def gap_figure(ci, out):
-    """Radar minus baseline absolute error per natural-gap bin (reviewer notebooks 05 and 06) with block-bootstrap
-    95 % intervals. Below zero, radar is more accurate."""
-    panels = (("interpolation", "Linear interpolation: optical gap bracketing the target (days)", "(a)"),
-              ("locf", "Persistence (LOCF): days since the last observation", "(b)"))
+def gap_figure(ci, analyses, out):
+    """Radar minus baseline absolute error per natural-gap bin (reviewer notebooks 05 and 06; NOCB from
+    revision_analyses.py) with block-bootstrap 95 % intervals, each bin placed at its mean gap length, the isotonic fit
+    of Random Forest, and the gap lengths where Matani shows an estimate. Below zero, radar is more accurate."""
+    rf_x = lambda table: {b: v["gap_mean"] for b, v in table.items()}
+    ci_bins = lambda base, model: {v["bin"]: v for k, v in ci["gap_bins"].items() if k.startswith(f"{base} {model} ") and v["bin"] != "all"}
+    nocb = analyses["nocb"]
+    panels = (
+        ("(a) Bracketed gap, vs linear interpolation", "Optical gap bracketing the target (days)", (0, 102), (-0.16, 0.17),
+         [("Random Forest", ORANGE, "D", ci_bins("interpolation", "rf"), rf_x(analyses["table_iii"]["interpolation"]), analyses["isotonic_crossover"]["interpolation"]["curve"]),
+          ("XGBoost", AQUA, "^", ci_bins("interpolation", "xgb"), rf_x(analyses["table_iii"]["interpolation"]), None)],
+         [(MIN_BRACKETED_GAP_DAYS, f"shown ≥{MIN_BRACKETED_GAP_DAYS} d\n(exploratory)")]),
+        ("(b) Open gap, vs persistence and NOCB", "Days to the nearest observation", (0, 82), (-0.56, 0.24),
+         [("RF vs persistence", ORANGE, "D", ci_bins("locf", "rf"), rf_x(analyses["table_iii"]["locf"]), analyses["isotonic_crossover"]["locf"]["curve"]),
+          ("XGB vs persistence", AQUA, "^", ci_bins("locf", "xgb"), rf_x(analyses["table_iii"]["locf"]), None),
+          ("RF vs NOCB", BLUE, "s", nocb["bins"], rf_x(nocb["bins"]), nocb["isotonic_crossover"]["curve"])],
+         [(MIN_TRAILING_GAP_DAYS, f"shown ≥{MIN_TRAILING_GAP_DAYS} d after last obs."), (MIN_LEADING_GAP_DAYS, f"≥{MIN_LEADING_GAP_DAYS} d before first obs.")]),
+    )
     fig, axes = plt.subplots(2, 1, figsize=(3.45, 2.75))
-    for ax, (baseline, xlabel, tag) in zip(axes, panels):
-        ax.set_title(tag, loc="left", fontsize=7, fontweight="bold", pad=2)
-        for k, (model, label, colour, marker) in enumerate((("rf", "Random Forest", ORANGE, "D"), ("xgb", "XGBoost", AQUA, "^"))):
-            rows = sorted((v for key, v in ci["gap_bins"].items() if key.startswith(f"{baseline} {model} ") and v["bin"] != "all"),
-                          key=lambda v: v["min_days"])
-            x = np.arange(len(rows)) + (k - 0.5) * 0.14
-            y = np.array([r["diff"] for r in rows])
-            err = np.array([[r["diff"] - r["lo"], r["hi"] - r["diff"]] for r in rows]).T
-            ax.errorbar(x, y, yerr=err, color=colour, marker=marker, ms=3.4, lw=1.0, elinewidth=0.7, capsize=0,
-                        label=f"{label} (F0+F1)", mec="white", mew=0.4)
-        labels = [r["bin"].replace("<=", "≤").replace(">", ">").replace("-", "–") for r in rows]
-        ax.set_xticks(range(len(rows)), [f"{l}\nn={r['n_rows']}" for l, r in zip(labels, rows)], fontsize=6.2)
-        ax.axhline(0, color=INK, lw=0.6)
-        ax.set(xlabel=xlabel, ylabel="Radar − baseline MAE")
-        ax.xaxis.label.set_size(6.8)
-        ax.yaxis.label.set_size(6.8)
-        ax.tick_params(axis="y", labelsize=6.3)
+    for ax, (title, xlabel, xlim, ylim, series, cutoffs) in zip(axes, panels):
+        ax.set_title(title, loc="left", fontsize=6.6, fontweight="bold", pad=3)
+        for k, (start, label) in enumerate(cutoffs):  # display zones: darker where both open-gap rules show estimates
+            ax.axvspan(start, xlim[1], color=GREEN_TINT, alpha=0.5 if k == 0 else 0.6, lw=0, zorder=0)
+            # later cutoffs stop below the earlier labels so no line runs through text
+            ax.axvline(start, ymax=1 if k == 0 else 0.98 - 0.1 * k, color=GREEN_INK, lw=0.6, ls=(0, (2, 1.5)), zorder=1)
+            ax.text(start + 1, 0.97 - 0.1 * k, label, transform=ax.get_xaxis_transform(), fontsize=5.6,
+                    color=GREEN_INK, va="top", ha="left")
+        offsets = np.linspace(-1.2, 1.2, len(series)) if len(series) > 1 else [0]
+        for (label, colour, marker, bins, xs, curve), dx in zip(series, offsets):
+            keys = sorted(bins, key=lambda b: xs[b])
+            x = np.array([xs[b] for b in keys]) + dx
+            y = np.array([bins[b]["diff"] for b in keys])
+            err = np.array([[bins[b]["diff"] - bins[b]["lo"], bins[b]["hi"] - bins[b]["diff"]] for b in keys]).T
+            ax.errorbar(x, y, yerr=err, color=colour, marker=marker, ms=3.2, lw=0, elinewidth=0.8, capsize=0,
+                        label=label, mec="white", mew=0.4, zorder=3)
+            if curve:
+                cx, cy = np.array(curve).T
+                ax.plot(cx, cy, color=colour, lw=0.9, zorder=2)
+        ax.axhline(0, color=INK, lw=0.6, zorder=1)
+        ax.set(xlim=xlim, ylim=ylim, xlabel=xlabel, ylabel="Radar − baseline MAE")
+        ax.xaxis.label.set_size(6.6)
+        ax.yaxis.label.set_size(6.6)
+        ax.tick_params(labelsize=6.2)
         ax.grid(axis="y", lw=0.4, color="#e4e3dd")
-    axes[1].legend(fontsize=6.2, loc="lower left", ncol=1)
-    fig.tight_layout(h_pad=0.8)
+        handles, labels = ax.get_legend_handles_labels()
+        handles.append(matplotlib.lines.Line2D([], [], color="#6b6b66", lw=0.9))
+        labels.append("Isotonic fit (RF)")
+        ax.legend(handles, labels, fontsize=5.6, loc="lower left", ncol=2 if len(series) > 2 else 1, handletextpad=0.4,
+                  borderaxespad=0.2, columnspacing=0.8,
+                  labelspacing=0.25, handlelength=1.4, frameon=True, facecolor="white", edgecolor="none", framealpha=0.92)
+    fig.tight_layout(h_pad=0.9)
     save(fig, out, "ml-fig-gap")
 
 
-def krangkeng_figure(handoff, predictions, out):
+def krangkeng_figure(handoff, predictions, analyses, out):
     data = handoff / "data"
     show = next(r["block_id"] for r in read(data / "ml_table.csv") if r["role"] == "showcase")
     obs = [r for r in read(data / "s2-observations.csv") if r["block_id"] == show and r["ndvi"] != ""
@@ -127,12 +153,24 @@ def krangkeng_figure(handoff, predictions, out):
     g = int(np.argmax(gaps))
     gap = (display[g], display[g + 1], gaps[g])
 
+    # 80% range by estimate value, as Matani draws it (utils/estimate-timeline.ts RANGE_BY_RUN, analyses.json)
+    b = analyses["uncertainty"]["per_bin_all_tiles"]
+    bins = [(0.3, b["<=0.3"]), (0.5, b["0.3-0.5"]), (0.7, b["0.5-0.7"]), (np.inf, b[">0.7"])]
+    q = lambda v: next(qs for up, qs in bins if v <= up)
+    lo = [min(1, max(-1, v + q(v)["q10"])) for _, v in applied]
+    hi = [min(1, max(-1, v + q(v)["q90"])) for _, v in applied]
+    shown = {d(t) for t in app_display(handoff)["shown_dates"]}
+
     fig, ax = plt.subplots(figsize=(3.45, 2.2))
     ax.axvspan(gap[0], gap[1], color="#efeee8", lw=0, zorder=0)
     ax.text(gap[0] + (gap[1] - gap[0]) / 2, 0.97, f"{gap[2]}-day\noptical gap",
             ha="center", va="top", fontsize=6.3, color="#4a4a46")
-    ax.plot([a for a, _ in applied], [v for _, v in applied], color=ORANGE, lw=0.9, ls=(0, (3, 1.6)),
-            marker="D", ms=2.4, mfc="white", mec=ORANGE, mew=0.8, label="Radar estimate (RF, F0+F1)")
+    ax.fill_between([a for a, _ in applied], lo, hi, color=ORANGE, alpha=0.13, lw=0, zorder=1, label="80% range of each estimate")
+    ax.plot([a for a, _ in applied], [v for _, v in applied], color=ORANGE, lw=0.6, ls=(0, (3, 1.6)), zorder=2)
+    ax.scatter([a for a, _ in applied if a not in shown], [v for a, v in applied if a not in shown], s=7, marker="D",
+               facecolors="white", edgecolors=ORANGE, linewidths=0.7, zorder=3, label="Model-derived estimate, not shown")
+    ax.scatter([a for a, _ in applied if a in shown], [v for a, v in applied if a in shown], s=11, marker="D",
+               facecolors=ORANGE, edgecolors="white", linewidths=0.4, zorder=3, label="Model-derived estimate, shown in Matani")
     ax.scatter([d(r["date"]) for r in clear], [float(r["ndvi"]) for r in clear], s=9, c=INK, zorder=4,
                label="Sentinel-2 NDVI")
     for t, p, ref in held:
@@ -141,7 +179,7 @@ def krangkeng_figure(handoff, predictions, out):
     ax.set(ylabel="NDVI", ylim=(-0.6, 1.0), xlim=(date(2021, 1, 1), date(2021, 12, 31)))
     ax.xaxis.set_major_formatter(matplotlib.dates.DateFormatter("%b"))
     ax.grid(axis="y", lw=0.4, color="#e4e3dd")
-    ax.legend(fontsize=6.3, loc="lower left", ncol=1)
+    ax.legend(fontsize=5.8, loc="lower left", ncol=1, handletextpad=0.4, borderaxespad=0.2)
     ax.tick_params(labelsize=6.5)
     save(fig, out, "ml-fig-krangkeng")
     in_gap = [(t, v) for t, v in applied if gap[0] < t < gap[1]]
@@ -164,8 +202,8 @@ def krangkeng_figure(handoff, predictions, out):
 
 def app_display(handoff, wins_days=3):
     """Which Krangkeng radar estimates Matani shows under its display rules (utils/estimate-timeline.ts): a
-    measurement within 3 days wins; a gap bracketed by observations must reach MIN_BRACKETED_GAP_DAYS, and an open
-    gap (before the first or after the last observation) MIN_OPEN_GAP_DAYS from the nearest observation."""
+    measurement within 3 days wins; a gap bracketed by observations must reach MIN_BRACKETED_GAP_DAYS, an estimate
+    before the first observation MIN_LEADING_GAP_DAYS and one after the last MIN_TRAILING_GAP_DAYS."""
     data = handoff / "data"
     show = next(r["block_id"] for r in read(data / "ml_table.csv") if r["role"] == "showcase")
     measured = sorted(d(r["date"]) for r in read(data / "s2-observations.csv")
@@ -178,7 +216,7 @@ def app_display(handoff, wins_days=3):
             return (after[0] - before[-1]).days >= MIN_BRACKETED_GAP_DAYS
         if not before and not after:
             return False  # no qualifying observation: no established interval, nothing shown (as in the app)
-        return ((after[0] - t).days if after else (t - before[-1]).days) >= MIN_OPEN_GAP_DAYS
+        return (after[0] - t).days >= MIN_LEADING_GAP_DAYS if after else (t - before[-1]).days >= MIN_TRAILING_GAP_DAYS
 
     near = [t for t in radar if any(abs((m - t).days) <= wins_days for m in measured)]
     shown = [t for t in radar if t not in near and long_enough(t)]
@@ -266,13 +304,14 @@ def numbers(handoff, pipelines, ci):
 
 def main():
     parser = argparse.ArgumentParser()
-    for name in ("handoff", "pipelines", "ci", "out"):
+    for name in ("handoff", "pipelines", "ci", "analyses", "out"):
         parser.add_argument(f"--{name}", required=True, type=Path)
     a = parser.parse_args()
+    analyses = json.loads(a.analyses.read_text())
     area_figure(json.loads((a.handoff / "data/blocks.geojson").read_text())["features"], a.out)
     result = numbers(a.handoff, a.pipelines, a.ci)
-    gap_figure(result["ci"], a.out)
-    result["krangkeng"] = krangkeng_figure(a.handoff, a.ci / "predictions.csv", a.out)
+    gap_figure(result["ci"], analyses, a.out)
+    result["krangkeng"] = krangkeng_figure(a.handoff, a.ci / "predictions.csv", analyses, a.out)
     (a.out / "ml-paper-numbers.json").write_text(json.dumps(result, indent=1, default=str))
     print(json.dumps(result["app_display"], indent=1))
     print(json.dumps({k: v for k, v in result["krangkeng"].items() if k != "held_out"}, indent=1))

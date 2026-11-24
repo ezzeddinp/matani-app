@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  estimateRange,
   gapEstimates,
   heldOutFor,
   inYear,
@@ -36,7 +37,7 @@ test("only valid estimated rows become points; a zero NDVI stays a value", () =>
   assert.deepEqual(points.map((point) => [point.id, point.ndvi]), [["zero", 0]]);
 });
 
-const NO_GAP_RULE = { bracketed: 0, open: 0 };
+const NO_GAP_RULE = { bracketed: 0, leading: 0, trailing: 0 };
 const ids = (points) => points.map((point) => point.id);
 const at = (id, target_date) => toEstimatePoints([record({ id, target_date })]);
 const obs = (...days) => days.map((day) => ({ timestamp: `${day}T02:50:00Z`, ndvi: 0.5 }));
@@ -54,7 +55,7 @@ test("measurements win: applied estimates within 3 days of a measured value are 
   assert.deepEqual(ids(gapEstimates(estimates, measured, NO_GAP_RULE)), ["gap"]); // gap rules off
 });
 
-test("two rules: bracketed gaps need 80 days (vs interpolation), open-ended gaps 20 days (vs persistence)", () => {
+test("rules: bracketed gaps need 80 days (vs interpolation), leading 30 (vs NOCB), trailing 20 (vs persistence)", () => {
   const estimates = toEstimatePoints([
     record({ id: "short-gap", target_date: "2021-02-15" }), // inside a 30-day interval
     record({ id: "long-gap", target_date: "2021-05-01" }), // inside a 100-day interval
@@ -79,11 +80,12 @@ test("bracketed rule: 80 days is shown, 79 is not, however far the estimate is f
   assert.deepEqual(ids(gapEstimates(at("mid", "2021-02-10"), obs("2021-01-01", "2021-03-22"))), ["mid"]); // 80 days
 });
 
-test("open rule: 20 days from the nearest observation is shown, 19 is not", () => {
+test("open rules: 20 days after the last observation, 30 days before the first", () => {
   assert.deepEqual(ids(gapEstimates(at("after", "2021-05-21"), obs("2021-05-01"))), ["after"]); // 20 days after
   assert.deepEqual(ids(gapEstimates(at("after", "2021-05-20"), obs("2021-05-01"))), []); // 19 days after
-  assert.deepEqual(ids(gapEstimates(at("before", "2021-04-11"), obs("2021-05-01"))), ["before"]); // 20 days before
-  assert.deepEqual(ids(gapEstimates(at("before", "2021-04-12"), obs("2021-05-01"))), []); // 19 days before
+  assert.deepEqual(ids(gapEstimates(at("before", "2021-04-01"), obs("2021-05-01"))), ["before"]); // 30 days before
+  assert.deepEqual(ids(gapEstimates(at("before", "2021-04-02"), obs("2021-05-01"))), []); // 29 days before
+  assert.deepEqual(ids(gapEstimates(at("before", "2021-04-11"), obs("2021-05-01"))), []); // 20 days before
 });
 
 test("no established optical interval means no estimate (review N25)", () => {
@@ -110,4 +112,17 @@ test("years are listed once and filtering keeps only that year", () => {
   assert.deepEqual(timelineYears(items), [2021, 2026]);
   assert.equal(inYear(items, 2021).length, 2);
   assert.equal(inYear(items, null).length, 3);
+});
+
+test("80% range: the measured run gets its range by estimate value; other runs get none", () => {
+  const run = { model_name: "random_forest", feature_set: "F0+F1", model_version: "2026.09" };
+  const [mid] = toEstimatePoints([record({ ...run, ndvi_estimate: 0.64 })]);
+  const [low] = toEstimatePoints([record({ ...run, ndvi_estimate: 0.3 })]);
+  const [flooded] = toEstimatePoints([record({ ...run, ndvi_estimate: -0.6 })]);
+  const [other] = toEstimatePoints([record({ ndvi_estimate: 0.64 })]);
+  const round = (r) => r && { low: Number(r.low.toFixed(3)), high: Number(r.high.toFixed(3)) };
+  assert.deepEqual(round(estimateRange(mid)), { low: 0.395, high: 0.878 });
+  assert.deepEqual(round(estimateRange(low)), { low: -0.217, high: 0.531 }); // 0.3 belongs to the lowest bin
+  assert.deepEqual(round(estimateRange(flooded)), { low: -1, high: -0.369 }); // clamped to the NDVI scale
+  assert.equal(estimateRange(other), null);
 });

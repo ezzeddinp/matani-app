@@ -3,7 +3,7 @@
 **Document type:** Historical decision record
 **Audience:** The developer, thesis advisor, reviewers, and AI agents working in this repo
 **Status:** Active
-**Updated:** 2026-09-25
+**Updated:** 2026-11-24
 
 **Canonical for:** Project history, the hackathon→thesis pivot, superseded ideas, the decisions index (DEC-*), and the EN↔ID glossary
 **Companion documents:** [`evidence-register.md`](evidence-register.md), [`project-architecture.md`](project-architecture.md), [`research-protocol.md`](research-protocol.md), [`product-brief.md`](product-brief.md), [`implementation-plan.md`](implementation-plan.md)
@@ -425,7 +425,14 @@ Pilot OBS (2026-09-25): the new extraction reproduced the frozen study exactly: 
 acquisitions, the same 23 clear dates, NDVI within 5 × 10⁻⁵. This does not approve the
 paper or establish model accuracy.
 
-### DEC-62 — two display rules for radar estimates in Matani (2026-09-29)
+### DEC-63 — AGERS camera-ready: evaluated leading gap, 80% range, model-derived label (2026-11-24)
+
+The AGERS 2026 reviews (paper 1571359656, three reviewers) asked for sensitivity checks, a stronger baseline, a non-linear crossover, a rule-evidence table, a model-derived label and an English Fig. 4 (OBS-91). The developer's decisions:
+- **Leading gap now 30 days:** the case before the first observation is evaluated against the next observation carried backward (NOCB). Radar was worse up to 20 days, no different at 21–30, better beyond 30, isotonic crossover 26 days [19, 29] (OBS-91), weaker than the persistence result, so `MIN_LEADING_GAP_DAYS = 30`. Trailing stays 20 (`MIN_TRAILING_GAP_DAYS`), bracketed 80 (exploratory). An independent review caught the first draft's "same level of support" claim; the rule was changed rather than the wording softened. Krangkeng 2021 now shows 6 estimates (3 Jan–8 Feb).
+- **80% range:** each estimate shows the empirical 10th–90th percentile range of held-out errors for estimates of similar value (`RANGE_BY_RUN` in `utils/estimate-timeline.ts`, run `random_forest F0+F1 2026.09` only). A run without a measured range shows none. The build asserts the app table equals `analyses.json`.
+- **Label:** "Estimasi radar" becomes "Estimasi model" (Indonesian) and "Model-derived estimate" (English). The chart and panel also render in English with `EXPO_PUBLIC_CHART_LANG=en`, used only for the paper figure.
+
+### DEC-62 — two display rules for radar estimates in Matani (2026-09-29; leading-gap cutoff superseded by DEC-63)
 
 The single 60-day rule (DEC-60) is replaced by two provisional rules, one for each baseline that applies to the gap. The chart draws neither baseline; the rules only decide whether an estimate is shown. This follows the reviewer's natural-gap comparison (DEC-61).
 - **Bracketed gap** (a qualifying observation on both sides): an estimate is shown when the interval is at least 80 days (`MIN_BRACKETED_GAP_DAYS`). Interpolation is the baseline here. Radar was worse in every bin up to 60 days, and beyond 60 days no difference was detected. The exploratory linear crossover was 78.6 days for RF (block-bootstrap 95 % CI 58–152, extending beyond the longest observed gap) and 83.3 for XGBoost.

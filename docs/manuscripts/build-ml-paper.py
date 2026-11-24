@@ -13,6 +13,7 @@ import csv
 import html
 import json
 import math
+import os
 import re
 import subprocess
 from pathlib import Path
@@ -24,8 +25,9 @@ from docx.shared import Inches
 HERE = Path(__file__).parent
 ROOT = HERE.parents[1]
 SOURCE, BASE = HERE / "ml-paper.md", HERE / "phase7-paper-standard.docx"
+ANALYSES = "research/private/ml-dataset/revision-2026-11/analyses.json"  # revision_analyses.py output
 DOCX, HTML, PDF = HERE / "ml-paper.docx", HERE / "ml-paper.html", ROOT / "output/pdf/matani-ml-paper.pdf"
-CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+CHROME = os.environ.get("CHROME", "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome")
 W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
 TAG = re.compile(r"\s*\[(?:EVID|OBS|DEC|HYP|CODE|EVAL|SPEC)[^\]]*\]")
 
@@ -247,7 +249,7 @@ def table(proto, rows):
     # or a word split at spaces/hyphens) so nothing breaks mid-word; long text may wrap at spaces.
     # Widths are in character units; narrow punctuation counts half, so an interval column does not starve "F0+F1+F2".
     chars = lambda text: sum(0.5 if ch in ".,:;[]() \u00a0" else 1 for ch in text)
-    token = lambda cell: max(chars(t) for t in re.split(r"[ \t\n\-–]+", cell) if t)  # a no-break space joins its token
+    token = lambda cell: max((chars(t) for t in re.split(r"[ \t\n\-–]+", cell) if t), default=0)  # a no-break space joins its token
     need = [max(max(token(c) for c in col) + 2, 0.6 * max(chars(c) for c in col), 6) for col in zip(*rows)]
     widths = [int(width * n / sum(need)) for n in need]
     for w in widths:
@@ -349,7 +351,7 @@ def check(source, blocks):
         assert f"{evid}" in register, f"{evid} missing from evidence register"
     rendered = " ".join(str(p[0] if k == "fig" else p) for k, p in blocks)
     assert not re.search(r"(EVID|OBS|DEC|HYP)-\d|research/private|/Users/|\bSPEC\b|\bCODE:", rendered), "internal tag"
-    assert [k for k, _ in blocks].count("table") == 3 and [k for k, _ in blocks].count("fig") == 4
+    assert [k for k, _ in blocks].count("table") == 4 and [k for k, _ in blocks].count("fig") == 4
     # R16: no review-trace wording in the rendered paper (figure images are checked by eye, e.g. Fig. 4's model version)
     assert not re.search(r"(?i)\b(reviewer|astra|claude code|draft \d+|round \d+)\b", rendered.replace("REVIEWER-NAME", "")), "R16 review-trace wording"
     if "REVIEWER-NAME" in rendered:
@@ -386,7 +388,7 @@ def app_cutoffs():
     """The display cutoffs as implemented, so the paper cannot drift from the app (DEC-62)."""
     code = (ROOT / "utils/estimate-timeline.ts").read_text()
     grab = lambda name: int(re.search(rf"export const {name} = (\d+);", code).group(1))
-    return grab("MIN_BRACKETED_GAP_DAYS"), grab("MIN_OPEN_GAP_DAYS")
+    return grab("MIN_BRACKETED_GAP_DAYS"), grab("MIN_LEADING_GAP_DAYS"), grab("MIN_TRAILING_GAP_DAYS")
 
 
 def expected_numbers(numbers):
@@ -425,7 +427,7 @@ def expected_numbers(numbers):
     ndvi = lambda label: rv["ndvi_range"][f"{label} rf"]
     offset = lambda rng: [rv["offset"][f"{rng} {direction} rf"]["mae"] for direction in ("radarBeforeOptical", "radarAfterOptical")]
     split, flag, sc = rv["split"], rv["flag_counts"], rv["showcase"]
-    bracketed, open_gap = app_cutoffs()
+    bracketed, leading, trailing = app_cutoffs()
     assert round(cr("locf", "rf")["days"]) == round(cr("locf", "xgb")["days"]), "LOCF crossovers differ: rewrite 'for both learners'"
     assert app["shown"] == app["shown_before_first"], "Fig. 4 estimates are no longer all before the first observation: rewrite IV-F"
     day = lambda iso: f"{int(iso[8:10])} {['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'][int(iso[5:7]) - 1]}"
@@ -439,10 +441,10 @@ def expected_numbers(numbers):
         "rows": f"{numbers['ml_rows']} clear-sky",
         "headline": f"MAE {fmt(rf['mae'])} (95% CI {fmt(rf['mae_lo'])} to {fmt(rf['mae_hi'])}) and R² {fmt(pooled['rf F0+F1']['r2'], 2)}",
         "abstract history": f"radar history reduced error by {-d('rf F0+F1-F0')['diff']:.3f}",
-        "abstract interp": f"(exploratory linear crossover at {cr('interpolation', 'rf')['days']:.0f} days, CI {cr('interpolation', 'rf')['lo']:.0f} to {cr('interpolation', 'rf')['hi']:.0f})",
+        "abstract interp": f"a fitted linear crossover at {cr('interpolation', 'rf')['days']:.0f} days (CI {cr('interpolation', 'rf')['lo']:.0f} to {cr('interpolation', 'rf')['hi']:.0f}) is exploratory only",
         "abstract locf": f"about {cr('locf', 'rf')['days']:.0f} days (CI {cr('locf', 'rf')['lo']:.0f} to {cr('locf', 'rf')['hi']:.0f})",
-        "abstract locf long": f"radar error was {-binv('locf', '>30')['diff']:.3f} lower",
-        "abstract rules": f"open gaps of at least {open_gap} days and bracketed gaps of at least {bracketed} days",
+        "abstract locf long": f"(error {-binv('locf', '>30')['diff']:.3f} lower)",
+        "abstract rules": f"open gaps of at least {trailing} days after the last observation and {leading} days before the first, and bracketed gaps of at least {bracketed} days",
         "validity share": f"{100 * total['target_pass'] / total['acquisitions']:.1f}% met",
         "matched share": f"{100 * total['ml_rows'] / total['target_pass']:.1f}% of those",
         "pool rows": f"({numbers['pool_rows']} in total)",
@@ -492,12 +494,79 @@ def expected_numbers(numbers):
         "december estimates": "estimated at {} and {}".format(*[f"{p:.2f}" for d_, p, _ in kk["held_out"] if d_[5:7] == "12"]),
         "rmse vs mohite": f"reported an RMSE of 0.08 for rice with random forest [5], compared with {fmt(pooled['rf F0+F1']['rmse'])} here",
         "rule bracketed": f"at least {bracketed} days",
-        "rule open": f"at least {open_gap} days away",
-        "app display": "Of the {radar_passes} radar passes in 2021, {near_measurement} fell within three days of a qualifying observation and {short_gap} did not meet either display rule, so the chart shows {shown} estimates".format(**app),
-        "app dates": f"all between {day(app['shown_dates'][0])} and {day(app['shown_dates'][-1])}, before the first observation on {day(app['first_measured'])}",
+        "rule trailing": f"at least {trailing} days away",
+        "rule leading": f"at least {leading} days are required",
+        "app display": "Of the {radar_passes} radar passes in 2021, {near_measurement} fell within three days of a qualifying observation and {short_gap} did not meet a display rule, so the chart shows {shown} estimates".format(**app),
+        "app dates": f"all between {day(app['shown_dates'][0])} and {day(app['shown_dates'][-1])}, in the {kk['leading_absence_days']}-day gap before the first observation on {day(app['first_measured'])}",
         "app panel": f"open for the estimate of {day(app['shown_dates'][-1])}",
-        "app mae": f"pooled held-out MAE rounded to {rf['mae']:.2f}",
     }
+    return rows, text
+
+
+def revision_numbers(numbers):
+    """Table IV and the quoted values of the camera-ready analyses (research/scripts/revision_analyses.py), and the
+    app's 80% range table, which must equal the analysed one."""
+    a = json.loads((ROOT / ANALYSES).read_text())
+    bins, lb, iso, nocb, hyb, unc = a["table_iii"], a["long_bins"], a["isotonic_crossover"], a["nocb"], a["hybrid"], a["uncertainty"]
+    cross = numbers["ci"]["crossover"]
+    bracketed, leading, trailing = app_cutoffs()
+    cell = lambda b: f"{fmt(b['diff'], sign=True)} [{fmt(b['lo'])}, {fmt(b['hi'])}]"
+    ci = lambda b: f"(CI {-b['hi']:.3f} to {-b['lo']:.3f}"
+    words = {3: "three", 4: "four", 5: "five"}
+    loc, itp = lb["locf"], lb["interpolation"]
+    assert loc["tiles"] == itp["tiles"] == 3, "long-gap bins no longer span all three tiles: rewrite IV-C"
+    assert loc["leave_one_block_out"]["ci_excludes_zero"] == loc["leave_one_block_out"]["clusters"], "LOCF >30 leave-one-block-out: rewrite IV-D"
+    assert loc["leave_one_event_out"]["ci_excludes_zero"] == loc["leave_one_event_out"]["clusters"], "LOCF >30 leave-one-event-out: rewrite IV-D"
+    assert itp["leave_one_block_out"]["ci_excludes_zero"] == itp["leave_one_event_out"]["ci_excludes_zero"] == 0, "interp >60 leave-one-out: rewrite IV-D"
+    cr = lambda key: f"{cross[key]['days']:.0f} [{cross[key]['lo']:.0f}, {cross[key]['hi']:.0f}] linear"
+    ic = lambda c: f"{c['days']:.0f} [{c['lo']:.0f}, {c['hi'] if isinstance(c['hi'], str) else round(c['hi'])}] isotonic".replace("beyond observed range", f">{c['gap_range'][1]}")
+    nb = nocb["bins"]
+    rows = [
+        f"| After last obs., ≥{trailing} d | LOCF | 21–30 | {bins['locf']['21-30']['rows']} | {cell(bins['locf']['21-30'])} | {cr('locf rf')} |",
+        f"|  |  | >30 | {bins['locf']['>30']['rows']} | {cell(bins['locf']['>30'])} | {ic(iso['locf'])} |",
+        f"| Before first obs., ≥{leading} d | NOCB | 21–30 | {nb['21-30']['rows']} | {cell(nb['21-30'])} | {ic(nocb['isotonic_crossover'])} |",
+        f"|  |  | >30 | {nb['>30']['rows']} | {cell(nb['>30'])} | – |",
+        f"| Bracketed, ≥{bracketed} d, exploratory | Interp. | 46–60 | {bins['interpolation']['46-60']['rows']} | {cell(bins['interpolation']['46-60'])} | {cr('interpolation rf')} |",
+        f"|  |  | >60 | {bins['interpolation']['>60']['rows']} | {cell(bins['interpolation']['>60'])} | {ic(iso['interpolation'])} |",
+    ]
+    nn, causal = a["without_negative"], a["radar_before_optical"]
+    lobo, loeo = loc["leave_one_block_out"], loc["leave_one_event_out"]
+    rmh, hml = hyb["radar_minus_hybrid"], hyb["hybrid_minus_locf"]
+    betas = hyb["betas_by_held_out_tile"].values()
+    text = {
+        "long bins": f"The >30-day bin held {loc['rows']} rows from {loc['blocks']} blocks in all three tiles, on {loc['s2_dates']} Sentinel-2 dates, "
+                     f"with at most {words[loc['max_rows_per_block']]} rows per block, and the >60-day interpolation bin held {itp['rows']} rows from "
+                     f"{itp['blocks']} blocks on {itp['s2_dates']} dates",
+        "lobo": f"ranged from {fmt(lobo['diff_min'])} to {fmt(lobo['diff_max'])} when any one block was left out",
+        "loeo": f"and from {fmt(loeo['diff_min'])} to {fmt(loeo['diff_max'])} when any one tile and Sentinel-2 date was left out",
+        "event ci": f"clustered by tile and date instead of block, the intervals were {fmt(loc['event_clustered_ci']['lo'])} to {fmt(loc['event_clustered_ci']['hi'])}, "
+                    f"{fmt(nocb['event_clustered_ci_over_30']['lo'])} to {fmt(nocb['event_clustered_ci_over_30']['hi'])} against NOCB and "
+                    f"{fmt(itp['event_clustered_ci']['lo'])} to {fmt(itp['event_clustered_ci']['hi'])} for interpolation",
+        "leading rows": f"only {nocb['rows_before_first_observation']} rows lay before their block's first observation",
+        "no negative locf": f"Without rows whose reference or baseline value was negative the difference was {fmt(nn['locf']['>30']['diff'])} (CI {fmt(nn['locf']['>30']['lo'])} to {fmt(nn['locf']['>30']['hi'])}, "
+                            f"{nn['locf']['>30']['rows']} rows), with persistence MAE {fmt(nn['locf']['>30']['baseline_mae'])} instead of {fmt(bins['locf']['>30']['baseline_mae'])}",
+        "causal locf": f"with only radar passes before the optical date it was {fmt(causal['locf']['>30']['diff'])} (CI {fmt(causal['locf']['>30']['lo'])} to "
+                       f"{fmt(causal['locf']['>30']['hi'])}, {causal['locf']['>30']['rows']} rows)",
+        "interp checks": f"without negative values ({fmt(nn['interpolation']['>60']['diff'])}, CI {fmt(nn['interpolation']['>60']['lo'])} to {fmt(nn['interpolation']['>60']['hi'])}) "
+                         f"and with earlier radar only ({fmt(causal['interpolation']['>60']['diff'])}, CI {fmt(causal['interpolation']['>60']['lo'])} to {fmt(causal['interpolation']['>60']['hi'])})",
+        "range coverage": f"contained {100 * unc['pooled_mae_coverage']:.0f}% of references, whereas the 80% range by estimate value, taken for each region from the other two regions, "
+                          f"contained {100 * unc['band_coverage']:.0f}%, with a mean width of {unc['band_mean_width']:.2f}",
+        "nocb": f"no difference was detected at 21–30 days ({fmt(nb['21-30']['diff'])}, CI {fmt(nb['21-30']['lo'])} to {fmt(nb['21-30']['hi'])}, {nb['21-30']['rows']} rows), "
+                f"and beyond 30 days radar was {-nb['>30']['diff']:.3f} more accurate {ci(nb['>30'])}, {nb['>30']['rows']} rows), with an isotonic crossover at "
+                f"{nocb['isotonic_crossover']['days']:.0f} days (CI {nocb['isotonic_crossover']['lo']:.0f} to {nocb['isotonic_crossover']['hi']:.0f})",
+        "hybrid": f"with β of {min(betas):.3f} to {max(betas):.3f} per dB, matched persistence overall (MAE {fmt(hyb['hybrid_mae'])})",
+        "hybrid gain": f"by {-hml['21-30']['diff']:.3f} at 21–30 days and {-hml['>30']['diff']:.3f} beyond 30 days",
+        "radar vs hybrid": f"was {-rmh['>30']['diff']:.3f} more accurate beyond 30 days {ci(rmh['>30'])})",
+        "iso interp": f"The isotonic crossover was {iso['interpolation']['days']:.0f} days, with an interval from {iso['interpolation']['lo']:.0f} days to beyond the observed range, "
+                      f"because {100 * (1 - iso['interpolation']['replicates_with_crossing']):.0f}% of resamples never crossed zero",
+        "iso locf": f"the isotonic crossover was {iso['locf']['days']:.0f} days (CI {iso['locf']['lo']:.0f} to {iso['locf']['hi']:.0f})",
+    }
+    assert fmt(hyb["hybrid_mae"]) == fmt(hyb["locf_mae"]), "hybrid no longer matches persistence overall: rewrite IV-C"
+    assert iso["interpolation"]["hi"] == "beyond observed range", "isotonic interpolation interval now bounded: rewrite IV-C"
+    code = (ROOT / "utils/estimate-timeline.ts").read_text()
+    app_bins = [(float(q10), float(q90)) for q10, q90 in re.findall(r"q10: (-?[\d.]+), q90: (-?[\d.]+)", code)]
+    analysed = [(round(v["q10"], 3), round(v["q90"], 3)) for v in unc["per_bin_all_tiles"].values()]
+    assert app_bins == analysed, f"app 80% range table {app_bins} differs from the analysis {analysed}"
     return rows, text
 
 
@@ -505,6 +574,8 @@ def verify_numbers(source):
     """Lists every selected table row or quoted value that no longer matches the evaluation files."""
     numbers = json.loads((HERE / "ml-paper-numbers.json").read_text())
     rows, text = expected_numbers(numbers)
+    more_rows, more_text = revision_numbers(numbers)
+    rows, text = rows + more_rows, {**text, **more_text}
     stale = [f"table row {r}" for r in rows if r not in source]
     stale += [f"{name}: expected “{t}”" for name, t in text.items() if t not in source]
     assert not stale, "stale numbers:\n  " + "\n  ".join(stale)

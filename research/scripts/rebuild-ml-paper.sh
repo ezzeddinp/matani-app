@@ -12,6 +12,7 @@ HANDOFF=${HANDOFF:-research/private/ml-dataset/ml-dataset-v2}  # v2 = per-track 
 
 uv run --no-project --with polars --with pyarrow --with numpy python research/scripts/reviewer_ci.py \
   --pipelines "$PIPELINES" --out "$CI"
+ANALYSES=research/private/ml-dataset/revision-2026-11/analyses.json  # revision_analyses.py (AGERS camera-ready)
 uv run --no-project --with numpy --with matplotlib --with polars --with pyarrow python research/scripts/make-ml-paper-figures.py \
-  --handoff "$HANDOFF" --pipelines "$PIPELINES" --ci "$CI" --out docs/manuscripts
+  --handoff "$HANDOFF" --pipelines "$PIPELINES" --ci "$CI" --analyses "$ANALYSES" --out docs/manuscripts
 uv run --no-project --with python-docx python docs/manuscripts/build-ml-paper.py

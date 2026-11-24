@@ -1,0 +1,26 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "oversized-h1",
+        "value": "*",
+        "files": [
+          "docs/manuscripts/ml-paper.html"
+        ],
+        "createdAt": "2026-11-24T06:05:58.593Z",
+        "reason": "Claude: generated IEEE paper review copy; 22pt title and heading levels follow the IEEE conference template set in build-ml-paper.py CSS, unchanged this session"
+      },
+      {
+        "rule": "skipped-heading",
+        "value": "*",
+        "files": [
+          "docs/manuscripts/ml-paper.html"
+        ],
+        "createdAt": "2026-11-24T06:05:58.609Z",
+        "reason": "Claude: generated IEEE paper review copy; 22pt title and heading levels follow the IEEE conference template set in build-ml-paper.py CSS, unchanged this session"
+      }
+    ]
+  }
+}

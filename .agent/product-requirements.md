@@ -3,7 +3,7 @@
 **Document type:** Product requirements document
 **Audience:** The developer, thesis advisor, reviewers, and AI agents working in this repo
 **Status:** Active
-**Updated:** 2026-09-25
+**Updated:** 2026-11-24
 **Canonical for:** Feature behavior, scope tags, and product invariants
 **Companion documents:** [`product-brief.md`](product-brief.md), [`project-architecture.md`](project-architecture.md), [`design-guidelines.md`](design-guidelines.md), [`research-protocol.md`](research-protocol.md), [`data-evaluation-plan.md`](data-evaluation-plan.md), [`implementation-plan.md`](implementation-plan.md)
 
@@ -366,5 +366,7 @@ Automated JSX/helper evidence is not rendered-device verification.
   - there is never an NDMI value for an estimate;
   - held-out (`held_out_test`) rows appear only as a comparison inside the selected measured point's detail.
 - **Year selector:** year chips appear when the plotted data spans more than one year, defaulting to the latest year.
+- **Display rules (DEC-62/63):** bracketed gaps ≥80 days (exploratory), ≥30 days before the first observation (vs NOCB), ≥20 days after the last (vs persistence) (OBS-91).
+- **80% range (DEC-63):** each estimate of a run with a measured range shows a whisker and a panel line with its empirical 80% range; other runs show none and keep the pooled MAE line.
 - **Failure handling:** a failed or missing estimates read must not block observations.
-- **Tests:** `utils/estimate-timeline.ts`, `tests/estimate-timeline.test.mjs`. Rendered-device verification is pending.
+- **Tests:** `utils/estimate-timeline.ts`, `tests/estimate-timeline.test.mjs` (rules and range). Rendered web verification 2026-11-24 (OBS-91); device verification is pending.

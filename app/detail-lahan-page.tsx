@@ -6,8 +6,10 @@ import { observationChartX } from "@/utils/observation-chart";
 import { shouldStartMeasurement } from "@/utils/measurement-start";
 import {
   MIN_BRACKETED_GAP_DAYS,
-  MIN_OPEN_GAP_DAYS,
+  MIN_LEADING_GAP_DAYS,
+  MIN_TRAILING_GAP_DAYS,
   MODEL_LABEL,
+  estimateRange,
   gapEstimates,
   heldOutFor,
   inYear,
@@ -68,7 +70,43 @@ const PADI_IMAGE = require("@/assets/foto-ladang/padi.jpg");
 const CHART_WIDTH = 320;
 const CHART_HEIGHT = 190;
 const CHART_PADDING = 30;
-const dateFormatter = new Intl.DateTimeFormat("id-ID", {
+// The chart and its detail panel also render in English (EXPO_PUBLIC_CHART_LANG=en) for the paper's figure.
+const CHART_LANG = process.env.EXPO_PUBLIC_CHART_LANG === "en" ? "en" : "id";
+const CHART_COPY = {
+  id: {
+    measured: "Terukur",
+    measuredLegend: "Terukur · Sentinel-2",
+    estimate: "Estimasi model",
+    estimateLegend: "Estimasi model · rentang 80%",
+    estimatesCount: (n: number) => `${n} estimasi model`,
+    measuredCount: (n: number) => `${n} titik terukur`,
+    range: (low: string, high: string) => `Rentang 80%: ${low} sampai ${high}, dari galat model di wilayah uji`,
+    meanError: (mae: string) => `Rata-rata galat model di wilayah uji: ±${mae} NDVI`,
+    radar: (date: string) => `Dari radar Sentinel-1${date ? `, ${date}` : ""}`,
+    orbit: (ascending: boolean) => ` · orbit ${ascending ? "naik" : "turun"}`,
+    model: "Model",
+    version: "versi",
+    note: (bracketed: number, leading: number, trailing: number) =>
+      `Bukan pengukuran optik. Ditampilkan hanya pada celah optik panjang, dengan batas sementara: ${bracketed} hari atau lebih di antara dua citra Sentinel-2 yang lolos kualitas (batas eksploratif), ${leading} hari atau lebih sebelum citra pertama, atau ${trailing} hari atau lebih setelah citra terakhir. Tidak ada nilai NDMI untuk estimasi.`,
+  },
+  en: {
+    measured: "Measured",
+    measuredLegend: "Measured · Sentinel-2",
+    estimate: "Model-derived estimate",
+    estimateLegend: "Model-derived estimate · 80% range",
+    estimatesCount: (n: number) => `${n} model-derived estimates`,
+    measuredCount: (n: number) => `${n} measured points`,
+    range: (low: string, high: string) => `80% range: ${low} to ${high}, from the model's error in held-out regions`,
+    meanError: (mae: string) => `Mean model error in held-out regions: ±${mae} NDVI`,
+    radar: (date: string) => `From Sentinel-1 radar${date ? `, ${date}` : ""}`,
+    orbit: (ascending: boolean) => ` · ${ascending ? "ascending" : "descending"} orbit`,
+    model: "Model",
+    version: "version",
+    note: (bracketed: number, leading: number, trailing: number) =>
+      `Not an optical measurement. Shown only in long optical gaps, under provisional cutoffs: ${bracketed} days or more between two qualifying Sentinel-2 images (exploratory cutoff), ${leading} days or more before the first image, or ${trailing} days or more after the last. Estimates have no NDMI value.`,
+  },
+}[CHART_LANG];
+const dateFormatter = new Intl.DateTimeFormat(CHART_LANG === "en" ? "en-GB" : "id-ID", {
   day: "2-digit",
   month: "short",
   year: "numeric",
@@ -170,7 +208,7 @@ function ObservationChart({
     .filter((item): item is { point: TimelinePoint; value: number; timestamp: string } =>
       typeof item.value === "number" && Number.isFinite(item.value));
   const estimated = indexKey === "ndvi"
-    ? estimates.map((point) => ({ point, value: point.ndvi, timestamp: point.timestamp }))
+    ? estimates.map((point) => ({ point, value: point.ndvi, timestamp: point.timestamp, range: estimateRange(point) }))
     : [];
 
   if (measured.length === 0 && estimated.length === 0) {
@@ -191,8 +229,9 @@ function ObservationChart({
   const times = all.map((item) => Date.parse(item.timestamp));
   const first = new Date(Math.min(...times)).toISOString();
   const last = new Date(Math.max(...times)).toISOString();
-  const minValue = Math.min(...all.map((item) => item.value));
-  const maxValue = Math.max(...all.map((item) => item.value));
+  const rangeEnds = estimated.flatMap((item) => (item.range ? [item.range.low, item.range.high] : []));
+  const minValue = Math.min(...all.map((item) => item.value), ...rangeEnds);
+  const maxValue = Math.max(...all.map((item) => item.value), ...rangeEnds);
   const span = Math.max(maxValue - minValue, 0.1);
   const chartInnerWidth = CHART_WIDTH - CHART_PADDING * 2;
   const chartInnerHeight = CHART_HEIGHT - CHART_PADDING * 2;
@@ -201,7 +240,11 @@ function ObservationChart({
     y: CHART_PADDING + ((maxValue - value) / span) * chartInnerHeight,
   });
   const measuredCoords = measured.map((item) => ({ ...item, ...place(item.timestamp, item.value) }));
-  const estimatedCoords = estimated.map((item) => ({ ...item, ...place(item.timestamp, item.value) }));
+  const estimatedCoords = estimated.map((item) => ({
+    ...item,
+    ...place(item.timestamp, item.value),
+    whisker: item.range ? [place(item.timestamp, item.range.high).y, place(item.timestamp, item.range.low).y] : null,
+  }));
   const stroke = indexKey === "ndvi" ? "#15803D" : "#0369A1";
   const selectedId = selection?.point.id ?? null;
 
@@ -237,8 +280,8 @@ function ObservationChart({
           selectNearest(clientX - box.left, clientY - box.top);
         }}
         accessibilityRole="button"
-        accessibilityLabel={`Grafik deret waktu ${indexKey.toUpperCase()}: ${measured.length} titik terukur${
-          estimated.length ? `, ${estimated.length} estimasi radar` : ""
+        accessibilityLabel={`Grafik deret waktu ${indexKey.toUpperCase()}: ${CHART_COPY.measuredCount(measured.length)}${
+          estimated.length ? `, ${CHART_COPY.estimatesCount(estimated.length)}` : ""
         }`}
         accessibilityHint="Ketuk dekat sebuah titik untuk melihat sumber nilainya di bawah grafik."
       >
@@ -249,12 +292,19 @@ function ObservationChart({
             return (
               <G key={ratio}>
                 <Line x1={CHART_PADDING} y1={y} x2={CHART_WIDTH - CHART_PADDING} y2={y} stroke="#E2E8F0" strokeWidth={1} />
-                <SvgText x={2} y={y + 4} fontSize={9} fill="#64748B">
+                <SvgText x={2} y={y + 4} fontSize={10} fill="#475569">
                   {value.toFixed(2)}
                 </SvgText>
               </G>
             );
           })}
+          {estimatedCoords.map((item) => item.whisker && (
+            <G key={`r-${item.point.id}`} stroke={stroke} strokeOpacity={item.point.id === selectedId ? 0.9 : 0.45} strokeWidth={1.25}>
+              <Line x1={item.x} y1={item.whisker[0]} x2={item.x} y2={item.whisker[1]} />
+              <Line x1={item.x - 3} y1={item.whisker[0]} x2={item.x + 3} y2={item.whisker[0]} />
+              <Line x1={item.x - 3} y1={item.whisker[1]} x2={item.x + 3} y2={item.whisker[1]} />
+            </G>
+          ))}
           {estimatedCoords.map((item) => (
             <Path
               key={`e-${item.point.id}`}
@@ -287,14 +337,19 @@ function ObservationChart({
           <Svg width={14} height={14} viewBox="0 0 14 14">
             <Circle cx={7} cy={7} r={4.5} fill="#FFFFFF" stroke={stroke} strokeWidth={2.5} />
           </Svg>
-          <Text style={styles.legendText}>Terukur · Sentinel-2</Text>
+          <Text style={styles.legendText}>{CHART_COPY.measuredLegend}</Text>
         </View>
         {indexKey === "ndvi" && estimated.length > 0 && (
           <View style={styles.legendItem}>
-            <Svg width={14} height={14} viewBox="0 0 14 14">
-              <Path d={diamondPath(7, 7, 5.5)} fill="#FFFFFF" stroke={stroke} strokeWidth={1.75} strokeDasharray="2.5 2" />
+            <Svg width={14} height={18} viewBox="0 0 14 18">
+              <G stroke={stroke} strokeOpacity={0.45} strokeWidth={1.25}>
+                <Line x1={7} y1={1} x2={7} y2={17} />
+                <Line x1={4} y1={1} x2={10} y2={1} />
+                <Line x1={4} y1={17} x2={10} y2={17} />
+              </G>
+              <Path d={diamondPath(7, 9, 5.5)} fill="#FFFFFF" stroke={stroke} strokeWidth={1.75} strokeDasharray="2.5 2" />
             </Svg>
-            <Text style={styles.legendText}>Estimasi radar · Sentinel-1</Text>
+            <Text style={styles.legendText}>{CHART_COPY.estimateLegend}</Text>
           </View>
         )}
       </View>
@@ -326,7 +381,7 @@ function SelectionDetail({
     return (
       <View style={styles.selectionPanel} accessibilityLiveRegion="polite">
         <View style={styles.selectionHeader}>
-          <Text style={styles.selectionKind}>Terukur</Text>
+          <Text style={styles.selectionKind}>{CHART_COPY.measured}</Text>
           <Text style={styles.selectionDate}>{formatDate(point.timestamp)}</Text>
         </View>
         <Text style={styles.selectionValue}>
@@ -338,7 +393,7 @@ function SelectionDetail({
         {blind && value !== null && (
           <View style={styles.selectionCompare}>
             <Text style={styles.selectionCompareText}>
-              Uji model: estimasi radar tanpa melihat nilai ini adalah {blind.ndvi.toFixed(3)} (selisih{" "}
+              Uji model: estimasi model tanpa melihat nilai ini adalah {blind.ndvi.toFixed(3)} (selisih{" "}
               {blind.ndvi - value >= 0 ? "+" : "−"}
               {Math.abs(blind.ndvi - value).toFixed(3)}).
             </Text>
@@ -349,33 +404,29 @@ function SelectionDetail({
   }
 
   const point = selection.point;
+  const range = estimateRange(point);
   return (
     <View style={[styles.selectionPanel, styles.selectionPanelEstimate]} accessibilityLiveRegion="polite">
       <View style={styles.selectionHeader}>
-        <Text style={[styles.selectionKind, styles.selectionKindEstimate]}>Estimasi radar</Text>
+        <Text style={[styles.selectionKind, styles.selectionKindEstimate]}>{CHART_COPY.estimate}</Text>
         <Text style={styles.selectionDate}>{formatDate(point.timestamp)}</Text>
       </View>
       <Text style={styles.selectionValue}>NDVI ≈ {point.ndvi.toFixed(2)}</Text>
+      {range && (
+        <Text style={styles.selectionRange}>{CHART_COPY.range(range.low.toFixed(2), range.high.toFixed(2))}</Text>
+      )}
       {point.modelTestMae !== null && (
-        <Text style={styles.selectionMeta}>
-          Rata-rata galat model saat diuji di wilayah lain: ±{point.modelTestMae.toFixed(2)} NDVI
-        </Text>
+        <Text style={styles.selectionMeta}>{CHART_COPY.meanError(point.modelTestMae.toFixed(2))}</Text>
       )}
       <Text style={styles.selectionMeta}>
-        Dari radar Sentinel-1{point.radarAcquiredAt ? `, ${formatDate(point.radarAcquiredAt)}` : ""}
-        {point.orbitDirection ? ` · orbit ${point.orbitDirection === "ASCENDING" ? "naik" : "turun"}` : ""}
+        {CHART_COPY.radar(point.radarAcquiredAt ? formatDate(point.radarAcquiredAt) : "")}
+        {point.orbitDirection ? CHART_COPY.orbit(point.orbitDirection === "ASCENDING") : ""}
       </Text>
       <Text style={styles.selectionMeta}>
-        Model {MODEL_LABEL[point.modelName] ?? point.modelName}
-        {point.modelVersion ? ` · versi ${point.modelVersion}` : ""}
+        {CHART_COPY.model} {MODEL_LABEL[point.modelName] ?? point.modelName}
+        {point.modelVersion ? ` · ${CHART_COPY.version} ${point.modelVersion}` : ""}
       </Text>
-      <Text style={styles.selectionNote}>
-        Bukan pengukuran optik. Estimasi radar hanya ditampilkan bila jarak antara dua citra Sentinel-2 yang lolos
-        kualitas mencapai {MIN_BRACKETED_GAP_DAYS} hari atau lebih. Sebelum citra pertama dan setelah citra terakhir,
-        estimasi ditampilkan bila citra terdekat berjarak {MIN_OPEN_GAP_DAYS} hari atau lebih. Batas ini sementara,
-        diambil dari uji perbandingan dengan nilai terukur terdekat; celah sebelum citra pertama belum diuji tersendiri.
-        Tidak ada nilai NDMI untuk estimasi.
-      </Text>
+      <Text style={styles.selectionNote}>{CHART_COPY.note(MIN_BRACKETED_GAP_DAYS, MIN_LEADING_GAP_DAYS, MIN_TRAILING_GAP_DAYS)}</Text>
     </View>
   );
 }
@@ -496,7 +547,7 @@ export default function DetailLahanPage() {
         setObservations(timeline);
         if (estimateResult.error) {
           // Estimates are optional context; a missing table or failed read never blocks measurements.
-          console.warn("Estimasi radar tidak dimuat:", estimateResult.error.message);
+          console.warn("Estimasi model tidak dimuat:", estimateResult.error.message);
           setEstimates([]);
         } else {
           setEstimates(toEstimatePoints((estimateResult.data ?? []) as EstimateRecord[]));
@@ -738,7 +789,7 @@ export default function DetailLahanPage() {
           />
           {activeIndex === "ndmi" && chartEstimates.length > 0 && (
             <Text style={styles.selectionHint}>
-              Estimasi radar hanya tersedia untuk NDVI. Pilih NDVI untuk melihatnya.
+              Estimasi model hanya tersedia untuk NDVI. Pilih NDVI untuk melihatnya.
             </Text>
           )}
           <SelectionDetail selection={selection} indexKey={activeIndex} estimates={estimates} />
@@ -893,7 +944,7 @@ export default function DetailLahanPage() {
               ? `${unavailableCount} citra ditolak/tidak tersedia dan tidak ditampilkan sebagai nilai.`
               : "Nilai pada halaman ini berasal dari measurement CDSE yang tersimpan dengan provenance sumber."}
             {gapFill.length > 0
-              ? ` ${gapFill.length} estimasi radar ditampilkan sebagai belah ketupat pada grafik NDVI, hanya pada celah optik panjang (${MIN_BRACKETED_GAP_DAYS} hari atau lebih di antara dua citra, atau ${MIN_OPEN_GAP_DAYS} hari atau lebih di awal atau akhir rangkaian), dan tidak dihitung sebagai observasi.`
+              ? ` ${gapFill.length} estimasi model dari radar Sentinel-1 ditampilkan sebagai belah ketupat${gapFill.some((point) => estimateRange(point)) ? " dengan rentang 80%" : ""} pada grafik NDVI, hanya pada celah optik panjang (${MIN_BRACKETED_GAP_DAYS} hari atau lebih di antara dua citra, ${MIN_LEADING_GAP_DAYS} hari atau lebih di awal rangkaian, atau ${MIN_TRAILING_GAP_DAYS} hari atau lebih di akhirnya), dan tidak dihitung sebagai observasi.`
               : ""}
           </Text>
         </View>
@@ -956,6 +1007,7 @@ const styles = StyleSheet.create({
   selectionDate: { color: "#334155", fontSize: 13, fontWeight: "600" },
   selectionValue: { color: "#0F172A", fontSize: 22, fontWeight: "800", fontVariant: ["tabular-nums"] },
   selectionMeta: { color: "#475569", fontSize: 12, lineHeight: 18 },
+  selectionRange: { color: "#14532D", fontSize: 13, lineHeight: 19, fontWeight: "600", fontVariant: ["tabular-nums"], marginBottom: 2 },
   selectionCompare: { marginTop: 6, paddingTop: 8, borderTopWidth: 1, borderTopColor: "#F1F5F9" },
   selectionCompareText: { color: "#334155", fontSize: 12, lineHeight: 18 },
   selectionNote: { color: "#475569", fontSize: 12, lineHeight: 18, marginTop: 6 },

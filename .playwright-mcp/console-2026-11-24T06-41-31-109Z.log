@@ -1,0 +1,29 @@
+[     -49ms] [ERROR] Unrecognized Content-Security-Policy directive 'scrip-src'. @ https://gg.deals/us/redirect/377c868d48cd09ab7610cfb4697c2296b7f7d06a/:1
+[      35ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://gg.deals/redirections/report/?id=95c0b0e4-d493-4fb8-9068-128ad2a70fe4:1
+[      70ms] TypeError: Failed to fetch
+    at reportRedirection (https://gg.deals/us/redirect/377c868d48cd09ab7610cfb4697c2296b7f7d06a/:51:320)
+    at https://gg.deals/us/redirect/377c868d48cd09ab7610cfb4697c2296b7f7d06a/:52:2
+[     117ms] [ERROR] Unrecognized Content-Security-Policy directive 'scrip-src'. @ https://gg.deals/cdn-cgi/challenge-platform/scripts/precursor/main.js?ray=a5f66da7db86c3da:1
+[     118ms] [ERROR] Unrecognized Content-Security-Policy directive 'scrip-src'. @ https://gg.deals/cdn-cgi/challenge-platform/scripts/precursor/main.js?ray=a5f66da7db86c3da:1
+[     795ms] [WARNING] Error with Permissions-Policy header: Unrecognized feature: 'private-aggregation'. @ :1
+[     796ms] [WARNING] Error with Permissions-Policy header: Unrecognized feature: 'attribution-reporting'. @ :1
+[     826ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://static.cloudflareinsights.com/beacon.min.js/vce701823e78c4301a35b7e07294d87301792088814092:1
+[    1030ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://browser.sentry-cdn.com/8.0.0/bundle.min.js:1
+[    1225ms] [WARNING] Failed to execute 'postMessage' on 'DOMWindow': The target origin provided ('https://www.youtube.com') does not match the recipient window's origin ('https://difmark.com'). @ https://difmark.com/build/product-view.82249b7f.bundle.js:1
+[    1225ms] [WARNING] Failed to execute 'postMessage' on 'DOMWindow': The target origin provided ('https://www.youtube.com') does not match the recipient window's origin ('https://difmark.com'). @ https://difmark.com/build/product-view.82249b7f.bundle.js:1
+[    1225ms] [WARNING] Failed to execute 'postMessage' on 'DOMWindow': The target origin provided ('https://www.youtube.com') does not match the recipient window's origin ('https://difmark.com'). @ https://difmark.com/build/product-view.82249b7f.bundle.js:1
+[    1559ms] [WARNING] Error with Permissions-Policy header: Unrecognized feature: 'private-aggregation'. @ :1
+[    1559ms] [WARNING] Error with Permissions-Policy header: Unrecognized feature: 'attribution-reporting'. @ :1
+[    1785ms] [ERROR] Permissions policy violation: compute-pressure is not allowed in this document. @ https://www.youtube.com/s/player/7f755914/player_embed_es6.vflset/en_US/base.js:5776
+[    1819ms] TypeError: Cannot read properties of null (reading 'videoDetails')
+    at e (https://www.youtube.com/embed/KVvXv1Z6EY8?enablejsapi=1&autoplay=0:11:12715)
+    at HTMLDocument.<anonymous> (https://www.youtube.com/embed/KVvXv1Z6EY8?enablejsapi=1&autoplay=0:11:13678)
+[    2267ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://www.youtube.com/generate_204?IEi-Dw:1
+[    5404ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://www.youtube.com/youtubei/v1/log_event?alt=json:1
+[    9468ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://www.youtube.com/youtubei/v1/log_event?alt=json:1
+[   11447ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://www.youtube.com/youtubei/v1/log_event?alt=json:1
+[   20622ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://difmark.zendesk.com/frontendevents/dl?client=1B752747-577B-429A-A0E0-83861AF69088:1
+[   20655ms] Uncaught (in promise) UnknownError: Failed to fetch (difmark.zendesk.com)
+    at p (https://static.zdassets.com/web_widget/classic/latest/web-widget-main-2fef070.js:2:668966)
+[   22495ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://www.youtube.com/youtubei/v1/log_event?alt=json:1
+[   69458ms] [ERROR] Failed to load resource: net::ERR_BLOCKED_BY_CLIENT @ https://www.youtube.com/youtubei/v1/log_event?alt=json:1

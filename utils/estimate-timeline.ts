@@ -67,18 +67,24 @@ export const toEstimatePoints = (records: EstimateRecord[]): EstimatePoint[] =>
 
 const utcDate = (timestamp: string) => new Date(timestamp).toISOString().slice(0, 10);
 
-// Provisional display cutoffs, rounded from the fitted crossovers of the region-held-out gap comparison (paper IV-C,
-// DEC-62). The chart draws no baseline; these only decide whether an estimate is shown.
+// Provisional display cutoffs from the region-held-out gap comparisons (paper IV-C and Table IV, DEC-62/63). The
+// chart draws no baseline; these only decide whether an estimate is shown.
 // - bracketed gap (a qualifying observation on both sides): versus interpolation, no difference was detected only
 //   beyond 60 days, and the exploratory crossover was about 80 days;
-// - open gap (after the last observation): versus persistence, the fitted crossover was about 20 days. Before the
-//   first observation the same cutoff is applied by symmetry, a case not evaluated separately.
+// - trailing gap (after the last observation): versus persistence, the crossover was about 20 days;
+// - leading gap (before the first observation): versus the next observation carried backward, radar was worse up
+//   to 20 days and better only beyond 30 (crossover 26 days), so this side waits 30 days.
 export const MIN_BRACKETED_GAP_DAYS = 80;
-export const MIN_OPEN_GAP_DAYS = 20;
-export type GapRules = { bracketed: number; open: number };
-export const DISPLAY_RULES: GapRules = { bracketed: MIN_BRACKETED_GAP_DAYS, open: MIN_OPEN_GAP_DAYS };
+export const MIN_TRAILING_GAP_DAYS = 20;
+export const MIN_LEADING_GAP_DAYS = 30;
+export type GapRules = { bracketed: number; leading: number; trailing: number };
+export const DISPLAY_RULES: GapRules = {
+  bracketed: MIN_BRACKETED_GAP_DAYS,
+  leading: MIN_LEADING_GAP_DAYS,
+  trailing: MIN_TRAILING_GAP_DAYS,
+};
 
-// Both rules count whole UTC calendar days, the same convention as the importer
+// The 3-day and gap rules count whole UTC calendar days, the same convention as the importer
 // (research/lib/ndvi-estimate-import.mjs), so import and display agree at the 3-day boundary.
 const utcDay = (timestamp: string) => Math.floor(Date.parse(timestamp) / DAY_MS);
 
@@ -88,8 +94,8 @@ const longEnough = (day: number, measuredDays: number[], rules: GapRules) => {
   const before = Math.max(...measuredDays.filter((m) => m <= day));
   const after = Math.min(...measuredDays.filter((m) => m >= day));
   if (!Number.isFinite(before) && !Number.isFinite(after)) return false;
-  if (!Number.isFinite(before)) return after - day >= rules.open;
-  if (!Number.isFinite(after)) return day - before >= rules.open;
+  if (!Number.isFinite(before)) return after - day >= rules.leading;
+  if (!Number.isFinite(after)) return day - before >= rules.trailing;
   return after - before >= rules.bracketed;
 };
 
@@ -103,6 +109,28 @@ export const gapEstimates = (estimates: EstimatePoint[], measured: MeasuredLike[
     if (measuredDays.some((m) => Math.abs(m - day) <= MEASUREMENT_WINS_DAYS)) return false;
     return longEnough(day, measuredDays, rules);
   });
+};
+
+// Empirical 80% range of (optical reference − estimate), by estimate value, over the 792 region-held-out rows of
+// the run the app shows (research/scripts/revision_analyses.py, analyses.json "uncertainty"). When each region's
+// range came from the other two regions, it held 76% of that region's references. A run without a measured range
+// gets none, so a range is never shown for a model it was not measured on.
+type RangeBin = { upTo: number; q10: number; q90: number };
+const RANGE_BY_RUN: Record<string, RangeBin[]> = {
+  "random_forest F0+F1 2026.09": [
+    { upTo: 0.3, q10: -0.517, q90: 0.231 },
+    { upTo: 0.5, q10: -0.183, q90: 0.229 },
+    { upTo: 0.7, q10: -0.245, q90: 0.238 },
+    { upTo: Infinity, q10: -0.21, q90: 0.13 },
+  ],
+};
+
+export const estimateRange = (point: EstimatePoint) => {
+  const bins = RANGE_BY_RUN[`${point.modelName} ${point.featureSet} ${point.modelVersion}`];
+  const bin = bins?.find((candidate) => point.ndvi <= candidate.upTo);
+  if (!bin) return null;
+  const clamp = (value: number) => Math.min(1, Math.max(-1, value));
+  return { low: clamp(point.ndvi + bin.q10), high: clamp(point.ndvi + bin.q90) };
 };
 
 // Blind (held-out) estimate for a measured observation on the same UTC date, if any.
